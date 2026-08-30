@@ -5,10 +5,17 @@ import { useEffect, useRef, useState } from "react";
 const CREAM = "#efe1c4";
 const RUST = "#a8592f";
 const REVEAL_DURATION = 750;
+const REVEAL_FEATHER = 180;
+const REVEAL_MAX_RADIUS = 2200;
+const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
 
 type Overlay = { x: number; y: number; color: string } | null;
+
+function revealMask(radius: number, x: number, y: number) {
+  return `radial-gradient(circle at ${x}px ${y}px, black 0px, black ${radius}px, transparent ${radius + REVEAL_FEATHER}px, transparent 100%)`;
+}
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -19,6 +26,7 @@ export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const toggleBtnRef = useRef<HTMLButtonElement>(null);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
@@ -41,30 +49,34 @@ export default function Home() {
 
   // Runs after React has committed the overlay div to the DOM, so the ref is
   // guaranteed to be attached — no reliance on requestAnimationFrame timing.
+  // Uses a mask-image radial-gradient (cheap to render) rather than a blurred,
+  // clip-path-animated element: animating filter:blur on a large element was
+  // expensive enough to stall the first frames, which read as a pause-then-jump.
   useEffect(() => {
     if (!overlay) return;
     const el = overlayRef.current;
     if (!el) return;
-    const cx = overlay.x + 60;
-    const cy = overlay.y + 60;
+    const from = revealMask(0, overlay.x, overlay.y);
+    const to = revealMask(REVEAL_MAX_RADIUS, overlay.x, overlay.y);
     const anim = el.animate(
       [
-        { clipPath: `circle(0px at ${cx}px ${cy}px)` },
-        { clipPath: `circle(1800px at ${cx}px ${cy}px)` },
-      ],
+        { maskImage: from, WebkitMaskImage: from },
+        { maskImage: to, WebkitMaskImage: to },
+      ] as Keyframe[],
       {
         duration: REVEAL_DURATION,
-        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        easing: REVEAL_EASING,
         fill: "forwards",
       }
     );
     return () => anim.cancel();
   }, [overlay]);
 
-  function toggleTheme(e: React.MouseEvent<HTMLButtonElement>) {
-    const rect = rootRef.current?.getBoundingClientRect();
-    const x = e.clientX - (rect?.left ?? 0);
-    const y = e.clientY - (rect?.top ?? 0);
+  function toggleTheme() {
+    const rootRect = rootRef.current?.getBoundingClientRect();
+    const btnRect = toggleBtnRef.current?.getBoundingClientRect();
+    const x = btnRect && rootRect ? btnRect.left + btnRect.width / 2 - rootRect.left : 0;
+    const y = btnRect && rootRect ? btnRect.top + btnRect.height / 2 - rootRect.top : 0;
     const nextTheme = theme === "light" ? "dark" : "light";
     const nextColor = nextTheme === "dark" ? RUST : CREAM;
 
@@ -94,10 +106,10 @@ export default function Home() {
           ref={overlayRef}
           className="pointer-events-none absolute z-0"
           style={{
-            inset: "-60px",
+            inset: 0,
             backgroundColor: overlay.color,
-            clipPath: `circle(0px at ${overlay.x + 60}px ${overlay.y + 60}px)`,
-            filter: "blur(36px)",
+            WebkitMaskImage: revealMask(0, overlay.x, overlay.y),
+            maskImage: revealMask(0, overlay.x, overlay.y),
           }}
         />
       )}
@@ -110,6 +122,7 @@ export default function Home() {
 
       <div className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2.5">
         <button
+          ref={toggleBtnRef}
           onClick={toggleTheme}
           className="flex h-9 w-9 items-center justify-center border-[3px] p-0 transition-transform duration-200 hover:scale-[1.12]"
           style={{ borderColor: fg, backgroundColor: bg, color: fg }}

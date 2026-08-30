@@ -26,11 +26,44 @@ body {
   display: none;
 }
 
+/* Registering --reveal-radius as an animatable <length> lets the browser
+   interpolate it natively and recompute the gradient itself every frame.
+   Animating two full gradient() strings via the Web Animations API (the
+   previous approach) isn't reliably tweened smoothly by browsers — that
+   was the source of the choppiness, not the blur or the transition type. */
+@property --reveal-radius {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+:root {
+  --reveal-x: 0px;
+  --reveal-y: 0px;
+}
+
 /* Disable the browser's default cross-fade for the theme-toggle view
-   transition — the reveal is driven entirely by our own mask-image
-   animation on ::view-transition-new(root) in page.tsx. */
+   transition — the reveal is driven entirely by animating --reveal-radius
+   (see toggleTheme in page.tsx), which this mask-image formula reads. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  mask-image: radial-gradient(
+    circle at var(--reveal-x) var(--reveal-y),
+    black 0px,
+    black var(--reveal-radius),
+    transparent calc(var(--reveal-radius) + 180px),
+    transparent 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    circle at var(--reveal-x) var(--reveal-y),
+    black 0px,
+    black var(--reveal-radius),
+    transparent calc(var(--reveal-radius) + 180px),
+    transparent 100%
+  );
 }

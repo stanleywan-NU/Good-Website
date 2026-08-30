@@ -6,14 +6,9 @@ import { flushSync } from "react-dom";
 const CREAM = "#efe1c4";
 const RUST = "#a8592f";
 const REVEAL_DURATION = 750;
-const REVEAL_FEATHER = 180;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
-
-function revealMask(radius: number, x: number, y: number) {
-  return `radial-gradient(circle at ${x}px ${y}px, black 0px, black ${radius}px, transparent ${radius + REVEAL_FEATHER}px, transparent 100%)`;
-}
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -52,6 +47,15 @@ export default function Home() {
   // the reveal radius. An overlay-div approach can't do this: it can only
   // animate a flat background color, so foreground content has to snap to
   // its new color all at once instead of changing as the sweep passes it.
+  //
+  // The mask-image formula itself lives in globals.css as a static rule
+  // referencing --reveal-x/--reveal-y/--reveal-radius (the last registered
+  // via @property so it's a real animatable <length>). We only ever animate
+  // that one numeric custom property here — the browser recomputes the
+  // gradient natively every frame. The earlier version animated between two
+  // full gradient() strings via the Web Animations API, which browsers
+  // don't reliably tween smoothly; that mismatch was the actual source of
+  // the choppiness, not the transition type or the blur.
   function toggleTheme() {
     if (isTransitioningRef.current) return;
 
@@ -59,6 +63,11 @@ export default function Home() {
     const x = btnRect ? btnRect.left + btnRect.width / 2 : window.innerWidth / 2;
     const y = btnRect ? btnRect.top + btnRect.height / 2 : 0;
     const nextTheme = theme === "light" ? "dark" : "light";
+
+    const root = document.documentElement;
+    root.style.setProperty("--reveal-x", `${x}px`);
+    root.style.setProperty("--reveal-y", `${y}px`);
+    root.style.setProperty("--reveal-radius", "0px");
 
     if (typeof document.startViewTransition !== "function") {
       setTheme(nextTheme);
@@ -87,21 +96,20 @@ export default function Home() {
     transition.finished.finally(() => {
       clearTimeout(unlockTimer);
       isTransitioningRef.current = false;
+      root.style.removeProperty("--reveal-x");
+      root.style.removeProperty("--reveal-y");
+      root.style.removeProperty("--reveal-radius");
     });
 
     transition.ready
       .then(() => {
-        const from = revealMask(0, x, y);
-        const to = revealMask(maxRadius, x, y);
-        document.documentElement.animate(
-          [
-            { maskImage: from, WebkitMaskImage: from },
-            { maskImage: to, WebkitMaskImage: to },
-          ] as Keyframe[],
+        root.animate(
+          [{ "--reveal-radius": "0px" }, { "--reveal-radius": `${maxRadius}px` }],
           {
             duration: REVEAL_DURATION,
             easing: REVEAL_EASING,
             pseudoElement: "::view-transition-new(root)",
+            fill: "forwards",
           }
         );
       })

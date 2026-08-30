@@ -25,3 +25,12 @@ body {
 .hscroll-track::-webkit-scrollbar {
   display: none;
 }
+
+/* Disable the browser's default cross-fade for the theme-toggle view
+   transition — the reveal is driven entirely by our own mask-image
+   animation on ::view-transition-new(root) in page.tsx. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}

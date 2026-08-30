@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 const CREAM = "#efe1c4";
 const RUST = "#a8592f";
 const REVEAL_DURATION = 750;
 const REVEAL_FEATHER = 180;
-const REVEAL_MAX_RADIUS = 2200;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
-
-type Overlay = { x: number; y: number; color: string } | null;
 
 function revealMask(radius: number, x: number, y: number) {
   return `radial-gradient(circle at ${x}px ${y}px, black 0px, black ${radius}px, transparent ${radius + REVEAL_FEATHER}px, transparent 100%)`;
@@ -21,12 +19,11 @@ export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [progress, setProgress] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [overlay, setOverlay] = useState<Overlay>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
+  const isTransitioningRef = useRef(false);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
@@ -47,45 +44,71 @@ export default function Home() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Runs after React has committed the overlay div to the DOM, so the ref is
-  // guaranteed to be attached — no reliance on requestAnimationFrame timing.
-  // Uses a mask-image radial-gradient (cheap to render) rather than a blurred,
-  // clip-path-animated element: animating filter:blur on a large element was
-  // expensive enough to stall the first frames, which read as a pause-then-jump.
-  useEffect(() => {
-    if (!overlay) return;
-    const el = overlayRef.current;
-    if (!el) return;
-    const from = revealMask(0, overlay.x, overlay.y);
-    const to = revealMask(REVEAL_MAX_RADIUS, overlay.x, overlay.y);
-    const anim = el.animate(
-      [
-        { maskImage: from, WebkitMaskImage: from },
-        { maskImage: to, WebkitMaskImage: to },
-      ] as Keyframe[],
-      {
-        duration: REVEAL_DURATION,
-        easing: REVEAL_EASING,
-        fill: "forwards",
-      }
-    );
-    return () => anim.cancel();
-  }, [overlay]);
-
+  // Uses the real View Transition API: it snapshots the page before and
+  // after the theme flips, then lets us mask the "after" snapshot with a
+  // growing soft-edged circle. That's why colors change progressively as
+  // the boundary sweeps past — the whole page (text, borders, everything)
+  // already exists in its new colors underneath, just masked out beyond
+  // the reveal radius. An overlay-div approach can't do this: it can only
+  // animate a flat background color, so foreground content has to snap to
+  // its new color all at once instead of changing as the sweep passes it.
   function toggleTheme() {
-    const rootRect = rootRef.current?.getBoundingClientRect();
+    if (isTransitioningRef.current) return;
+
     const btnRect = toggleBtnRef.current?.getBoundingClientRect();
-    const x = btnRect && rootRect ? btnRect.left + btnRect.width / 2 - rootRect.left : 0;
-    const y = btnRect && rootRect ? btnRect.top + btnRect.height / 2 - rootRect.top : 0;
+    const x = btnRect ? btnRect.left + btnRect.width / 2 : window.innerWidth / 2;
+    const y = btnRect ? btnRect.top + btnRect.height / 2 : 0;
     const nextTheme = theme === "light" ? "dark" : "light";
-    const nextColor = nextTheme === "dark" ? RUST : CREAM;
 
-    setOverlay({ x, y, color: nextColor });
-
-    setTimeout(() => {
+    if (typeof document.startViewTransition !== "function") {
       setTheme(nextTheme);
-      setOverlay(null);
-    }, REVEAL_DURATION);
+      return;
+    }
+
+    const maxRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+
+    isTransitioningRef.current = true;
+    // Safety net: if `finished` never settles (e.g. the tab is backgrounded
+    // mid-transition, which the spec can leave hanging), don't let the
+    // toggle stay locked forever.
+    const unlockTimer = setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, REVEAL_DURATION + 1000);
+
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        setTheme(nextTheme);
+      });
+    });
+
+    transition.finished.finally(() => {
+      clearTimeout(unlockTimer);
+      isTransitioningRef.current = false;
+    });
+
+    transition.ready
+      .then(() => {
+        const from = revealMask(0, x, y);
+        const to = revealMask(maxRadius, x, y);
+        document.documentElement.animate(
+          [
+            { maskImage: from, WebkitMaskImage: from },
+            { maskImage: to, WebkitMaskImage: to },
+          ] as Keyframe[],
+          {
+            duration: REVEAL_DURATION,
+            easing: REVEAL_EASING,
+            pseudoElement: "::view-transition-new(root)",
+          }
+        );
+      })
+      .catch(() => {
+        // Transition was skipped/aborted (e.g. tab hidden mid-flight) —
+        // isTransitioningRef is still cleared via transition.finished above.
+      });
   }
 
   const activeCount = Math.round(
@@ -101,19 +124,6 @@ export default function Home() {
       className="relative h-screen w-full overflow-hidden font-sans"
       style={{ backgroundColor: bg, color: fg }}
     >
-      {overlay && (
-        <div
-          ref={overlayRef}
-          className="pointer-events-none absolute z-0"
-          style={{
-            inset: 0,
-            backgroundColor: overlay.color,
-            WebkitMaskImage: revealMask(0, overlay.x, overlay.y),
-            maskImage: revealMask(0, overlay.x, overlay.y),
-          }}
-        />
-      )}
-
       <div
         className="absolute top-8 left-12 z-10 inline-block cursor-default text-lg font-bold tracking-tight transition-transform duration-200 hover:scale-[1.07]"
       >

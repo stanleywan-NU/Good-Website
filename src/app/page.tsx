@@ -33,6 +33,10 @@ const SHRINK_DURATION = 650;
 const CURSOR_SIZE = 22;
 const CURSOR_CLICK_SCALE = 0.5;
 const CURSOR_LERP = 0.22;
+// Slower than CURSOR_LERP on purpose — the click shrink (and the grow-
+// on-approach) should read as a deliberate, smooth resize (~150-200ms),
+// not snap to size in a single frame like raw position tracking does.
+const SCALE_LERP = 0.18;
 // How close (px) the cursor needs to get to a card/border/button before
 // it grows a bit, signaling it's near something interactive.
 const MELT_PROXIMITY = 56;
@@ -181,6 +185,7 @@ export default function Home() {
     const currentPos = { x: -100, y: -100 };
     const trailPositions = Array.from({ length: TRAIL_COUNT }, () => ({ x: -100, y: -100 }));
     let isDown = false;
+    let currentScale = 1;
     let raf: number;
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -214,8 +219,14 @@ export default function Home() {
       }
       const proximityT = minDist < MELT_PROXIMITY ? 1 - minDist / MELT_PROXIMITY : 0;
       const baseScale = 1 + proximityT * 0.4;
-      const scale = isDown ? baseScale * CURSOR_CLICK_SCALE : baseScale;
-      cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${scale})`;
+      const targetScale = isDown ? baseScale * CURSOR_CLICK_SCALE : baseScale;
+      // Eased toward the target instead of applied directly — the scale
+      // was snapping instantly on the same frame isDown flipped, which is
+      // what read as an abrupt jump rather than a shrink. This is the same
+      // technique already used for position (currentPos easing toward
+      // targetPos), just applied to scale too.
+      currentScale += (targetScale - currentScale) * SCALE_LERP;
+      cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${currentScale})`;
 
       // Each trail dot eases toward the one in front of it (index 0 eases
       // toward the cursor, index 1 toward index 0, etc.), not straight

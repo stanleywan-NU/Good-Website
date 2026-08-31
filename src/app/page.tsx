@@ -40,7 +40,11 @@ const CURSOR_LERP = 0.22;
 // which read as "not shrinking" even though it technically was.
 const SCALE_LERP_UP = 0.18;
 const SCALE_LERP_DOWN = 0.3;
-const TRAIL_COUNT = 12;
+// Total reach is TRAIL_COUNT * TRAIL_SAMPLE_STEP_MS of history either way,
+// so doubling the count while halving the step keeps the same length but
+// halves the gap between any two adjacent dots at a given cursor speed —
+// smoother for free, no length traded away.
+const TRAIL_COUNT = 24;
 // Each trail dot shows the cursor's actual recorded position this many ms
 // ago (dot i = (i+1) * this), sampled/interpolated from a short history
 // buffer — not a chain of dots each easing toward the one ahead. Chain-lerp
@@ -54,7 +58,7 @@ const TRAIL_COUNT = 12;
 // amount at any speed, with no whip. It also means the whole tail
 // naturally collapses onto the cursor within TRAIL_COUNT * this many ms of
 // it stopping, with no separate "idle" state needed to make that happen.
-const TRAIL_SAMPLE_STEP_MS = 18;
+const TRAIL_SAMPLE_STEP_MS = 9;
 // Safety net only: while clicking, the main dot's own click-shrink can
 // expose a trail dot sitting right under/behind it as a visibly merged
 // blob (two overlapping rounded-square shapes, not a clean single dot) —

@@ -187,8 +187,12 @@ export default function Home() {
 
       <div
         ref={trackRef}
-        className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch gap-2.5 overflow-x-auto overflow-y-hidden px-12 pb-14"
-        style={{ top: 100 }}
+        className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch overflow-x-auto overflow-y-hidden px-12 pb-14"
+        style={{
+          top: 100,
+          gap: isScrolled ? 13 : 11.5,
+          transition: `gap 0.5s ${REVEAL_EASING}`,
+        }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
           <div className={`${cardBox} justify-center gap-5`} style={{ borderColor: fg }}>

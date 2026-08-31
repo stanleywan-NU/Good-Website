@@ -27,9 +27,7 @@ const SHRINK_DURATION = 650;
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
 // a card/border/button, and shrinks by half (of whatever its current
-// size is — not a fixed absolute size) on click. A short comet-style
-// trail of fading dots follows behind it, in the same fg color, like a
-// laser pointer.
+// size is — not a fixed absolute size) on click.
 const CURSOR_SIZE = 22;
 const CURSOR_CLICK_SCALE = 0.5;
 const CURSOR_LERP = 0.22;
@@ -40,36 +38,6 @@ const CURSOR_LERP = 0.22;
 // which read as "not shrinking" even though it technically was.
 const SCALE_LERP_UP = 0.18;
 const SCALE_LERP_DOWN = 0.3;
-// Total reach is TRAIL_COUNT * TRAIL_SAMPLE_STEP_MS of history either way,
-// so doubling the count while halving the step keeps the same length but
-// halves the gap between any two adjacent dots at a given cursor speed —
-// smoother for free, no length traded away.
-const TRAIL_COUNT = 24;
-// Each trail dot shows the cursor's actual recorded position this many ms
-// ago (dot i = (i+1) * this), sampled/interpolated from a short history
-// buffer — not a chain of dots each easing toward the one ahead. Chain-lerp
-// lags each link by an amount that depends on *acceleration*, not just
-// speed (a chain that hasn't caught up from resting whips out into huge,
-// widening gaps the instant the cursor starts moving or speeds up — the
-// "scattered" look), and no amount of size/opacity tapering fully hides
-// that, short of making the dots impractically huge. Sampling true past
-// positions instead means the gap between any two dots is always exactly
-// how far the cursor actually travelled in this many ms — a small, steady
-// amount at any speed, with no whip. It also means the whole tail
-// naturally collapses onto the cursor within TRAIL_COUNT * this many ms of
-// it stopping, with no separate "idle" state needed to make that happen.
-const TRAIL_SAMPLE_STEP_MS = 9;
-// Safety net only: while clicking, the main dot's own click-shrink can
-// expose a trail dot sitting right under/behind it as a visibly merged
-// blob (two overlapping rounded-square shapes, not a clean single dot) —
-// worst right after a click on a *hovered* (already grown to 1.4×) target,
-// since a trail dot can still be near-full-size there while the cursor
-// itself has just shrunk out from under it. A hard cutoff (not a partial
-// fade) for anything within this radius is what actually keeps a click
-// looking like one solid shape — a partial ratio still let a sliver of
-// the dot show through and read as choppy. Doesn't otherwise drive the
-// hold/fade behavior above.
-const TRAIL_CLICK_SAFE_DISTANCE = 32;
 // How fast the cursor fades in/out when the real pointer leaves/re-enters
 // the document (e.g. exiting through the top into browser tabs/bookmarks,
 // or through the bottom past the page edge). Deliberately slower than the
@@ -92,7 +60,6 @@ export default function Home() {
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
   const cursorRef = useRef<HTMLDivElement>(null);
-  const trailRefs = useRef<HTMLDivElement[]>([]);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
@@ -197,40 +164,20 @@ export default function Home() {
   //
   // The cursor is always a flat fg-colored dot (no mix-blend-mode, no
   // shape-merge filter — that liquid-glass approach didn't read well in
-  // practice). Instead it drags a short comet-style trail behind it: each
-  // dot shows the cursor's actual recorded position from a fixed time ago
-  // (see TRAIL_SAMPLE_STEP_MS above), not a chain of dots each easing
-  // toward the one ahead of it — that reads as one smooth, steady tail at
-  // any cursor speed instead of whipping into scattered gaps the instant
-  // the cursor accelerates. Touching a [data-cursor-melt] element
-  // (actually inside its box, not just near it) grows the cursor, and
-  // clicking shrinks it to half of whatever its *current* size is (so it
-  // shrinks the same proportionally whether it was already grown from
-  // contact or not), rather than snapping to one fixed absolute size
-  // regardless of state.
+  // practice). Touching a [data-cursor-melt] element (actually inside its
+  // box, not just near it) grows the cursor, and clicking shrinks it to
+  // half of whatever its *current* size is (so it shrinks the same
+  // proportionally whether it was already grown from contact or not),
+  // rather than snapping to one fixed absolute size regardless of state.
   useEffect(() => {
     const cursorEl = cursorRef.current;
-    const trailEls = trailRefs.current;
-    if (!cursorEl || trailEls.length !== TRAIL_COUNT) return;
+    if (!cursorEl) return;
 
     // Queried once: the set of melt targets doesn't change at runtime.
     const meltTargets = Array.from(document.querySelectorAll("[data-cursor-melt]"));
 
     const targetPos = { x: -100, y: -100 };
     const currentPos = { x: -100, y: -100 };
-    // Recent actual cursor positions, oldest first — each trail dot's
-    // position is sampled/interpolated from this, not chain-lerped.
-    const history: { x: number; y: number; t: number }[] = [];
-    const HISTORY_MAX_AGE = TRAIL_COUNT * TRAIL_SAMPLE_STEP_MS + 50;
-    // Max opacity per trail dot (matches the tapering used for its size in
-    // the JSX below) — falls off steeply (not a flattened taper) so the
-    // tail reads as thick and solid right behind the cursor, fading to a
-    // thin, faint point, rather than a uniform ribbon.
-    const trailBaseOpacity = Array.from({ length: TRAIL_COUNT }, (_, i) => {
-      const t = i / TRAIL_COUNT;
-      return (1 - t) * 0.85;
-    });
-    let hasEntered = false;
     let isDown = false;
     let currentScale = 1;
     let currentOpacity = 1;
@@ -244,7 +191,6 @@ export default function Home() {
     const handleMouseMove = (e: MouseEvent) => {
       targetPos.x = e.clientX;
       targetPos.y = e.clientY;
-      hasEntered = true;
       isOutside = false;
     };
     const handleMouseDown = () => {
@@ -258,24 +204,6 @@ export default function Home() {
     };
     const handleMouseEnter = () => {
       isOutside = false;
-    };
-
-    // Estimates where the cursor was at time `t` by linearly interpolating
-    // between the two recorded samples straddling it — smooth even though
-    // the samples themselves land on frame boundaries.
-    const sampleHistoryAt = (t: number) => {
-      if (history.length === 0) return currentPos;
-      if (t <= history[0].t) return history[0];
-      for (let k = 1; k < history.length; k++) {
-        if (history[k].t >= t) {
-          const a = history[k - 1];
-          const b = history[k];
-          const span = b.t - a.t || 1;
-          const frac = (t - a.t) / span;
-          return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
-        }
-      }
-      return history[history.length - 1];
     };
 
     const loop = () => {
@@ -312,24 +240,6 @@ export default function Home() {
       const targetOpacity = isOutside ? 0 : 1;
       currentOpacity += (targetOpacity - currentOpacity) * OPACITY_LERP;
       cursorEl.style.opacity = String(currentOpacity);
-
-      const now = performance.now();
-      if (hasEntered) {
-        history.push({ x: currentPos.x, y: currentPos.y, t: now });
-      }
-      while (history.length && now - history[0].t > HISTORY_MAX_AGE) {
-        history.shift();
-      }
-
-      for (let i = 0; i < TRAIL_COUNT; i++) {
-        const delay = (i + 1) * TRAIL_SAMPLE_STEP_MS;
-        const p = sampleHistoryAt(now - delay);
-        trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
-
-        const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
-        const opacity = isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i] * currentOpacity;
-        trailEls[i].style.opacity = String(opacity);
-      }
 
       raf = requestAnimationFrame(loop);
     };
@@ -526,7 +436,10 @@ export default function Home() {
       className="relative h-screen w-full overflow-hidden font-sans"
       style={{ backgroundColor: bg, color: fg }}
     >
-      <div className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2.5">
+      <div
+        className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2.5 rounded-3xl border-[3px] px-6 py-4"
+        style={{ borderColor: fg, backgroundColor: bg }}
+      >
         <button
           ref={toggleBtnRef}
           onClick={toggleTheme}
@@ -646,34 +559,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      {Array.from({ length: TRAIL_COUNT }).map((_, i) => {
-        const t = i / TRAIL_COUNT;
-        // A real taper — thick and solid right behind the cursor, shrinking
-        // down to a thin point — rather than a flat ribbon of same-sized
-        // dots. History-sampled positions (see TRAIL_SAMPLE_STEP_MS above)
-        // are what actually keep this gap-free at any cursor speed; the
-        // taper is purely a shape choice now, not something smoothness
-        // depends on.
-        const size = CURSOR_SIZE * (1 - t * 0.65);
-        const opacity = (1 - t) * 0.85;
-        return (
-          <div
-            key={i}
-            ref={(el) => {
-              if (el) trailRefs.current[i] = el;
-            }}
-            className="pointer-events-none fixed top-0 left-0 z-[9998] rounded-lg"
-            style={{
-              width: size,
-              height: size,
-              backgroundColor: fg,
-              opacity,
-              willChange: "transform",
-            }}
-          />
-        );
-      })}
 
       <div
         ref={cursorRef}

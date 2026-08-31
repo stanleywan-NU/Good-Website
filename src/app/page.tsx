@@ -33,15 +33,19 @@ const SHRINK_DURATION = 650;
 const CURSOR_SIZE = 22;
 const CURSOR_CLICK_SCALE = 0.5;
 const CURSOR_LERP = 0.22;
-// Slower than CURSOR_LERP on purpose — the click shrink (and the grow-
-// on-approach) should read as a deliberate, smooth resize (~150-200ms),
+// Slower than CURSOR_LERP on purpose — the click shrink (and the grow
+// on contact) should read as a deliberate, smooth resize (~150-200ms),
 // not snap to size in a single frame like raw position tracking does.
 const SCALE_LERP = 0.18;
-// How close (px) the cursor needs to get to a card/border/button before
-// it grows a bit, signaling it's near something interactive.
-const MELT_PROXIMITY = 56;
 const TRAIL_COUNT = 6;
 const TRAIL_LERP = 0.35;
+// Below this distance from the cursor, a trail dot counts as "caught up"
+// rather than "actively trailing," and fades toward invisible instead of
+// its normal opacity — otherwise, whenever the cursor is stationary (like
+// during a click), all the trail dots converge on the same point as the
+// cursor and stack there, which reads as a soft gradient blob rather
+// than a solid shape.
+const TRAIL_FADE_DISTANCE = 14;
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -168,11 +172,11 @@ export default function Home() {
   // chain of dots where each one eases toward the *previous* dot's
   // position (not straight toward the mouse), which is what gives the
   // trail its stretchy, laser-pointer-ish look rather than a straight
-  // line of copies. Proximity to a [data-cursor-melt] element still grows
-  // the cursor a bit, and clicking now shrinks it to half of whatever its
-  // *current* size is (so it shrinks the same proportionally whether it
-  // was already grown from proximity or not), rather than snapping to one
-  // fixed absolute size regardless of state.
+  // line of copies. Touching a [data-cursor-melt] element (actually inside
+  // its box, not just near it) grows the cursor, and clicking shrinks it to
+  // half of whatever its *current* size is (so it shrinks the same
+  // proportionally whether it was already grown from contact or not),
+  // rather than snapping to one fixed absolute size regardless of state.
   useEffect(() => {
     const cursorEl = cursorRef.current;
     const trailEls = trailRefs.current;
@@ -184,6 +188,13 @@ export default function Home() {
     const targetPos = { x: -100, y: -100 };
     const currentPos = { x: -100, y: -100 };
     const trailPositions = Array.from({ length: TRAIL_COUNT }, () => ({ x: -100, y: -100 }));
+    // Max opacity per trail dot (matches the tapering used for its size in
+    // the JSX below) — the loop multiplies this by an activity factor
+    // each frame rather than using it directly.
+    const trailBaseOpacity = Array.from({ length: TRAIL_COUNT }, (_, i) => {
+      const t = (i + 1) / TRAIL_COUNT;
+      return (1 - t) * 0.7;
+    });
     let isDown = false;
     let currentScale = 1;
     let raf: number;
@@ -207,18 +218,25 @@ export default function Home() {
       currentPos.x += (targetPos.x - currentPos.x) * CURSOR_LERP;
       currentPos.y += (targetPos.y - currentPos.y) * CURSOR_LERP;
 
-      // Nearest distance to any melt target, checked fresh every frame —
-      // just to drive the grow-on-approach scale now, no shape merge.
-      let minDist = Infinity;
+      // Hard containment check, not distance/proximity — it should grow
+      // exactly when the cursor is actually inside a target's box, never
+      // before. (Proximity-based growth was a leftover from the earlier
+      // goo-merge design, which needed an "approaching" lead-in; without
+      // that, growing before actual contact just reads as a glitch.)
+      let isOverTarget = false;
       for (const el of meltTargets) {
         const rect = el.getBoundingClientRect();
-        const x = Math.min(Math.max(currentPos.x, rect.left), rect.right);
-        const y = Math.min(Math.max(currentPos.y, rect.top), rect.bottom);
-        const dist = Math.hypot(x - currentPos.x, y - currentPos.y);
-        if (dist < minDist) minDist = dist;
+        if (
+          currentPos.x >= rect.left &&
+          currentPos.x <= rect.right &&
+          currentPos.y >= rect.top &&
+          currentPos.y <= rect.bottom
+        ) {
+          isOverTarget = true;
+          break;
+        }
       }
-      const proximityT = minDist < MELT_PROXIMITY ? 1 - minDist / MELT_PROXIMITY : 0;
-      const baseScale = 1 + proximityT * 0.4;
+      const baseScale = isOverTarget ? 1.4 : 1;
       const targetScale = isDown ? baseScale * CURSOR_CLICK_SCALE : baseScale;
       // Eased toward the target instead of applied directly — the scale
       // was snapping instantly on the same frame isDown flipped, which is
@@ -238,6 +256,13 @@ export default function Home() {
         p.x += (prev.x - p.x) * TRAIL_LERP;
         p.y += (prev.y - p.y) * TRAIL_LERP;
         trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
+        // Fade toward invisible once this dot has caught up to the
+        // cursor (distance-based, not just "isDown") — that's what keeps
+        // a stationary cursor (e.g. mid-click) a single solid shape
+        // instead of a stack of faded dots at the same point.
+        const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
+        const activity = Math.min(1, distFromCursor / TRAIL_FADE_DISTANCE);
+        trailEls[i].style.opacity = String(trailBaseOpacity[i] * activity);
         prev = p;
       }
 

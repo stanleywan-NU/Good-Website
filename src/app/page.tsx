@@ -27,37 +27,36 @@ const SHRINK_DURATION = 650;
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
 // a card/border/button, and shrinks by half (of whatever its current
-// size is — not a fixed absolute size) on click. A short comet-style
-// trail of fading, shrinking dots follows behind it, in the same fg
-// color, like a laser pointer.
+// size is — not a fixed absolute size) on click. A glowing comet-tail
+// streak (drawn on a canvas, not discrete dots) follows behind it, like
+// Yondu's arrow: solid and continuous at any cursor speed, lingering for
+// a few seconds before fading out.
 const CURSOR_SIZE = 22;
 const CURSOR_CLICK_SCALE = 0.5;
 const CURSOR_LERP = 0.22;
-// Slower than CURSOR_LERP on purpose — the click shrink (and the grow
-// on contact) should read as a deliberate, smooth resize (~150-200ms),
-// not snap to size in a single frame like raw position tracking does.
-const SCALE_LERP = 0.18;
-const TRAIL_COUNT = 12;
-// Tighter than before on purpose — a higher lerp keeps each dot closer to
-// the one ahead of it, so the tail reads as one continuous, solid shape
-// instead of loose, scattered dots spread along a wide arc.
-const TRAIL_LERP = 0.5;
-// If the trail kept chasing the cursor every frame, it would fully catch
-// up and collapse onto the cursor's position the instant it stops moving —
-// there'd be nothing left to hold or fade, no matter the timing below. So
-// once this long has passed without an actual mousemove, the trail stops
-// being updated and freezes in place (a "stain" of where the cursor just
-// was) instead of continuing to converge on the now-still cursor.
-const IDLE_THRESHOLD_MS = 100;
-// How long the frozen trail sits at full opacity, and how long it then
-// takes to fade out, once idle.
-const TRAIL_HOLD_MS = 2500;
-const TRAIL_FADE_MS = 700;
-// Safety net only: while clicking, the main dot's own click-shrink can
-// expose a trail dot sitting right under it as a ring around it. This
-// distance gates an instant fade for that specific case — it doesn't
-// otherwise drive the hold/fade behavior above.
-const TRAIL_CLICK_SAFE_DISTANCE = 14;
+// Growing (hover, or releasing a click) eases at this rate — smooth and
+// deliberate. Shrinking on click eases faster (SCALE_LERP_DOWN): a real
+// click is often just a quick tap-and-release, and easing the shrink at
+// the same slow rate as the grow barely moved within that short a window,
+// which read as "not shrinking" even though it technically was.
+const SCALE_LERP_UP = 0.18;
+const SCALE_LERP_DOWN = 0.45;
+// Total lifetime of a point in the trail, oldest to fully faded — the
+// "stays for a few seconds, then fades" arc. Length during motion is a
+// side effect of this (lifetime × cursor speed), not a separate knob.
+const TRAIL_LIFETIME_MS = 3000;
+// Exponent on the trail's remaining-life fraction: well below 1 so a
+// point stays near full brightness for most of its life and only drops
+// off sharply near the very end, instead of fading linearly the whole
+// time — the "hold, then fade" shape of Yondu's arrow.
+const TRAIL_FADE_SHAPE = 0.25;
+const TRAIL_BASE_ALPHA = 0.6;
+const TRAIL_MAX_WIDTH = CURSOR_SIZE * 0.7;
+const TRAIL_MIN_WIDTH = CURSOR_SIZE * 0.3;
+// Skip drawing a connecting segment between two history points this far
+// apart — otherwise a big jump (cursor entering the viewport, a window
+// resize) draws one spurious streak across the whole screen.
+const TRAIL_TELEPORT_GUARD = 250;
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -75,11 +74,19 @@ export default function Home() {
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
   const cursorRef = useRef<HTMLDivElement>(null);
-  const trailRefs = useRef<HTMLDivElement[]>([]);
+  const trailCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fgRef = useRef(RUST);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
   const fg = isDark ? CREAM : RUST;
+
+  // The cursor/trail loop below is imperative (runs once, never re-reads
+  // props), so the current fg color is mirrored into a ref it can read
+  // fresh every frame — otherwise a theme change wouldn't recolor it.
+  useEffect(() => {
+    fgRef.current = fg;
+  }, [fg]);
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The shrink-on-scroll effect resizes every card's real flex-basis, which
@@ -180,48 +187,56 @@ export default function Home() {
   //
   // The cursor is always a flat fg-colored dot (no mix-blend-mode, no
   // shape-merge filter — that liquid-glass approach didn't read well in
-  // practice). Instead it drags a short comet-style trail behind it: a
-  // chain of dots where each one eases toward the *previous* dot's
-  // position (not straight toward the mouse), which is what gives the
-  // trail its stretchy, laser-pointer-ish look rather than a straight
-  // line of copies. Touching a [data-cursor-melt] element (actually inside
-  // its box, not just near it) grows the cursor, and clicking shrinks it to
-  // half of whatever its *current* size is (so it shrinks the same
-  // proportionally whether it was already grown from contact or not),
-  // rather than snapping to one fixed absolute size regardless of state.
+  // practice). Instead it drags a comet-tail streak behind it, drawn on a
+  // canvas as a sequence of short line segments through its own recent
+  // positions rather than a fixed chain of dot elements — a chain of
+  // discrete, lerped dots always shows visible gaps at real cursor speeds
+  // (a fixed lerp fraction lags further behind per dot the faster the
+  // cursor moves), where a continuous stroke never can, at any speed.
+  // Each segment's alpha/width is purely a function of its own age, so the
+  // trail fades on its own timeline (a few seconds) regardless of whether
+  // the cursor is currently moving — no separate "idle" state to track or
+  // get out of sync. Touching a [data-cursor-melt] element (actually
+  // inside its box, not just near it) grows the cursor, and clicking
+  // shrinks it to half of whatever its *current* size is (so it shrinks
+  // the same proportionally whether it was already grown from contact or
+  // not), rather than snapping to one fixed absolute size regardless of
+  // state.
   useEffect(() => {
     const cursorEl = cursorRef.current;
-    const trailEls = trailRefs.current;
-    if (!cursorEl || trailEls.length !== TRAIL_COUNT) return;
+    const canvas = trailCanvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!cursorEl || !canvas || !ctx) return;
 
     // Queried once: the set of melt targets doesn't change at runtime.
     const meltTargets = Array.from(document.querySelectorAll("[data-cursor-melt]"));
 
     const targetPos = { x: -100, y: -100 };
     const currentPos = { x: -100, y: -100 };
-    const trailPositions = Array.from({ length: TRAIL_COUNT }, () => ({ x: -100, y: -100 }));
-    // Max opacity per trail dot (matches the tapering used for its size in
-    // the JSX below) — the loop multiplies this by an activity/fade factor
-    // each frame rather than using it directly. t starts at 0 (the dot
-    // right behind the cursor, nearly as opaque/large as it, for a solid
-    // connection to the cursor) rather than 1/TRAIL_COUNT, so the taper is
-    // gradual all the way through instead of dropping off sharply.
-    const trailBaseOpacity = Array.from({ length: TRAIL_COUNT }, (_, i) => {
-      const t = i / TRAIL_COUNT;
-      return (1 - t) * 0.85;
-    });
+    // Recent positions the trail is redrawn from every frame, oldest
+    // first. Only starts recording once the real cursor has actually
+    // entered the page, so the first frame doesn't draw a spurious streak
+    // from the off-screen (-100, -100) starting position.
+    const history: { x: number; y: number; t: number }[] = [];
+    let hasEntered = false;
     let isDown = false;
     let currentScale = 1;
-    let lastMoveTime = performance.now();
-    // Set once the trail goes idle (null while actively trailing) — drives
-    // the hold-then-fade in the loop below.
-    let idleSince: number | null = null;
     let raf: number;
+
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resizeCanvas();
 
     const handleMouseMove = (e: MouseEvent) => {
       targetPos.x = e.clientX;
       targetPos.y = e.clientY;
-      lastMoveTime = performance.now();
+      hasEntered = true;
     };
     const handleMouseDown = () => {
       isDown = true;
@@ -258,55 +273,51 @@ export default function Home() {
       }
       const baseScale = isOverTarget ? 1.4 : 1;
       const targetScale = isDown ? baseScale * CURSOR_CLICK_SCALE : baseScale;
-      // Eased toward the target instead of applied directly — the scale
-      // was snapping instantly on the same frame isDown flipped, which is
-      // what read as an abrupt jump rather than a shrink. This is the same
-      // technique already used for position (currentPos easing toward
-      // targetPos), just applied to scale too.
-      currentScale += (targetScale - currentScale) * SCALE_LERP;
+      // Eased toward the target instead of applied directly — snapping
+      // straight to it read as an abrupt jump rather than a resize. Shrink
+      // and grow ease at different rates (see the constants above).
+      const scaleLerp = targetScale < currentScale ? SCALE_LERP_DOWN : SCALE_LERP_UP;
+      currentScale += (targetScale - currentScale) * scaleLerp;
       cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${currentScale})`;
 
       const now = performance.now();
-      const idle = now - lastMoveTime > IDLE_THRESHOLD_MS;
-
-      if (!idle) {
-        idleSince = null;
-        // Each trail dot eases toward the one in front of it (index 0
-        // eases toward the cursor, index 1 toward index 0, etc.), not
-        // straight toward the raw mouse position — that chaining is what
-        // gives it a stretchy, springy tail instead of a rigid line of
-        // copies.
-        let prev = currentPos;
-        for (let i = 0; i < TRAIL_COUNT; i++) {
-          const p = trailPositions[i];
-          p.x += (prev.x - p.x) * TRAIL_LERP;
-          p.y += (prev.y - p.y) * TRAIL_LERP;
-          trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
-
-          const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
-          const opacity =
-            isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE
-              ? trailBaseOpacity[i] * (distFromCursor / TRAIL_CLICK_SAFE_DISTANCE)
-              : trailBaseOpacity[i];
-          trailEls[i].style.opacity = String(opacity);
-          prev = p;
-        }
-      } else {
-        // Idle: leave every dot's transform exactly where it already was
-        // (the "stain") instead of letting it keep chasing the now-still
-        // cursor and collapsing onto it. Only opacity animates from here —
-        // full for TRAIL_HOLD_MS, then fading out over TRAIL_FADE_MS.
-        if (idleSince === null) idleSince = now;
-        const heldFor = now - idleSince;
-        const fadeT = Math.max(0, Math.min(1, (heldFor - TRAIL_HOLD_MS) / TRAIL_FADE_MS));
-        for (let i = 0; i < TRAIL_COUNT; i++) {
-          trailEls[i].style.opacity = String(trailBaseOpacity[i] * (1 - fadeT));
-        }
+      if (hasEntered) {
+        history.push({ x: currentPos.x, y: currentPos.y, t: now });
       }
+      while (history.length && now - history[0].t > TRAIL_LIFETIME_MS) {
+        history.shift();
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineCap = "round";
+      ctx.strokeStyle = fgRef.current;
+      // While clicking, the shrunk cursor is smaller than the fresh (wide)
+      // end of the trail would normally be drawn — skip anything within
+      // its own radius so a held click never exposes the trail as a ring
+      // around it.
+      const clickGuardRadius = isDown ? (currentScale * CURSOR_SIZE) / 2 : 0;
+      for (let i = 1; i < history.length; i++) {
+        const a = history[i - 1];
+        const b = history[i];
+        if (Math.hypot(b.x - a.x, b.y - a.y) > TRAIL_TELEPORT_GUARD) continue;
+        if (clickGuardRadius > 0 && Math.hypot(b.x - currentPos.x, b.y - currentPos.y) < clickGuardRadius) continue;
+
+        const age = now - b.t;
+        const remaining = Math.max(0, 1 - age / TRAIL_LIFETIME_MS);
+        const shape = Math.pow(remaining, TRAIL_FADE_SHAPE);
+        ctx.globalAlpha = TRAIL_BASE_ALPHA * shape;
+        ctx.lineWidth = TRAIL_MIN_WIDTH + (TRAIL_MAX_WIDTH - TRAIL_MIN_WIDTH) * shape;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
 
       raf = requestAnimationFrame(loop);
     };
 
+    window.addEventListener("resize", resizeCanvas);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mouseup", handleMouseUp);
@@ -314,6 +325,7 @@ export default function Home() {
     raf = requestAnimationFrame(loop);
 
     return () => {
+      window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("mouseup", handleMouseUp);
@@ -550,27 +562,7 @@ export default function Home() {
         </div>
       </div>
 
-      {Array.from({ length: TRAIL_COUNT }).map((_, i) => {
-        const t = i / TRAIL_COUNT;
-        const size = CURSOR_SIZE * (1 - t * 0.5);
-        const opacity = (1 - t) * 0.85;
-        return (
-          <div
-            key={i}
-            ref={(el) => {
-              if (el) trailRefs.current[i] = el;
-            }}
-            className="pointer-events-none fixed top-0 left-0 z-[9998] rounded-lg"
-            style={{
-              width: size,
-              height: size,
-              backgroundColor: fg,
-              opacity,
-              willChange: "transform",
-            }}
-          />
-        );
-      })}
+      <canvas ref={trailCanvasRef} className="pointer-events-none fixed top-0 left-0 z-[9998]" />
 
       <div
         ref={cursorRef}

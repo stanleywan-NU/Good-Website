@@ -39,20 +39,26 @@ const CURSOR_LERP = 0.22;
 // the same slow rate as the grow barely moved within that short a window,
 // which read as "not shrinking" even though it technically was.
 const SCALE_LERP_UP = 0.18;
-const SCALE_LERP_DOWN = 0.6;
+const SCALE_LERP_DOWN = 0.3;
 const TRAIL_COUNT = 12;
-// A chain-lerped dot lags the one ahead of it by roughly velocity ×
-// (1 - lerp) / lerp at any given cursor speed — so at typical real cursor
-// speeds, even the 0.5 tried before still left a visible gap between
-// dots. Pushed further so each dot sits close enough behind the one
-// ahead to read as one continuous shape instead of separated beads.
-const TRAIL_LERP = 0.82;
-// If the trail kept chasing the cursor every frame, it would fully catch
-// up and collapse onto the cursor's position the instant it stops moving —
-// there'd be nothing left to hold or fade, no matter the timing below. So
-// once this long has passed without an actual mousemove, the trail stops
-// being updated and freezes in place (a "stain" of where the cursor just
-// was) instead of continuing to converge on the now-still cursor.
+// Each trail dot shows the cursor's actual recorded position this many ms
+// ago (dot i = (i+1) * this), sampled/interpolated from a short history
+// buffer — not a chain of dots each easing toward the one ahead. Chain-lerp
+// lags each link by an amount that depends on *acceleration*, not just
+// speed (a chain that hasn't caught up from resting whips out into huge,
+// widening gaps the instant the cursor starts moving or speeds up — the
+// "scattered" look), and no amount of size/opacity tapering fully hides
+// that, short of making the dots impractically huge. Sampling true past
+// positions instead means the gap between any two dots is always exactly
+// how far the cursor actually travelled in this many ms — a small, steady
+// amount at any speed, with no whip.
+const TRAIL_SAMPLE_STEP_MS = 22;
+// If the trail kept sampling every frame, the whole tail would collapse
+// onto the cursor's position within TRAIL_COUNT * TRAIL_SAMPLE_STEP_MS of
+// it stopping — there'd be nothing left to hold or fade. So once this
+// long has passed without an actual mousemove, the trail stops sampling
+// and freezes in place (a "stain" of where the cursor just was) instead
+// of continuing to converge on the now-still cursor.
 const IDLE_THRESHOLD_MS = 100;
 // How long the frozen trail sits at full opacity, and how long it then
 // takes to fade out, once idle.
@@ -191,15 +197,17 @@ export default function Home() {
   //
   // The cursor is always a flat fg-colored dot (no mix-blend-mode, no
   // shape-merge filter — that liquid-glass approach didn't read well in
-  // practice). Instead it drags a short comet-style trail behind it: a
-  // chain of dots where each one eases toward the *previous* dot's
-  // position (not straight toward the mouse), which is what gives the
-  // trail its stretchy, laser-pointer-ish look rather than a straight
-  // line of copies. Touching a [data-cursor-melt] element (actually inside
-  // its box, not just near it) grows the cursor, and clicking shrinks it to
-  // half of whatever its *current* size is (so it shrinks the same
-  // proportionally whether it was already grown from contact or not),
-  // rather than snapping to one fixed absolute size regardless of state.
+  // practice). Instead it drags a short comet-style trail behind it: each
+  // dot shows the cursor's actual recorded position from a fixed time ago
+  // (see TRAIL_SAMPLE_STEP_MS above), not a chain of dots each easing
+  // toward the one ahead of it — that reads as one smooth, steady tail at
+  // any cursor speed instead of whipping into scattered gaps the instant
+  // the cursor accelerates. Touching a [data-cursor-melt] element
+  // (actually inside its box, not just near it) grows the cursor, and
+  // clicking shrinks it to half of whatever its *current* size is (so it
+  // shrinks the same proportionally whether it was already grown from
+  // contact or not), rather than snapping to one fixed absolute size
+  // regardless of state.
   useEffect(() => {
     const cursorEl = cursorRef.current;
     const trailEls = trailRefs.current;
@@ -210,29 +218,38 @@ export default function Home() {
 
     const targetPos = { x: -100, y: -100 };
     const currentPos = { x: -100, y: -100 };
-    const trailPositions = Array.from({ length: TRAIL_COUNT }, () => ({ x: -100, y: -100 }));
+    // Recent actual cursor positions, oldest first — each trail dot's
+    // position is sampled/interpolated from this, not chain-lerped.
+    const history: { x: number; y: number; t: number }[] = [];
+    const HISTORY_MAX_AGE = TRAIL_COUNT * TRAIL_SAMPLE_STEP_MS + 50;
     // Max opacity per trail dot (matches the tapering used for its size in
-    // the JSX below) — the loop multiplies this by an activity/fade factor
-    // each frame rather than using it directly. t starts at 0 (the dot
-    // right behind the cursor, nearly as opaque/large as it, for a solid
+    // the JSX below) — the loop multiplies this by a fade factor each
+    // frame rather than using it directly. t starts at 0 (the dot right
+    // behind the cursor, nearly as opaque/large as it, for a solid
     // connection to the cursor) rather than 1/TRAIL_COUNT, so the taper is
     // gradual all the way through instead of dropping off sharply.
     const trailBaseOpacity = Array.from({ length: TRAIL_COUNT }, (_, i) => {
       const t = i / TRAIL_COUNT;
-      return (1 - t) * 0.85;
+      return (1 - t * 0.75) * 0.85;
     });
+    let hasEntered = false;
     let isDown = false;
     let currentScale = 1;
     let lastMoveTime = performance.now();
     // Set once the trail goes idle (null while actively trailing) — drives
-    // the hold-then-fade in the loop below.
+    // the hold-then-fade in the loop below. frozenPositions holds each
+    // dot's last live-sampled position so the click guard below still has
+    // something to measure against while idle, without resuming sampling
+    // (which would just converge everything onto the now-still cursor).
     let idleSince: number | null = null;
+    let frozenPositions: { x: number; y: number }[] | null = null;
     let raf: number;
 
     const handleMouseMove = (e: MouseEvent) => {
       targetPos.x = e.clientX;
       targetPos.y = e.clientY;
       lastMoveTime = performance.now();
+      hasEntered = true;
     };
     const handleMouseDown = () => {
       isDown = true;
@@ -243,6 +260,24 @@ export default function Home() {
     const handleMouseLeave = () => {
       targetPos.x = -100;
       targetPos.y = -100;
+    };
+
+    // Estimates where the cursor was at time `t` by linearly interpolating
+    // between the two recorded samples straddling it — smooth even though
+    // the samples themselves land on frame boundaries.
+    const sampleHistoryAt = (t: number) => {
+      if (history.length === 0) return currentPos;
+      if (t <= history[0].t) return history[0];
+      for (let k = 1; k < history.length; k++) {
+        if (history[k].t >= t) {
+          const a = history[k - 1];
+          const b = history[k];
+          const span = b.t - a.t || 1;
+          const frac = (t - a.t) / span;
+          return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
+        }
+      }
+      return history[history.length - 1];
     };
 
     const loop = () => {
@@ -277,37 +312,43 @@ export default function Home() {
       cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${currentScale})`;
 
       const now = performance.now();
+      if (hasEntered) {
+        history.push({ x: currentPos.x, y: currentPos.y, t: now });
+      }
+      while (history.length && now - history[0].t > HISTORY_MAX_AGE) {
+        history.shift();
+      }
+
       const idle = now - lastMoveTime > IDLE_THRESHOLD_MS;
 
       if (!idle) {
+        frozenPositions = null;
         idleSince = null;
-        // Each trail dot eases toward the one in front of it (index 0
-        // eases toward the cursor, index 1 toward index 0, etc.), not
-        // straight toward the raw mouse position — that chaining is what
-        // gives it a stretchy, springy tail instead of a rigid line of
-        // copies.
-        let prev = currentPos;
         for (let i = 0; i < TRAIL_COUNT; i++) {
-          const p = trailPositions[i];
-          p.x += (prev.x - p.x) * TRAIL_LERP;
-          p.y += (prev.y - p.y) * TRAIL_LERP;
+          const delay = (i + 1) * TRAIL_SAMPLE_STEP_MS;
+          const p = sampleHistoryAt(now - delay);
           trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
 
           const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
           const opacity = isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i];
           trailEls[i].style.opacity = String(opacity);
-          prev = p;
         }
       } else {
         // Idle: leave every dot's transform exactly where it already was
-        // (the "stain") instead of letting it keep chasing the now-still
-        // cursor and collapsing onto it. Only opacity animates from here —
-        // full for TRAIL_HOLD_MS, then fading out over TRAIL_FADE_MS.
+        // (the "stain") instead of letting it keep sampling and
+        // collapsing onto the now-still cursor. Only opacity animates
+        // from here — full for TRAIL_HOLD_MS, then fading out over
+        // TRAIL_FADE_MS.
+        if (!frozenPositions) {
+          frozenPositions = Array.from({ length: TRAIL_COUNT }, (_, i) =>
+            sampleHistoryAt(now - (i + 1) * TRAIL_SAMPLE_STEP_MS)
+          );
+        }
         if (idleSince === null) idleSince = now;
         const heldFor = now - idleSince;
         const fadeT = Math.max(0, Math.min(1, (heldFor - TRAIL_HOLD_MS) / TRAIL_FADE_MS));
         for (let i = 0; i < TRAIL_COUNT; i++) {
-          const p = trailPositions[i];
+          const p = frozenPositions[i];
           const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
           const opacity =
             isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i] * (1 - fadeT);
@@ -563,12 +604,14 @@ export default function Home() {
 
       {Array.from({ length: TRAIL_COUNT }).map((_, i) => {
         const t = i / TRAIL_COUNT;
-        // A gentler size taper than tried before (0.3, not 0.5) — dots stay
-        // closer to full size along the whole tail, so they overlap enough
-        // to cover the gap a fixed lerp fraction otherwise leaves between
-        // them, instead of shrinking down into separated little beads.
-        const size = CURSOR_SIZE * (1 - t * 0.2);
-        const opacity = (1 - t) * 0.85;
+        // Dots stay close to full size and opacity along the whole tail
+        // (a much gentler taper than tried before) so they overlap enough
+        // to cover the gap TRAIL_LERP=0.5 leaves between them at real
+        // cursor speeds, instead of reading as separated little beads —
+        // this is what buys smoothness back without shortening the trail
+        // by tightening the lerp instead.
+        const size = CURSOR_SIZE * (1 - t * 0.12);
+        const opacity = (1 - t * 0.75) * 0.85;
         return (
           <div
             key={i}

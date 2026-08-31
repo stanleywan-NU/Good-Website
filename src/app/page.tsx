@@ -331,6 +331,52 @@ export default function Home() {
     };
   }, []);
 
+  // A quick press-down shrink on click for every [data-cursor-melt]
+  // box/button (cards, the theme toggle) — one delegated listener rather
+  // than a handler on each element, reusing the same tag set the cursor
+  // effect above uses to find its targets. Runs via the Web Animations API
+  // with composite: "add" so it multiplies on top of the CSS hover-scale
+  // transform instead of replacing it.
+  //
+  // The toggle button is the one exception: its shrink plays on release
+  // (mouseup) instead of on press (mousedown) like the cards, so it reads
+  // as "press, then let go" rather than snapping small the instant it's
+  // pressed — appropriate for a button that actually does something on
+  // click, as opposed to the cards, which don't yet.
+  useEffect(() => {
+    const SHRINK_KEYFRAMES: Keyframe[] = [
+      { transform: "scale(1)" },
+      { transform: "scale(0.9)" },
+      { transform: "scale(1)" },
+    ];
+    const playShrink = (el: HTMLElement) => {
+      el.animate(SHRINK_KEYFRAMES, { duration: 220, easing: "ease-out", composite: "add" });
+    };
+    let pressedEl: HTMLElement | null = null;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element)) return;
+      const el = e.target.closest("[data-cursor-melt]");
+      if (!(el instanceof HTMLElement)) return;
+      pressedEl = el;
+      if (el === toggleBtnRef.current) return;
+      playShrink(el);
+    };
+    const handleMouseUp = () => {
+      if (pressedEl === toggleBtnRef.current && pressedEl) {
+        playShrink(pressedEl);
+      }
+      pressedEl = null;
+    };
+
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
   // Uses the real View Transition API: it snapshots the page before and
   // after the theme flips, then lets us mask the "after" snapshot with a
   // growing soft-edged circle. That's why colors change progressively as

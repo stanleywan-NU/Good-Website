@@ -70,6 +70,11 @@ const TRAIL_SAMPLE_STEP_MS = 9;
 // the dot show through and read as choppy. Doesn't otherwise drive the
 // hold/fade behavior above.
 const TRAIL_CLICK_SAFE_DISTANCE = 32;
+// How fast the cursor fades in/out when the real pointer leaves/re-enters
+// the document (e.g. exiting through the top into browser tabs/bookmarks,
+// or through the bottom past the page edge). Deliberately slower than the
+// scale eases above — this is a fade, not a snap.
+const OPACITY_LERP = 0.15;
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -228,12 +233,19 @@ export default function Home() {
     let hasEntered = false;
     let isDown = false;
     let currentScale = 1;
+    let currentOpacity = 1;
+    // True once the real pointer has left the document (top/bottom/either
+    // side, e.g. into browser chrome) — drives a fade rather than moving
+    // targetPos, which used to teleport the cursor to a fixed corner point
+    // and made it visibly glide/shoot there every time.
+    let isOutside = false;
     let raf: number;
 
     const handleMouseMove = (e: MouseEvent) => {
       targetPos.x = e.clientX;
       targetPos.y = e.clientY;
       hasEntered = true;
+      isOutside = false;
     };
     const handleMouseDown = () => {
       isDown = true;
@@ -242,8 +254,10 @@ export default function Home() {
       isDown = false;
     };
     const handleMouseLeave = () => {
-      targetPos.x = -100;
-      targetPos.y = -100;
+      isOutside = true;
+    };
+    const handleMouseEnter = () => {
+      isOutside = false;
     };
 
     // Estimates where the cursor was at time `t` by linearly interpolating
@@ -295,6 +309,10 @@ export default function Home() {
       currentScale += (targetScale - currentScale) * scaleLerp;
       cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${currentScale})`;
 
+      const targetOpacity = isOutside ? 0 : 1;
+      currentOpacity += (targetOpacity - currentOpacity) * OPACITY_LERP;
+      cursorEl.style.opacity = String(currentOpacity);
+
       const now = performance.now();
       if (hasEntered) {
         history.push({ x: currentPos.x, y: currentPos.y, t: now });
@@ -309,7 +327,7 @@ export default function Home() {
         trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
 
         const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
-        const opacity = isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i];
+        const opacity = isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i] * currentOpacity;
         trailEls[i].style.opacity = String(opacity);
       }
 
@@ -320,6 +338,7 @@ export default function Home() {
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mouseup", handleMouseUp);
     document.addEventListener("mouseleave", handleMouseLeave);
+    document.addEventListener("mouseenter", handleMouseEnter);
     raf = requestAnimationFrame(loop);
 
     return () => {
@@ -327,6 +346,7 @@ export default function Home() {
       window.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("mouseup", handleMouseUp);
       document.removeEventListener("mouseleave", handleMouseLeave);
+      document.removeEventListener("mouseenter", handleMouseEnter);
       cancelAnimationFrame(raf);
     };
   }, []);

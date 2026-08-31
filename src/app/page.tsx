@@ -126,6 +126,17 @@ export default function Home() {
   const cardBox =
     "h-full w-full flex flex-col border-[3px] p-10 transition-transform duration-200 ease-out hover:scale-[1.035]";
 
+  // Real layout shrink (flexBasis), not just a cosmetic transform: scaling
+  // a fixed-width slot visually without changing its actual width leaves
+  // the original full-size gap between neighbors once it's smaller. The
+  // vertical shrink stays a transform (scaleY) since there's no "next row"
+  // for that to leave a gap against — it's a single horizontal row.
+  const slotStyle = (baseWidth: number): React.CSSProperties => ({
+    flexBasis: baseWidth * cardScale,
+    transform: `scaleY(${cardScale})`,
+    transition: `flex-basis 0.5s ${REVEAL_EASING}, transform 0.5s ${REVEAL_EASING}`,
+  });
+
   return (
     <div
       ref={rootRef}
@@ -179,10 +190,7 @@ export default function Home() {
         className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch gap-2.5 overflow-x-auto overflow-y-hidden px-12 pb-14"
         style={{ top: 100 }}
       >
-        <div
-          className="shrink-0 transition-transform duration-500"
-          style={{ flexBasis: 720, transform: `scale(${cardScale})`, transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" }}
-        >
+        <div className="my-4 shrink-0" style={slotStyle(720)}>
           <div className={`${cardBox} justify-center gap-5`} style={{ borderColor: fg }}>
             <span className="text-sm font-medium opacity-70">Product Design &amp; Content Strategy</span>
             <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
@@ -199,10 +207,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="shrink-0 transition-transform duration-500"
-          style={{ flexBasis: 520, transform: `scale(${cardScale})`, transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" }}
-        >
+        <div className="my-4 shrink-0" style={slotStyle(520)}>
           <div className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
@@ -216,10 +221,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="shrink-0 transition-transform duration-500"
-          style={{ flexBasis: 520, transform: `scale(${cardScale})`, transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" }}
-        >
+        <div className="my-4 shrink-0" style={slotStyle(520)}>
           <div className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
@@ -234,10 +236,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="shrink-0 transition-transform duration-500"
-          style={{ flexBasis: 420, transform: `scale(${cardScale})`, transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" }}
-        >
+        <div className="my-4 shrink-0" style={slotStyle(420)}>
           <div className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: fg }}>
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
@@ -247,10 +246,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="shrink-0 transition-transform duration-500"
-          style={{ flexBasis: 420, transform: `scale(${cardScale})`, transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" }}
-        >
+        <div className="my-4 shrink-0" style={slotStyle(420)}>
           <div className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed opacity-85">
@@ -260,10 +256,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          className="shrink-0 transition-transform duration-500"
-          style={{ flexBasis: 380, transform: `scale(${cardScale})`, transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" }}
-        >
+        <div className="my-4 shrink-0" style={slotStyle(380)}>
           <div className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>

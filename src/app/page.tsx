@@ -50,18 +50,26 @@ export default function Home() {
   }, []);
 
   // Wheel/trackpad scrolling only drives the track natively when the
-  // cursor is directly over it. Listening on the whole page and forwarding
-  // the delta lets scrolling work no matter where the cursor is (including
-  // over the fixed nav/toggle chrome up top), and preventDefault here also
-  // suppresses the track's own native handling when it IS the hovered
-  // element, so the motion isn't applied twice.
+  // cursor is directly over it. We only want to step in for wheel events
+  // elsewhere on the page (the fixed nav/toggle chrome up top) where
+  // there's nothing scrollable to catch them — when the track itself is
+  // under the cursor, leave it alone entirely so it keeps the browser's
+  // own smooth, momentum-based native scrolling. Manually driving
+  // scrollLeft on every event (the previous version did this for *all*
+  // wheel events, not just the outside-the-track case) is what caused the
+  // choppiness. It also picked deltaY over deltaX any time deltaY was
+  // merely nonzero, which real trackpad swipes almost always have a tiny
+  // bit of as incidental jitter — that's what briefly scrolled the wrong
+  // way. Preferring whichever delta is actually dominant fixes that.
   useEffect(() => {
     const rootEl = rootRef.current;
     const trackEl = trackRef.current;
     if (!rootEl || !trackEl) return;
     const handleWheel = (e: WheelEvent) => {
+      if (e.target instanceof Node && trackEl.contains(e.target)) return;
       e.preventDefault();
-      trackEl.scrollLeft += e.deltaY !== 0 ? e.deltaY : e.deltaX;
+      trackEl.scrollLeft +=
+        Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     };
     rootEl.addEventListener("wheel", handleWheel, { passive: false });
     return () => rootEl.removeEventListener("wheel", handleWheel);

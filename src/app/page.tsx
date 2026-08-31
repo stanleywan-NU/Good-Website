@@ -331,6 +331,35 @@ export default function Home() {
     };
   }, []);
 
+  // A small side-to-side wobble on click for every [data-cursor-melt]
+  // box/button (cards, the theme toggle) — one delegated listener rather
+  // than a handler on each element, since the tag set is already how the
+  // cursor effect above finds its own targets. Runs via the Web Animations
+  // API with composite: "add" so it layers on top of the CSS hover-scale
+  // transform (translateX on top of scale) instead of replacing it, which
+  // a plain style/transform write would do. Fires on mousedown, not click,
+  // to land at the same instant as the cursor's own click-shrink.
+  useEffect(() => {
+    const SHAKE_KEYFRAMES: Keyframe[] = [
+      { transform: "translateX(0px)" },
+      { transform: "translateX(-6px)" },
+      { transform: "translateX(5px)" },
+      { transform: "translateX(-4px)" },
+      { transform: "translateX(3px)" },
+      { transform: "translateX(-2px)" },
+      { transform: "translateX(1px)" },
+      { transform: "translateX(0px)" },
+    ];
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!(e.target instanceof Element)) return;
+      const el = e.target.closest("[data-cursor-melt]");
+      if (!(el instanceof HTMLElement)) return;
+      el.animate(SHAKE_KEYFRAMES, { duration: 350, easing: "ease-out", composite: "add" });
+    };
+    window.addEventListener("mousedown", handleMouseDown);
+    return () => window.removeEventListener("mousedown", handleMouseDown);
+  }, []);
+
   // Uses the real View Transition API: it snapshots the page before and
   // after the theme flips, then lets us mask the "after" snapshot with a
   // growing soft-edged circle. That's why colors change progressively as

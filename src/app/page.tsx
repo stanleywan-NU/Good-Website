@@ -18,12 +18,15 @@ const CARD_HOVER_SCALE = 1.035;
 const LARGE_GAP = 20;
 const SMALL_GAP = 18;
 const MIN_CARD_SCALE = 0.85;
-// How much scrollLeft (px) the shrink ramps over. Small enough that it
-// still feels tied to "you just started scrolling," but spread across
-// this many pixels instead of snapping at one instant, so scrollWidth
-// changes in many tiny steps in lockstep with the scroll itself, rather
-// than one large jump — the jump is what fought native scroll physics.
-const SHRINK_RAMP_PX = 60;
+// The shrink is a proper time-based animation, not tied to scroll
+// distance: it triggers once (crossing the scroll threshold) and then
+// plays out over this duration on its own, even if scrolling pauses or
+// stops partway through.
+const SHRINK_DURATION = 650;
+
+function easeInOutCubic(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
 
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
 
@@ -43,28 +46,66 @@ export default function Home() {
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The shrink-on-scroll effect resizes every card's real flex-basis, which
-  // changes the track's total scrollWidth. A binary "shrunk or not" flag
-  // (even debounced until scrolling paused) meant the whole resize applied
-  // as one large, sudden width change, and doing that mid-gesture is what
-  // fought the browser's own scroll physics and read as a stutter/reversal.
-  // Deferring it until scrolling stopped removed the fight but also meant
-  // the shrink no longer felt tied to the act of scrolling itself.
-  // Driving it continuously off scrollLeft instead means the width changes
-  // in many tiny steps, each one the same order of magnitude as the
-  // scroll's own motion — smooth and simultaneous with scrolling, same as
-  // before, without the one big jump that caused the original issue.
+  // changes the track's total scrollWidth. A one-shot flip (even debounced
+  // until scrolling paused) applied the whole resize as one large, sudden
+  // width change, and doing that mid-gesture is what fought the browser's
+  // own scroll physics and read as a stutter/reversal. Tying it directly to
+  // scroll distance instead fixed that, but meant the shrink froze the
+  // instant scrolling paused and its speed depended entirely on how fast
+  // the user happened to scroll.
+  //
+  // This runs it as its own rAF-driven animation instead: crossing the
+  // scroll threshold starts a fixed-duration, eased transition from the
+  // current value to the target (0 or 1), which keeps playing every frame
+  // regardless of whether scrolling continues, pauses, or stops — the
+  // scroll gesture only ever triggers it, never drives it frame-by-frame,
+  // so there's no per-event width jump for scroll physics to fight.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
+
+    let target = 0;
+    let current = 0;
+    let raf: number | null = null;
+    let anim: { from: number; to: number; start: number } | null = null;
+
+    const step = (now: number) => {
+      if (!anim) {
+        raf = null;
+        return;
+      }
+      const t = Math.max(0, Math.min(1, (now - anim.start) / SHRINK_DURATION));
+      current = anim.from + (anim.to - anim.from) * easeInOutCubic(t);
+      setShrinkT(current);
+      if (t < 1) {
+        raf = requestAnimationFrame(step);
+      } else {
+        anim = null;
+        raf = null;
+      }
+    };
+
     const handleScroll = () => {
       const max = el.scrollWidth - el.clientWidth;
       const p = max > 0 ? el.scrollLeft / max : 0;
       setProgress(p);
-      setShrinkT(Math.max(0, Math.min(1, el.scrollLeft / SHRINK_RAMP_PX)));
+
+      const nextTarget = el.scrollLeft > 6 ? 1 : 0;
+      if (nextTarget !== target) {
+        target = nextTarget;
+        anim = { from: current, to: target, start: performance.now() };
+        if (raf === null) {
+          raf = requestAnimationFrame(step);
+        }
+      }
     };
+
     el.addEventListener("scroll", handleScroll);
     handleScroll();
-    return () => el.removeEventListener("scroll", handleScroll);
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
   }, []);
 
   // Wheel/trackpad scrolling only drives the track natively when the

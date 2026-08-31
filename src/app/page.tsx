@@ -335,47 +335,45 @@ export default function Home() {
   // (cards, the theme toggle) — one delegated listener rather than a
   // handler on each element, reusing the same tag set the cursor effect
   // above uses to find its targets. It shrinks on mousedown and *holds*
-  // there — fill: "forwards" keeps the animation's end state rather than
-  // snapping back once the effect finishes playing — expanding back only
-  // on mouseup, however long the press lasts. Runs via the Web Animations
-  // API with composite: "add" so it multiplies on top of the CSS
-  // hover-scale transform instead of replacing it.
+  // there, expanding back only on mouseup, however long the press lasts.
+  //
+  // Every step animates to an absolute scale (not composite: "add" layered
+  // on top of the CSS hover-scale, tried first) starting from whatever the
+  // element's current rendered transform actually is, read fresh each time
+  // via getComputedStyle. That's what guarantees release always lands at
+  // *exactly* scale(1) — the true original size — rather than back at
+  // whatever the hover-scale currently is (1.035x/1.12x while still
+  // hovering), which "add" would do since it only ever adds *relative* to
+  // the live CSS value instead of targeting an absolute one.
   useEffect(() => {
-    // A plain "ease-out" (monotonic, no overshoot) on both the press and
-    // its mirrored release via anim.reverse() — never exceeds scale(1) on
-    // the way back, on purpose: a spring/overshoot easing would bounce
-    // past the original size before settling, which reads as bouncy
-    // rather than a clean press-and-release.
-    const SHRINK_KEYFRAMES: Keyframe[] = [{ transform: "scale(1)" }, { transform: "scale(0.85)" }];
-    let pressed: { el: HTMLElement; anim: Animation } | null = null;
+    const PRESS_SCALE = 0.91;
+
+    // Reads the element's *current* rendered transform before touching
+    // any animation on it — cancelling an existing animation first would
+    // snap it back to the CSS-only value, losing whatever mid-shrink (or
+    // mid-release) point it was actually showing.
+    const animateScaleTo = (el: HTMLElement, target: number) => {
+      const current = getComputedStyle(el).transform;
+      for (const a of el.getAnimations()) a.cancel();
+      return el.animate(
+        [{ transform: current === "none" ? "scale(1)" : current }, { transform: `scale(${target})` }],
+        { duration: 150, easing: "ease-out", fill: "forwards" }
+      );
+    };
+
+    let pressed: { el: HTMLElement } | null = null;
 
     const handleMouseDown = (e: MouseEvent) => {
       if (!(e.target instanceof Element)) return;
       const el = e.target.closest("[data-cursor-melt]");
       if (!(el instanceof HTMLElement)) return;
-      // A real mouse button can't fire a second mousedown before a
-      // matching mouseup, but a fast enough re-press (or two composite:
-      // "add" animations briefly overlapping for any other reason) would
-      // otherwise stack — cancelling any leftover animation on this
-      // element first guarantees a clean scale(1) baseline before the
-      // new one starts.
-      for (const a of el.getAnimations()) a.cancel();
-      const anim = el.animate(SHRINK_KEYFRAMES, {
-        duration: 150,
-        easing: "ease-out",
-        fill: "forwards",
-        composite: "add",
-      });
-      pressed = { el, anim };
+      animateScaleTo(el, PRESS_SCALE);
+      pressed = { el };
     };
     const handleMouseUp = () => {
       if (!pressed) return;
-      const { anim } = pressed;
-      // Reverses from wherever it currently is, not necessarily the fully
-      // shrunk end state — a release right as the shrink is still playing
-      // reverses smoothly from that in-between point instead of jumping.
-      anim.reverse();
-      anim.onfinish = () => anim.cancel();
+      const release = animateScaleTo(pressed.el, 1);
+      release.onfinish = () => release.cancel();
       pressed = null;
     };
 

@@ -38,14 +38,22 @@ const CURSOR_LERP = 0.22;
 // not snap to size in a single frame like raw position tracking does.
 const SCALE_LERP = 0.18;
 const TRAIL_COUNT = 6;
-const TRAIL_LERP = 0.35;
+// Tighter than before on purpose — a higher lerp keeps each dot closer to
+// the one ahead of it, so the tail reads as one continuous, solid shape
+// instead of loose, scattered dots spread along a wide arc.
+const TRAIL_LERP = 0.5;
 // Below this distance from the cursor, a trail dot counts as "caught up"
-// rather than "actively trailing," and fades toward invisible instead of
-// its normal opacity — otherwise, whenever the cursor is stationary (like
-// during a click), all the trail dots converge on the same point as the
-// cursor and stack there, which reads as a soft gradient blob rather
-// than a solid shape.
+// rather than "actively trailing." Caught-up dots are hidden behind the
+// (same or larger) main cursor dot with nothing exposed, EXCEPT while
+// clicking, when the main dot's own click-shrink can expose them as rings
+// around it — see the isDown branch in the trail loop below, which fades
+// caught-up dots out immediately in that case instead of holding them.
 const TRAIL_FADE_DISTANCE = 14;
+// Once caught up (and not clicking), a trail dot holds its full opacity
+// for this long before it starts to fade — so the tail lingers behind a
+// stopped cursor instead of vanishing the instant motion stops.
+const TRAIL_HOLD_MS = 2000;
+const TRAIL_FADE_MS = 500;
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -189,12 +197,18 @@ export default function Home() {
     const currentPos = { x: -100, y: -100 };
     const trailPositions = Array.from({ length: TRAIL_COUNT }, () => ({ x: -100, y: -100 }));
     // Max opacity per trail dot (matches the tapering used for its size in
-    // the JSX below) — the loop multiplies this by an activity factor
-    // each frame rather than using it directly.
+    // the JSX below) — the loop multiplies this by an activity/fade factor
+    // each frame rather than using it directly. t starts at 0 (the dot
+    // right behind the cursor, nearly as opaque/large as it, for a solid
+    // connection to the cursor) rather than 1/TRAIL_COUNT, so the taper is
+    // gradual all the way through instead of dropping off sharply.
     const trailBaseOpacity = Array.from({ length: TRAIL_COUNT }, (_, i) => {
-      const t = (i + 1) / TRAIL_COUNT;
-      return (1 - t) * 0.7;
+      const t = i / TRAIL_COUNT;
+      return (1 - t) * 0.85;
     });
+    // Timestamp each dot first caught up to the cursor (or null while it's
+    // still actively trailing) — drives the hold-then-fade in the loop.
+    const trailCaughtSince: (number | null)[] = Array.from({ length: TRAIL_COUNT }, () => null);
     let isDown = false;
     let currentScale = 1;
     let raf: number;
@@ -250,19 +264,35 @@ export default function Home() {
       // toward the cursor, index 1 toward index 0, etc.), not straight
       // toward the raw mouse position — that chaining is what gives it a
       // stretchy, springy tail instead of a rigid line of copies.
+      const now = performance.now();
       let prev = currentPos;
       for (let i = 0; i < TRAIL_COUNT; i++) {
         const p = trailPositions[i];
         p.x += (prev.x - p.x) * TRAIL_LERP;
         p.y += (prev.y - p.y) * TRAIL_LERP;
         trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
-        // Fade toward invisible once this dot has caught up to the
-        // cursor (distance-based, not just "isDown") — that's what keeps
-        // a stationary cursor (e.g. mid-click) a single solid shape
-        // instead of a stack of faded dots at the same point.
+
         const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
-        const activity = Math.min(1, distFromCursor / TRAIL_FADE_DISTANCE);
-        trailEls[i].style.opacity = String(trailBaseOpacity[i] * activity);
+        const caughtUp = distFromCursor <= TRAIL_FADE_DISTANCE;
+        let opacity: number;
+        if (isDown) {
+          // The click-shrink changes the main dot's own size, which can
+          // expose a caught-up trail dot as a ring around it — fall back
+          // to an instant distance-based fade here (rather than the hold)
+          // so a held click never shows the trail this way.
+          const activity = Math.min(1, distFromCursor / TRAIL_FADE_DISTANCE);
+          opacity = trailBaseOpacity[i] * activity;
+          trailCaughtSince[i] = null;
+        } else if (!caughtUp) {
+          opacity = trailBaseOpacity[i];
+          trailCaughtSince[i] = null;
+        } else {
+          if (trailCaughtSince[i] === null) trailCaughtSince[i] = now;
+          const heldFor = now - trailCaughtSince[i]!;
+          const fadeT = Math.max(0, Math.min(1, (heldFor - TRAIL_HOLD_MS) / TRAIL_FADE_MS));
+          opacity = trailBaseOpacity[i] * (1 - fadeT);
+        }
+        trailEls[i].style.opacity = String(opacity);
         prev = p;
       }
 
@@ -513,9 +543,9 @@ export default function Home() {
       </div>
 
       {Array.from({ length: TRAIL_COUNT }).map((_, i) => {
-        const t = (i + 1) / TRAIL_COUNT;
-        const size = CURSOR_SIZE * (1 - t * 0.6);
-        const opacity = (1 - t) * 0.7;
+        const t = i / TRAIL_COUNT;
+        const size = CURSOR_SIZE * (1 - t * 0.5);
+        const opacity = (1 - t) * 0.85;
         return (
           <div
             key={i}

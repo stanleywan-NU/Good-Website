@@ -397,12 +397,6 @@ export default function Home() {
       className="relative h-screen w-full overflow-hidden font-sans"
       style={{ backgroundColor: bg, color: fg }}
     >
-      <div
-        className="absolute top-8 left-12 z-10 inline-block cursor-default text-lg font-bold tracking-tight transition-transform duration-200 hover:scale-[1.07]"
-      >
-        Stanley Wan
-      </div>
-
       <div className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2.5">
         <button
           ref={toggleBtnRef}
@@ -422,7 +416,7 @@ export default function Home() {
             </svg>
           )}
         </button>
-        <div className="flex h-[34px] w-[220px] items-center justify-center gap-[3px]">
+        <div data-cursor-melt className="flex h-[34px] w-[220px] items-center justify-center gap-[3px]">
           {PEAKS.map((peak, i) => {
             const active = i < activeCount;
             return (

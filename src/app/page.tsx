@@ -285,7 +285,7 @@ export default function Home() {
 
       <div
         ref={trackRef}
-        className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch overflow-x-auto overflow-y-hidden px-12 pb-14"
+        className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch overflow-x-auto overflow-y-hidden overscroll-x-contain px-12 pb-14"
         style={{
           top: 100,
           gap: LARGE_GAP + shrinkT * (SMALL_GAP - LARGE_GAP),

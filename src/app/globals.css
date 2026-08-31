@@ -15,6 +15,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  /* Belt-and-suspenders alongside overscroll-x-contain on the scroll
+     track: keeps any overscroll (swipe past the start/end of the
+     horizontal track, or momentum right after the theme-toggle
+     transition) from bubbling up into the browser's own back/forward
+     swipe-navigation gesture. */
+  overscroll-behavior: none;
 }
 
 .hscroll-track {

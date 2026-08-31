@@ -39,12 +39,14 @@ const CURSOR_LERP = 0.22;
 // the same slow rate as the grow barely moved within that short a window,
 // which read as "not shrinking" even though it technically was.
 const SCALE_LERP_UP = 0.18;
-const SCALE_LERP_DOWN = 0.45;
+const SCALE_LERP_DOWN = 0.6;
 const TRAIL_COUNT = 12;
-// Tighter than before on purpose — a higher lerp keeps each dot closer to
-// the one ahead of it, so the tail reads as one continuous, solid shape
-// instead of loose, scattered dots spread along a wide arc.
-const TRAIL_LERP = 0.5;
+// A chain-lerped dot lags the one ahead of it by roughly velocity ×
+// (1 - lerp) / lerp at any given cursor speed — so at typical real cursor
+// speeds, even the 0.5 tried before still left a visible gap between
+// dots. Pushed further so each dot sits close enough behind the one
+// ahead to read as one continuous shape instead of separated beads.
+const TRAIL_LERP = 0.82;
 // If the trail kept chasing the cursor every frame, it would fully catch
 // up and collapse onto the cursor's position the instant it stops moving —
 // there'd be nothing left to hold or fade, no matter the timing below. So
@@ -57,10 +59,16 @@ const IDLE_THRESHOLD_MS = 100;
 const TRAIL_HOLD_MS = 2500;
 const TRAIL_FADE_MS = 700;
 // Safety net only: while clicking, the main dot's own click-shrink can
-// expose a trail dot sitting right under it as a ring around it. This
-// distance gates an instant fade for that specific case — it doesn't
-// otherwise drive the hold/fade behavior above.
-const TRAIL_CLICK_SAFE_DISTANCE = 14;
+// expose a trail dot sitting right under/behind it as a visibly merged
+// blob (two overlapping rounded-square shapes, not a clean single dot) —
+// worst right after a click on a *hovered* (already grown to 1.4×) target,
+// since a trail dot can still be near-full-size there while the cursor
+// itself has just shrunk out from under it. A hard cutoff (not a partial
+// fade) for anything within this radius is what actually keeps a click
+// looking like one solid shape — a partial ratio still let a sliver of
+// the dot show through and read as choppy. Doesn't otherwise drive the
+// hold/fade behavior above.
+const TRAIL_CLICK_SAFE_DISTANCE = 32;
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -286,10 +294,7 @@ export default function Home() {
           trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
 
           const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
-          const opacity =
-            isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE
-              ? trailBaseOpacity[i] * (distFromCursor / TRAIL_CLICK_SAFE_DISTANCE)
-              : trailBaseOpacity[i];
+          const opacity = isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i];
           trailEls[i].style.opacity = String(opacity);
           prev = p;
         }
@@ -302,7 +307,11 @@ export default function Home() {
         const heldFor = now - idleSince;
         const fadeT = Math.max(0, Math.min(1, (heldFor - TRAIL_HOLD_MS) / TRAIL_FADE_MS));
         for (let i = 0; i < TRAIL_COUNT; i++) {
-          trailEls[i].style.opacity = String(trailBaseOpacity[i] * (1 - fadeT));
+          const p = trailPositions[i];
+          const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
+          const opacity =
+            isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i] * (1 - fadeT);
+          trailEls[i].style.opacity = String(opacity);
         }
       }
 
@@ -554,7 +563,11 @@ export default function Home() {
 
       {Array.from({ length: TRAIL_COUNT }).map((_, i) => {
         const t = i / TRAIL_COUNT;
-        const size = CURSOR_SIZE * (1 - t * 0.5);
+        // A gentler size taper than tried before (0.3, not 0.5) — dots stay
+        // closer to full size along the whole tail, so they overlap enough
+        // to cover the gap a fixed lerp fraction otherwise leaves between
+        // them, instead of shrinking down into separated little beads.
+        const size = CURSOR_SIZE * (1 - t * 0.2);
         const opacity = (1 - t) * 0.85;
         return (
           <div

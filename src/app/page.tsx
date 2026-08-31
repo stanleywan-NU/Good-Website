@@ -25,29 +25,19 @@ const MIN_CARD_SCALE = 0.85;
 const SHRINK_DURATION = 650;
 
 // Custom cursor: a small rounded-square dot, themed to the current fg
-// color, that trails the pointer with a bit of lag and shrinks on click.
-// mix-blend-mode: exclusion is what makes it "react" to whatever it's
-// over — this is the actual technique evanyfw.space's own cursor uses
-// (a plain circle with mix-blend-mode: exclusion, confirmed by
-// inspecting it), not an elaborate metaball/goo system. Exclusion of a
-// color against itself darkens rather than staying flat, so passing
-// over a border or box drawn in the same fg color visibly "reacts" with
-// it instead of just sitting on top as a flat, separate shape.
+// color, that trails the pointer with a bit of lag, grows slightly near
+// a card/border/button, and shrinks by half (of whatever its current
+// size is — not a fixed absolute size) on click. A short comet-style
+// trail of fading, shrinking dots follows behind it, in the same fg
+// color, like a laser pointer.
 const CURSOR_SIZE = 22;
-const CURSOR_CLICK_SCALE = 0.55;
+const CURSOR_CLICK_SCALE = 0.5;
 const CURSOR_LERP = 0.22;
-// The goo-filtered wrapper is a modest, cursor-following box rather than
-// the full viewport — filtering (blur+matrix) the whole page every frame
-// just to blob together two ~20px dots would be wasteful. The melt
-// highlight is always within a target element's bounds and mouseover
-// only fires once the cursor is already at/inside that target, so the
-// two blobs are never more than roughly a card's near-edge apart — this
-// box is sized with comfortable headroom over that.
-const GOO_WRAPPER_SIZE = 300;
-const GOO_WRAPPER_HALF = GOO_WRAPPER_SIZE / 2;
-// How close (px) the cursor needs to get to a melt target's edge before
-// the highlight blob appears and starts bridging toward it.
+// How close (px) the cursor needs to get to a card/border/button before
+// it grows a bit, signaling it's near something interactive.
 const MELT_PROXIMITY = 56;
+const TRAIL_COUNT = 6;
+const TRAIL_LERP = 0.35;
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -65,8 +55,7 @@ export default function Home() {
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
   const cursorRef = useRef<HTMLDivElement>(null);
-  const meltHighlightRef = useRef<HTMLDivElement>(null);
-  const gooWrapperRef = useRef<HTMLDivElement>(null);
+  const trailRefs = useRef<HTMLDivElement[]>([]);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
@@ -169,30 +158,29 @@ export default function Home() {
   // pointer position each frame) is what gives it the slight trailing lag
   // rather than snapping 1:1 to the mouse.
   //
-  // The cursor itself never changes color (no mix-blend-mode) — it's
-  // always a flat fg-colored dot, in both themes. The "melds with a
-  // matching-colored border" effect is a real shape merge (like iOS's
-  // liquid-glass UI, e.g. the "+" button flowing into the message field),
-  // not a color trick: an SVG goo filter (blur, then a color matrix that
-  // sharpens the alpha back up) applied to a layer containing the cursor
-  // plus a second small blob. That second blob snaps to the nearest point
-  // on whichever [data-cursor-melt] element is closest, so as the cursor
-  // approaches a card/button border the two blobs bridge and fuse into
-  // one liquid shape, then separate again as it pulls away.
+  // The cursor is always a flat fg-colored dot (no mix-blend-mode, no
+  // shape-merge filter — that liquid-glass approach didn't read well in
+  // practice). Instead it drags a short comet-style trail behind it: a
+  // chain of dots where each one eases toward the *previous* dot's
+  // position (not straight toward the mouse), which is what gives the
+  // trail its stretchy, laser-pointer-ish look rather than a straight
+  // line of copies. Proximity to a [data-cursor-melt] element still grows
+  // the cursor a bit, and clicking now shrinks it to half of whatever its
+  // *current* size is (so it shrinks the same proportionally whether it
+  // was already grown from proximity or not), rather than snapping to one
+  // fixed absolute size regardless of state.
   useEffect(() => {
     const cursorEl = cursorRef.current;
-    const highlightEl = meltHighlightRef.current;
-    const wrapperEl = gooWrapperRef.current;
-    if (!cursorEl || !highlightEl || !wrapperEl) return;
+    const trailEls = trailRefs.current;
+    if (!cursorEl || trailEls.length !== TRAIL_COUNT) return;
 
     // Queried once: the set of melt targets doesn't change at runtime.
     const meltTargets = Array.from(document.querySelectorAll("[data-cursor-melt]"));
 
     const targetPos = { x: -100, y: -100 };
     const currentPos = { x: -100, y: -100 };
-    const highlightPos = { x: -100, y: -100 };
+    const trailPositions = Array.from({ length: TRAIL_COUNT }, () => ({ x: -100, y: -100 }));
     let isDown = false;
-    let wasNear = false;
     let raf: number;
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -214,62 +202,32 @@ export default function Home() {
       currentPos.x += (targetPos.x - currentPos.x) * CURSOR_LERP;
       currentPos.y += (targetPos.y - currentPos.y) * CURSOR_LERP;
 
-      // The goo wrapper follows the cursor (stays centered on it); the
-      // cursor and highlight are positioned *within* the wrapper, so their
-      // coordinates below are relative to the wrapper's own top-left, not
-      // the viewport.
-      const wrapperX = currentPos.x - GOO_WRAPPER_HALF;
-      const wrapperY = currentPos.y - GOO_WRAPPER_HALF;
-      wrapperEl.style.transform = `translate(${wrapperX}px, ${wrapperY}px)`;
-
-      // Find the nearest point on the nearest melt target, checked fresh
-      // every frame (not just on hover enter/exit) — this is what lets the
-      // highlight blob appear *before* the cursor actually touches a card,
-      // so there's a real gap for the goo filter to visibly bridge as they
-      // approach, rather than the two blobs only ever appearing already
-      // coincident (which is what a plain mouseover/mouseout check gives
-      // you: by the time you're "over" a box you're already inside its
-      // hit-test rect, so the nearest point is just your own position).
-      let nearestX = currentPos.x;
-      let nearestY = currentPos.y;
+      // Nearest distance to any melt target, checked fresh every frame —
+      // just to drive the grow-on-approach scale now, no shape merge.
       let minDist = Infinity;
       for (const el of meltTargets) {
         const rect = el.getBoundingClientRect();
         const x = Math.min(Math.max(currentPos.x, rect.left), rect.right);
         const y = Math.min(Math.max(currentPos.y, rect.top), rect.bottom);
         const dist = Math.hypot(x - currentPos.x, y - currentPos.y);
-        if (dist < minDist) {
-          minDist = dist;
-          nearestX = x;
-          nearestY = y;
-        }
+        if (dist < minDist) minDist = dist;
       }
+      const proximityT = minDist < MELT_PROXIMITY ? 1 - minDist / MELT_PROXIMITY : 0;
+      const baseScale = 1 + proximityT * 0.4;
+      const scale = isDown ? baseScale * CURSOR_CLICK_SCALE : baseScale;
+      cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${scale})`;
 
-      const isNear = minDist < MELT_PROXIMITY;
-      if (isNear && !wasNear) {
-        // Just came into range — start the highlight at the cursor so it
-        // doesn't fly in from a stale position left over from last time.
-        highlightPos.x = currentPos.x;
-        highlightPos.y = currentPos.y;
-      }
-      wasNear = isNear;
-
-      // Proximity grows the cursor continuously (up to +40% right at
-      // contact) instead of snapping to a fixed size the instant it enters
-      // range, matching the gradual "reaching toward" feel of the effect.
-      const proximityT = isNear ? 1 - minDist / MELT_PROXIMITY : 0;
-      const scale = isDown ? CURSOR_CLICK_SCALE : 1 + proximityT * 0.4;
-      cursorEl.style.transform = `translate(${GOO_WRAPPER_HALF}px, ${GOO_WRAPPER_HALF}px) translate(-50%, -50%) scale(${scale})`;
-
-      if (isNear) {
-        highlightPos.x += (nearestX - highlightPos.x) * CURSOR_LERP;
-        highlightPos.y += (nearestY - highlightPos.y) * CURSOR_LERP;
-        highlightEl.style.opacity = String(proximityT);
-        const localX = highlightPos.x - wrapperX;
-        const localY = highlightPos.y - wrapperY;
-        highlightEl.style.transform = `translate(${localX}px, ${localY}px) translate(-50%, -50%)`;
-      } else {
-        highlightEl.style.opacity = "0";
+      // Each trail dot eases toward the one in front of it (index 0 eases
+      // toward the cursor, index 1 toward index 0, etc.), not straight
+      // toward the raw mouse position — that chaining is what gives it a
+      // stretchy, springy tail instead of a rigid line of copies.
+      let prev = currentPos;
+      for (let i = 0; i < TRAIL_COUNT; i++) {
+        const p = trailPositions[i];
+        p.x += (prev.x - p.x) * TRAIL_LERP;
+        p.y += (prev.y - p.y) * TRAIL_LERP;
+        trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
+        prev = p;
       }
 
       raf = requestAnimationFrame(loop);
@@ -518,53 +476,38 @@ export default function Home() {
         </div>
       </div>
 
-      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
-        <defs>
-          <filter id="cursor-goo">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
-            <feColorMatrix
-              in="blur"
-              mode="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"
-              result="goo"
-            />
-            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
-          </filter>
-        </defs>
-      </svg>
+      {Array.from({ length: TRAIL_COUNT }).map((_, i) => {
+        const t = (i + 1) / TRAIL_COUNT;
+        const size = CURSOR_SIZE * (1 - t * 0.6);
+        const opacity = (1 - t) * 0.7;
+        return (
+          <div
+            key={i}
+            ref={(el) => {
+              if (el) trailRefs.current[i] = el;
+            }}
+            className="pointer-events-none fixed top-0 left-0 z-[9998] rounded-lg"
+            style={{
+              width: size,
+              height: size,
+              backgroundColor: fg,
+              opacity,
+              willChange: "transform",
+            }}
+          />
+        );
+      })}
 
       <div
-        ref={gooWrapperRef}
-        className="pointer-events-none fixed top-0 left-0 z-[9999]"
+        ref={cursorRef}
+        className="pointer-events-none fixed top-0 left-0 z-[9999] rounded-lg"
         style={{
-          width: GOO_WRAPPER_SIZE,
-          height: GOO_WRAPPER_SIZE,
-          filter: "url(#cursor-goo)",
+          width: CURSOR_SIZE,
+          height: CURSOR_SIZE,
+          backgroundColor: fg,
           willChange: "transform",
         }}
-      >
-        <div
-          ref={meltHighlightRef}
-          className="absolute top-0 left-0 rounded-lg"
-          style={{
-            width: CURSOR_SIZE * 0.9,
-            height: CURSOR_SIZE * 0.9,
-            backgroundColor: fg,
-            opacity: 0,
-            willChange: "transform, opacity",
-          }}
-        />
-        <div
-          ref={cursorRef}
-          className="absolute top-0 left-0 rounded-lg"
-          style={{
-            width: CURSOR_SIZE,
-            height: CURSOR_SIZE,
-            backgroundColor: fg,
-            willChange: "transform",
-          }}
-        />
-      </div>
+      />
     </div>
   );
 }

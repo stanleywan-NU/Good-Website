@@ -219,7 +219,7 @@ export default function Home() {
   );
 
   const cardBox =
-    "h-full w-full flex flex-col border-[3px] p-10 transition-transform duration-200 ease-out hover:scale-[1.035]";
+    "h-full w-full flex flex-col rounded-3xl border-[3px] p-10 transition-transform duration-200 ease-out hover:scale-[1.035]";
 
   // Real layout shrink (flexBasis), not just a cosmetic transform: scaling
   // a fixed-width slot visually without changing its actual width leaves
@@ -251,7 +251,7 @@ export default function Home() {
         <button
           ref={toggleBtnRef}
           onClick={toggleTheme}
-          className="flex h-9 w-9 items-center justify-center border-[3px] p-0 transition-transform duration-200 hover:scale-[1.12]"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border-[3px] p-0 transition-transform duration-200 hover:scale-[1.12]"
           style={{ borderColor: fg, backgroundColor: bg, color: fg }}
         >
           {isDark ? (

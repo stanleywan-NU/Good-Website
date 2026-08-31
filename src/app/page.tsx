@@ -44,13 +44,13 @@ const SCALE_LERP_DOWN = 0.45;
 // Total lifetime of a point in the trail, oldest to fully faded — the
 // "stays for a few seconds, then fades" arc. Length during motion is a
 // side effect of this (lifetime × cursor speed), not a separate knob.
-const TRAIL_LIFETIME_MS = 3000;
-// Exponent on the trail's remaining-life fraction: well below 1 so a
-// point stays near full brightness for most of its life and only drops
-// off sharply near the very end, instead of fading linearly the whole
-// time — the "hold, then fade" shape of Yondu's arrow.
-const TRAIL_FADE_SHAPE = 0.25;
-const TRAIL_BASE_ALPHA = 0.6;
+const TRAIL_LIFETIME_MS = 2550;
+// Exponent on the trail's remaining-life fraction. Above 1 (rather than
+// the well-below-1 value tried first) so the fade starts noticeably
+// early in the point's life instead of holding near-full brightness for
+// almost the entire duration and only dropping right at the very end.
+const TRAIL_FADE_SHAPE = 2;
+const TRAIL_BASE_ALPHA = 0.5;
 const TRAIL_MAX_WIDTH = CURSOR_SIZE * 0.7;
 const TRAIL_MIN_WIDTH = CURSOR_SIZE * 0.3;
 // Skip drawing a connecting segment between two history points this far
@@ -289,7 +289,13 @@ export default function Home() {
       }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.lineCap = "round";
+      // "butt", not "round": each history segment is stroked individually
+      // (its alpha/width changes continuously along the trail), and a
+      // round cap adds a semicircle at both ends of every segment — right
+      // where two segments meet, their semicircles overlap and double up
+      // the alpha there, showing as a distinct darker "bead" at every
+      // sampled point instead of one smooth, evenly-colored line.
+      ctx.lineCap = "butt";
       ctx.strokeStyle = fgRef.current;
       // While clicking, the shrunk cursor is smaller than the fresh (wide)
       // end of the trail would normally be drawn — skip anything within

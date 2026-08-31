@@ -405,6 +405,20 @@ export default function Home() {
   function toggleTheme() {
     if (isTransitioningRef.current) return;
 
+    // document.startViewTransition (below) snapshots the button's *current*
+    // rendered state synchronously, before its callback even runs. The
+    // click-shrink effect's release animation is still playing at this
+    // point (mouseup fires, then click, only a moment later) — if left
+    // alone, the snapshot would freeze on the button still shrunk, and
+    // since that snapshot is what's actually visible for the whole reveal
+    // (the live DOM keeps animating underneath, unseen), the button would
+    // look stuck shrunk for the entire transition instead of expanding
+    // back. Cancelling it here jumps straight to its resting size so the
+    // snapshot — and the "expand back" the user actually sees — is correct.
+    if (toggleBtnRef.current) {
+      for (const a of toggleBtnRef.current.getAnimations()) a.cancel();
+    }
+
     const btnRect = toggleBtnRef.current?.getBoundingClientRect();
     const x = btnRect ? btnRect.left + btnRect.width / 2 : window.innerWidth / 2;
     const y = btnRect ? btnRect.top + btnRect.height / 2 : 0;

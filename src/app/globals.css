@@ -11,15 +11,17 @@
   --font-sans: var(--font-geist);
 }
 
+/* overscroll-behavior on body alone doesn't suppress the browser's
+   swipe-navigation gesture — that's gated by the *root* scroller, which
+   is the html element, not body. Both are set here as a result. */
+html {
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
-  /* Belt-and-suspenders alongside overscroll-x-contain on the scroll
-     track: keeps any overscroll (swipe past the start/end of the
-     horizontal track, or momentum right after the theme-toggle
-     transition) from bubbling up into the browser's own back/forward
-     swipe-navigation gesture. */
   overscroll-behavior: none;
 }
 

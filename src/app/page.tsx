@@ -341,13 +341,25 @@ export default function Home() {
   // API with composite: "add" so it multiplies on top of the CSS
   // hover-scale transform instead of replacing it.
   useEffect(() => {
-    const SHRINK_KEYFRAMES: Keyframe[] = [{ transform: "scale(1)" }, { transform: "scale(0.9)" }];
+    // A plain "ease-out" (monotonic, no overshoot) on both the press and
+    // its mirrored release via anim.reverse() — never exceeds scale(1) on
+    // the way back, on purpose: a spring/overshoot easing would bounce
+    // past the original size before settling, which reads as bouncy
+    // rather than a clean press-and-release.
+    const SHRINK_KEYFRAMES: Keyframe[] = [{ transform: "scale(1)" }, { transform: "scale(0.85)" }];
     let pressed: { el: HTMLElement; anim: Animation } | null = null;
 
     const handleMouseDown = (e: MouseEvent) => {
       if (!(e.target instanceof Element)) return;
       const el = e.target.closest("[data-cursor-melt]");
       if (!(el instanceof HTMLElement)) return;
+      // A real mouse button can't fire a second mousedown before a
+      // matching mouseup, but a fast enough re-press (or two composite:
+      // "add" animations briefly overlapping for any other reason) would
+      // otherwise stack — cancelling any leftover animation on this
+      // element first guarantees a clean scale(1) baseline before the
+      // new one starts.
+      for (const a of el.getAnimations()) a.cancel();
       const anim = el.animate(SHRINK_KEYFRAMES, {
         duration: 150,
         easing: "ease-out",

@@ -60,11 +60,115 @@ export default function Home() {
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
   const cursorRef = useRef<HTMLDivElement>(null);
+  const bgCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fgRef = useRef<string>(RUST);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
   const fg = isDark ? CREAM : RUST;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
+
+  // The background dot grid reads color off a ref instead of the `fg`
+  // prop directly so a theme toggle doesn't need to restart its rAF loop
+  // (and lose every dot's current eased position) — it just picks up the
+  // new color on the next frame.
+  useEffect(() => {
+    fgRef.current = fg;
+  }, [fg]);
+
+  // A dot-grid texture that fills the empty space behind the boxes (the
+  // boxes themselves are opaque, so it's naturally hidden underneath
+  // them — no per-box exclusion math needed). Each dot eases away from
+  // the real cursor within a radius, then eases back to its grid slot
+  // once the cursor moves off — same repel-and-settle approach as the
+  // background texture on andrew-yuan.com.
+  useEffect(() => {
+    const canvas = bgCanvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    const GRID_SPACING = 28;
+    const DOT_RADIUS = 1.5;
+    const DOT_OPACITY = 0.35;
+    const MOUSE_RADIUS = 110;
+    const REPEL_FORCE = 26;
+    const EASE = 0.1;
+
+    let width = 0;
+    let height = 0;
+    let dots: { baseX: number; baseY: number; x: number; y: number }[] = [];
+    const mouse = { x: -1000, y: -1000 };
+    let raf: number;
+
+    const buildGrid = () => {
+      const cols = Math.round(width / GRID_SPACING);
+      const rows = Math.round(height / GRID_SPACING);
+      const spanX = (cols - 1) * GRID_SPACING;
+      const spanY = (rows - 1) * GRID_SPACING;
+      const startX = (width - spanX) / 2;
+      const startY = (height - spanY) / 2;
+      dots = [];
+      for (let x = startX; x <= width; x += GRID_SPACING) {
+        for (let y = startY; y <= height; y += GRID_SPACING) {
+          dots.push({ baseX: x, baseY: y, x, y });
+        }
+      }
+    };
+
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildGrid();
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    };
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalAlpha = DOT_OPACITY;
+      ctx.fillStyle = fgRef.current;
+      for (const dot of dots) {
+        const dx = mouse.x - dot.baseX;
+        const dy = mouse.y - dot.baseY;
+        const dist = Math.hypot(dx, dy);
+        let targetX = dot.baseX;
+        let targetY = dot.baseY;
+        if (dist < MOUSE_RADIUS) {
+          const ratio = (MOUSE_RADIUS - dist) / MOUSE_RADIUS;
+          const angle = Math.atan2(dy, dx);
+          const push = ratio * REPEL_FORCE;
+          targetX -= Math.cos(angle) * push;
+          targetY -= Math.sin(angle) * push;
+        }
+        dot.x += (targetX - dot.x) * EASE;
+        dot.y += (targetY - dot.y) * EASE;
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, DOT_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(render);
+    };
+
+    window.addEventListener("resize", resize);
+    window.addEventListener("mousemove", handleMouseMove);
+    resize();
+    raf = requestAnimationFrame(render);
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", handleMouseMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // The shrink-on-scroll effect resizes every card's real flex-basis, which
   // changes the track's total scrollWidth. A one-shot flip (even debounced
@@ -436,6 +540,8 @@ export default function Home() {
       className="relative h-screen w-full overflow-hidden font-sans"
       style={{ backgroundColor: bg, color: fg }}
     >
+      <canvas ref={bgCanvasRef} className="pointer-events-none absolute inset-0 z-0" />
+
       <div
         className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2.5 rounded-3xl border-[3px] px-6 py-4"
         style={{ borderColor: fg, backgroundColor: bg }}
@@ -485,7 +591,7 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-5`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-5`} style={{ borderColor: fg, backgroundColor: bg }}>
             <span className="text-sm font-medium opacity-70">Product Design &amp; Content Strategy</span>
             <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
             <p className="m-0 max-w-[460px] text-[17px] leading-snug opacity-85">
@@ -502,7 +608,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg, backgroundColor: bg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
                 <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={fg} strokeWidth="4" strokeLinecap="round" />
@@ -516,7 +622,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg, backgroundColor: bg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
                 <path d="M22 10h20l6 10-18 34-18-34z" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
@@ -531,7 +637,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: fg, backgroundColor: bg }}>
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Coming Soon</span>
@@ -541,7 +647,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg, backgroundColor: bg }}>
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed opacity-85">
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
@@ -551,7 +657,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg, backgroundColor: bg }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
               [ Your email ]

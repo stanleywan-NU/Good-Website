@@ -49,6 +49,24 @@ export default function Home() {
     return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Wheel/trackpad scrolling only drives the track natively when the
+  // cursor is directly over it. Listening on the whole page and forwarding
+  // the delta lets scrolling work no matter where the cursor is (including
+  // over the fixed nav/toggle chrome up top), and preventDefault here also
+  // suppresses the track's own native handling when it IS the hovered
+  // element, so the motion isn't applied twice.
+  useEffect(() => {
+    const rootEl = rootRef.current;
+    const trackEl = trackRef.current;
+    if (!rootEl || !trackEl) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      trackEl.scrollLeft += e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    };
+    rootEl.addEventListener("wheel", handleWheel, { passive: false });
+    return () => rootEl.removeEventListener("wheel", handleWheel);
+  }, []);
+
   // Uses the real View Transition API: it snapshots the page before and
   // after the theme flips, then lets us mask the "after" snapshot with a
   // growing soft-edged circle. That's why colors change progressively as

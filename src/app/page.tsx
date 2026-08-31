@@ -24,6 +24,19 @@ const MIN_CARD_SCALE = 0.85;
 // stops partway through.
 const SHRINK_DURATION = 650;
 
+// Custom cursor: a small rounded-square dot, themed to the current fg
+// color, that trails the pointer with a bit of lag and shrinks on click.
+// mix-blend-mode: exclusion is what makes it "react" to whatever it's
+// over — this is the actual technique evanyfw.space's own cursor uses
+// (a plain circle with mix-blend-mode: exclusion, confirmed by
+// inspecting it), not an elaborate metaball/goo system. Exclusion of a
+// color against itself darkens rather than staying flat, so passing
+// over a border or box drawn in the same fg color visibly "reacts" with
+// it instead of just sitting on top as a flat, separate shape.
+const CURSOR_SIZE = 22;
+const CURSOR_CLICK_SCALE = 0.55;
+const CURSOR_LERP = 0.22;
+
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
@@ -39,6 +52,7 @@ export default function Home() {
   const trackRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
+  const cursorRef = useRef<HTMLDivElement>(null);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
@@ -132,6 +146,91 @@ export default function Home() {
     };
     rootEl.addEventListener("wheel", handleWheel, { passive: false });
     return () => rootEl.removeEventListener("wheel", handleWheel);
+  }, []);
+
+  // Custom cursor: position is tracked in refs and written straight to the
+  // DOM every frame, not through React state — state/re-renders on every
+  // mousemove would be needlessly expensive for something this
+  // high-frequency. The lerp (current position easing toward the real
+  // pointer position each frame) is what gives it the slight trailing lag
+  // rather than snapping 1:1 to the mouse.
+  //
+  // mix-blend-mode: exclusion only applies while hovering a
+  // [data-cursor-melt] element (cards, the toggle button — the things
+  // actually drawn in the fg color). Applying it all the time was tried
+  // first and doesn't work: exclusion of fg-over-bg computes some other,
+  // unrelated color (a muted teal here), not fg itself, since fg and bg
+  // aren't literal inverses of each other. That broke "flat dark in light
+  // mode / light in dark mode" as a baseline. Restricting it to hover
+  // keeps the cursor a flat solid the rest of the time and only invokes
+  // the reactive blend where it's meant to — over matching-colored
+  // borders/boxes.
+  useEffect(() => {
+    const cursorEl = cursorRef.current;
+    if (!cursorEl) return;
+
+    const targetPos = { x: -100, y: -100 };
+    const currentPos = { x: -100, y: -100 };
+    let isDown = false;
+    let isMelting = false;
+    let raf: number;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      targetPos.x = e.clientX;
+      targetPos.y = e.clientY;
+    };
+    const handleMouseDown = () => {
+      isDown = true;
+    };
+    const handleMouseUp = () => {
+      isDown = false;
+    };
+    const handleMouseLeave = () => {
+      targetPos.x = -100;
+      targetPos.y = -100;
+    };
+    const handleMouseOver = (e: MouseEvent) => {
+      if (e.target instanceof Element && e.target.closest("[data-cursor-melt]")) {
+        isMelting = true;
+        cursorEl.style.mixBlendMode = "exclusion";
+      }
+    };
+    const handleMouseOut = (e: MouseEvent) => {
+      if (
+        e.target instanceof Element &&
+        e.target.closest("[data-cursor-melt]") &&
+        !(e.relatedTarget instanceof Element && e.relatedTarget.closest("[data-cursor-melt]"))
+      ) {
+        isMelting = false;
+        cursorEl.style.mixBlendMode = "normal";
+      }
+    };
+
+    const loop = () => {
+      currentPos.x += (targetPos.x - currentPos.x) * CURSOR_LERP;
+      currentPos.y += (targetPos.y - currentPos.y) * CURSOR_LERP;
+      const scale = isDown ? CURSOR_CLICK_SCALE : isMelting ? 1.4 : 1;
+      cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${scale})`;
+      raf = requestAnimationFrame(loop);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("mouseleave", handleMouseLeave);
+    document.addEventListener("mouseover", handleMouseOver);
+    document.addEventListener("mouseout", handleMouseOut);
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+      document.removeEventListener("mouseover", handleMouseOver);
+      document.removeEventListener("mouseout", handleMouseOut);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   // Uses the real View Transition API: it snapshots the page before and
@@ -251,6 +350,7 @@ export default function Home() {
         <button
           ref={toggleBtnRef}
           onClick={toggleTheme}
+          data-cursor-melt
           className="flex h-9 w-9 items-center justify-center rounded-xl border-[3px] p-0 transition-transform duration-200 hover:scale-[1.12]"
           style={{ borderColor: fg, backgroundColor: bg, color: fg }}
         >
@@ -292,7 +392,7 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div className={`${cardBox} justify-center gap-5`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-5`} style={{ borderColor: fg }}>
             <span className="text-sm font-medium opacity-70">Product Design &amp; Content Strategy</span>
             <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
             <p className="m-0 max-w-[460px] text-[17px] leading-snug opacity-85">
@@ -309,7 +409,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
                 <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={fg} strokeWidth="4" strokeLinecap="round" />
@@ -323,7 +423,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
                 <path d="M22 10h20l6 10-18 34-18-34z" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
@@ -338,7 +438,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: fg }}>
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Coming Soon</span>
@@ -348,7 +448,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed opacity-85">
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
@@ -358,7 +458,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
               [ Your email ]
@@ -366,6 +466,18 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <div
+        ref={cursorRef}
+        className="pointer-events-none fixed top-0 left-0 z-[9999] rounded-lg"
+        style={{
+          width: CURSOR_SIZE,
+          height: CURSOR_SIZE,
+          backgroundColor: fg,
+          mixBlendMode: "normal",
+          willChange: "transform",
+        }}
+      />
     </div>
   );
 }

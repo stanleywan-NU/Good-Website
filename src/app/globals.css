@@ -25,6 +25,13 @@ body {
   overscroll-behavior: none;
 }
 
+/* The custom cursor (page.tsx) replaces the native one everywhere.
+   !important beats browser default cursor: pointer on buttons/links,
+   which would otherwise win over an inherited cursor: none. */
+* {
+  cursor: none !important;
+}
+
 .hscroll-track {
   scrollbar-width: none;
   -ms-overflow-style: none;

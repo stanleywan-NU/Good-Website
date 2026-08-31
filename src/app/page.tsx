@@ -331,42 +331,40 @@ export default function Home() {
     };
   }, []);
 
-  // A quick press-down shrink on click for every [data-cursor-melt]
-  // box/button (cards, the theme toggle) — one delegated listener rather
-  // than a handler on each element, reusing the same tag set the cursor
-  // effect above uses to find its targets. Runs via the Web Animations API
-  // with composite: "add" so it multiplies on top of the CSS hover-scale
-  // transform instead of replacing it.
-  //
-  // The toggle button is the one exception: its shrink plays on release
-  // (mouseup) instead of on press (mousedown) like the cards, so it reads
-  // as "press, then let go" rather than snapping small the instant it's
-  // pressed — appropriate for a button that actually does something on
-  // click, as opposed to the cards, which don't yet.
+  // A press-down shrink on click for every [data-cursor-melt] box/button
+  // (cards, the theme toggle) — one delegated listener rather than a
+  // handler on each element, reusing the same tag set the cursor effect
+  // above uses to find its targets. It shrinks on mousedown and *holds*
+  // there — fill: "forwards" keeps the animation's end state rather than
+  // snapping back once the effect finishes playing — expanding back only
+  // on mouseup, however long the press lasts. Runs via the Web Animations
+  // API with composite: "add" so it multiplies on top of the CSS
+  // hover-scale transform instead of replacing it.
   useEffect(() => {
-    const SHRINK_KEYFRAMES: Keyframe[] = [
-      { transform: "scale(1)" },
-      { transform: "scale(0.9)" },
-      { transform: "scale(1)" },
-    ];
-    const playShrink = (el: HTMLElement) => {
-      el.animate(SHRINK_KEYFRAMES, { duration: 220, easing: "ease-out", composite: "add" });
-    };
-    let pressedEl: HTMLElement | null = null;
+    const SHRINK_KEYFRAMES: Keyframe[] = [{ transform: "scale(1)" }, { transform: "scale(0.9)" }];
+    let pressed: { el: HTMLElement; anim: Animation } | null = null;
 
     const handleMouseDown = (e: MouseEvent) => {
       if (!(e.target instanceof Element)) return;
       const el = e.target.closest("[data-cursor-melt]");
       if (!(el instanceof HTMLElement)) return;
-      pressedEl = el;
-      if (el === toggleBtnRef.current) return;
-      playShrink(el);
+      const anim = el.animate(SHRINK_KEYFRAMES, {
+        duration: 150,
+        easing: "ease-out",
+        fill: "forwards",
+        composite: "add",
+      });
+      pressed = { el, anim };
     };
     const handleMouseUp = () => {
-      if (pressedEl === toggleBtnRef.current && pressedEl) {
-        playShrink(pressedEl);
-      }
-      pressedEl = null;
+      if (!pressed) return;
+      const { anim } = pressed;
+      // Reverses from wherever it currently is, not necessarily the fully
+      // shrunk end state — a release right as the shrink is still playing
+      // reverses smoothly from that in-between point instead of jumping.
+      anim.reverse();
+      anim.onfinish = () => anim.cancel();
+      pressed = null;
     };
 
     window.addEventListener("mousedown", handleMouseDown);

@@ -36,6 +36,18 @@ const SHRINK_DURATION = 650;
 const CURSOR_SIZE = 22;
 const CURSOR_CLICK_SCALE = 0.55;
 const CURSOR_LERP = 0.22;
+// The goo-filtered wrapper is a modest, cursor-following box rather than
+// the full viewport — filtering (blur+matrix) the whole page every frame
+// just to blob together two ~20px dots would be wasteful. The melt
+// highlight is always within a target element's bounds and mouseover
+// only fires once the cursor is already at/inside that target, so the
+// two blobs are never more than roughly a card's near-edge apart — this
+// box is sized with comfortable headroom over that.
+const GOO_WRAPPER_SIZE = 300;
+const GOO_WRAPPER_HALF = GOO_WRAPPER_SIZE / 2;
+// How close (px) the cursor needs to get to a melt target's edge before
+// the highlight blob appears and starts bridging toward it.
+const MELT_PROXIMITY = 56;
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -53,6 +65,8 @@ export default function Home() {
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
   const cursorRef = useRef<HTMLDivElement>(null);
+  const meltHighlightRef = useRef<HTMLDivElement>(null);
+  const gooWrapperRef = useRef<HTMLDivElement>(null);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
@@ -155,24 +169,30 @@ export default function Home() {
   // pointer position each frame) is what gives it the slight trailing lag
   // rather than snapping 1:1 to the mouse.
   //
-  // mix-blend-mode: exclusion only applies while hovering a
-  // [data-cursor-melt] element (cards, the toggle button — the things
-  // actually drawn in the fg color). Applying it all the time was tried
-  // first and doesn't work: exclusion of fg-over-bg computes some other,
-  // unrelated color (a muted teal here), not fg itself, since fg and bg
-  // aren't literal inverses of each other. That broke "flat dark in light
-  // mode / light in dark mode" as a baseline. Restricting it to hover
-  // keeps the cursor a flat solid the rest of the time and only invokes
-  // the reactive blend where it's meant to — over matching-colored
-  // borders/boxes.
+  // The cursor itself never changes color (no mix-blend-mode) — it's
+  // always a flat fg-colored dot, in both themes. The "melds with a
+  // matching-colored border" effect is a real shape merge (like iOS's
+  // liquid-glass UI, e.g. the "+" button flowing into the message field),
+  // not a color trick: an SVG goo filter (blur, then a color matrix that
+  // sharpens the alpha back up) applied to a layer containing the cursor
+  // plus a second small blob. That second blob snaps to the nearest point
+  // on whichever [data-cursor-melt] element is closest, so as the cursor
+  // approaches a card/button border the two blobs bridge and fuse into
+  // one liquid shape, then separate again as it pulls away.
   useEffect(() => {
     const cursorEl = cursorRef.current;
-    if (!cursorEl) return;
+    const highlightEl = meltHighlightRef.current;
+    const wrapperEl = gooWrapperRef.current;
+    if (!cursorEl || !highlightEl || !wrapperEl) return;
+
+    // Queried once: the set of melt targets doesn't change at runtime.
+    const meltTargets = Array.from(document.querySelectorAll("[data-cursor-melt]"));
 
     const targetPos = { x: -100, y: -100 };
     const currentPos = { x: -100, y: -100 };
+    const highlightPos = { x: -100, y: -100 };
     let isDown = false;
-    let isMelting = false;
+    let wasNear = false;
     let raf: number;
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -189,28 +209,69 @@ export default function Home() {
       targetPos.x = -100;
       targetPos.y = -100;
     };
-    const handleMouseOver = (e: MouseEvent) => {
-      if (e.target instanceof Element && e.target.closest("[data-cursor-melt]")) {
-        isMelting = true;
-        cursorEl.style.mixBlendMode = "exclusion";
-      }
-    };
-    const handleMouseOut = (e: MouseEvent) => {
-      if (
-        e.target instanceof Element &&
-        e.target.closest("[data-cursor-melt]") &&
-        !(e.relatedTarget instanceof Element && e.relatedTarget.closest("[data-cursor-melt]"))
-      ) {
-        isMelting = false;
-        cursorEl.style.mixBlendMode = "normal";
-      }
-    };
 
     const loop = () => {
       currentPos.x += (targetPos.x - currentPos.x) * CURSOR_LERP;
       currentPos.y += (targetPos.y - currentPos.y) * CURSOR_LERP;
-      const scale = isDown ? CURSOR_CLICK_SCALE : isMelting ? 1.4 : 1;
-      cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${scale})`;
+
+      // The goo wrapper follows the cursor (stays centered on it); the
+      // cursor and highlight are positioned *within* the wrapper, so their
+      // coordinates below are relative to the wrapper's own top-left, not
+      // the viewport.
+      const wrapperX = currentPos.x - GOO_WRAPPER_HALF;
+      const wrapperY = currentPos.y - GOO_WRAPPER_HALF;
+      wrapperEl.style.transform = `translate(${wrapperX}px, ${wrapperY}px)`;
+
+      // Find the nearest point on the nearest melt target, checked fresh
+      // every frame (not just on hover enter/exit) — this is what lets the
+      // highlight blob appear *before* the cursor actually touches a card,
+      // so there's a real gap for the goo filter to visibly bridge as they
+      // approach, rather than the two blobs only ever appearing already
+      // coincident (which is what a plain mouseover/mouseout check gives
+      // you: by the time you're "over" a box you're already inside its
+      // hit-test rect, so the nearest point is just your own position).
+      let nearestX = currentPos.x;
+      let nearestY = currentPos.y;
+      let minDist = Infinity;
+      for (const el of meltTargets) {
+        const rect = el.getBoundingClientRect();
+        const x = Math.min(Math.max(currentPos.x, rect.left), rect.right);
+        const y = Math.min(Math.max(currentPos.y, rect.top), rect.bottom);
+        const dist = Math.hypot(x - currentPos.x, y - currentPos.y);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestX = x;
+          nearestY = y;
+        }
+      }
+
+      const isNear = minDist < MELT_PROXIMITY;
+      if (isNear && !wasNear) {
+        // Just came into range — start the highlight at the cursor so it
+        // doesn't fly in from a stale position left over from last time.
+        highlightPos.x = currentPos.x;
+        highlightPos.y = currentPos.y;
+      }
+      wasNear = isNear;
+
+      // Proximity grows the cursor continuously (up to +40% right at
+      // contact) instead of snapping to a fixed size the instant it enters
+      // range, matching the gradual "reaching toward" feel of the effect.
+      const proximityT = isNear ? 1 - minDist / MELT_PROXIMITY : 0;
+      const scale = isDown ? CURSOR_CLICK_SCALE : 1 + proximityT * 0.4;
+      cursorEl.style.transform = `translate(${GOO_WRAPPER_HALF}px, ${GOO_WRAPPER_HALF}px) translate(-50%, -50%) scale(${scale})`;
+
+      if (isNear) {
+        highlightPos.x += (nearestX - highlightPos.x) * CURSOR_LERP;
+        highlightPos.y += (nearestY - highlightPos.y) * CURSOR_LERP;
+        highlightEl.style.opacity = String(proximityT);
+        const localX = highlightPos.x - wrapperX;
+        const localY = highlightPos.y - wrapperY;
+        highlightEl.style.transform = `translate(${localX}px, ${localY}px) translate(-50%, -50%)`;
+      } else {
+        highlightEl.style.opacity = "0";
+      }
+
       raf = requestAnimationFrame(loop);
     };
 
@@ -218,8 +279,6 @@ export default function Home() {
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mouseup", handleMouseUp);
     document.addEventListener("mouseleave", handleMouseLeave);
-    document.addEventListener("mouseover", handleMouseOver);
-    document.addEventListener("mouseout", handleMouseOut);
     raf = requestAnimationFrame(loop);
 
     return () => {
@@ -227,8 +286,6 @@ export default function Home() {
       window.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("mouseup", handleMouseUp);
       document.removeEventListener("mouseleave", handleMouseLeave);
-      document.removeEventListener("mouseover", handleMouseOver);
-      document.removeEventListener("mouseout", handleMouseOut);
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -467,17 +524,53 @@ export default function Home() {
         </div>
       </div>
 
+      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden>
+        <defs>
+          <filter id="cursor-goo">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
+            <feColorMatrix
+              in="blur"
+              mode="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9"
+              result="goo"
+            />
+            <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+          </filter>
+        </defs>
+      </svg>
+
       <div
-        ref={cursorRef}
-        className="pointer-events-none fixed top-0 left-0 z-[9999] rounded-lg"
+        ref={gooWrapperRef}
+        className="pointer-events-none fixed top-0 left-0 z-[9999]"
         style={{
-          width: CURSOR_SIZE,
-          height: CURSOR_SIZE,
-          backgroundColor: fg,
-          mixBlendMode: "normal",
+          width: GOO_WRAPPER_SIZE,
+          height: GOO_WRAPPER_SIZE,
+          filter: "url(#cursor-goo)",
           willChange: "transform",
         }}
-      />
+      >
+        <div
+          ref={meltHighlightRef}
+          className="absolute top-0 left-0 rounded-lg"
+          style={{
+            width: CURSOR_SIZE * 0.9,
+            height: CURSOR_SIZE * 0.9,
+            backgroundColor: fg,
+            opacity: 0,
+            willChange: "transform, opacity",
+          }}
+        />
+        <div
+          ref={cursorRef}
+          className="absolute top-0 left-0 rounded-lg"
+          style={{
+            width: CURSOR_SIZE,
+            height: CURSOR_SIZE,
+            backgroundColor: fg,
+            willChange: "transform",
+          }}
+        />
+      </div>
     </div>
   );
 }

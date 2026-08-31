@@ -51,19 +51,10 @@ const TRAIL_COUNT = 12;
 // that, short of making the dots impractically huge. Sampling true past
 // positions instead means the gap between any two dots is always exactly
 // how far the cursor actually travelled in this many ms — a small, steady
-// amount at any speed, with no whip.
-const TRAIL_SAMPLE_STEP_MS = 22;
-// If the trail kept sampling every frame, the whole tail would collapse
-// onto the cursor's position within TRAIL_COUNT * TRAIL_SAMPLE_STEP_MS of
-// it stopping — there'd be nothing left to hold or fade. So once this
-// long has passed without an actual mousemove, the trail stops sampling
-// and freezes in place (a "stain" of where the cursor just was) instead
-// of continuing to converge on the now-still cursor.
-const IDLE_THRESHOLD_MS = 100;
-// How long the frozen trail sits at full opacity, and how long it then
-// takes to fade out, once idle.
-const TRAIL_HOLD_MS = 2500;
-const TRAIL_FADE_MS = 700;
+// amount at any speed, with no whip. It also means the whole tail
+// naturally collapses onto the cursor within TRAIL_COUNT * this many ms of
+// it stopping, with no separate "idle" state needed to make that happen.
+const TRAIL_SAMPLE_STEP_MS = 18;
 // Safety net only: while clicking, the main dot's own click-shrink can
 // expose a trail dot sitting right under/behind it as a visibly merged
 // blob (two overlapping rounded-square shapes, not a clean single dot) —
@@ -223,32 +214,21 @@ export default function Home() {
     const history: { x: number; y: number; t: number }[] = [];
     const HISTORY_MAX_AGE = TRAIL_COUNT * TRAIL_SAMPLE_STEP_MS + 50;
     // Max opacity per trail dot (matches the tapering used for its size in
-    // the JSX below) — the loop multiplies this by a fade factor each
-    // frame rather than using it directly. t starts at 0 (the dot right
-    // behind the cursor, nearly as opaque/large as it, for a solid
-    // connection to the cursor) rather than 1/TRAIL_COUNT, so the taper is
-    // gradual all the way through instead of dropping off sharply.
+    // the JSX below) — falls off steeply (not a flattened taper) so the
+    // tail reads as thick and solid right behind the cursor, fading to a
+    // thin, faint point, rather than a uniform ribbon.
     const trailBaseOpacity = Array.from({ length: TRAIL_COUNT }, (_, i) => {
       const t = i / TRAIL_COUNT;
-      return (1 - t * 0.75) * 0.85;
+      return (1 - t) * 0.85;
     });
     let hasEntered = false;
     let isDown = false;
     let currentScale = 1;
-    let lastMoveTime = performance.now();
-    // Set once the trail goes idle (null while actively trailing) — drives
-    // the hold-then-fade in the loop below. frozenPositions holds each
-    // dot's last live-sampled position so the click guard below still has
-    // something to measure against while idle, without resuming sampling
-    // (which would just converge everything onto the now-still cursor).
-    let idleSince: number | null = null;
-    let frozenPositions: { x: number; y: number }[] | null = null;
     let raf: number;
 
     const handleMouseMove = (e: MouseEvent) => {
       targetPos.x = e.clientX;
       targetPos.y = e.clientY;
-      lastMoveTime = performance.now();
       hasEntered = true;
     };
     const handleMouseDown = () => {
@@ -319,41 +299,14 @@ export default function Home() {
         history.shift();
       }
 
-      const idle = now - lastMoveTime > IDLE_THRESHOLD_MS;
+      for (let i = 0; i < TRAIL_COUNT; i++) {
+        const delay = (i + 1) * TRAIL_SAMPLE_STEP_MS;
+        const p = sampleHistoryAt(now - delay);
+        trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
 
-      if (!idle) {
-        frozenPositions = null;
-        idleSince = null;
-        for (let i = 0; i < TRAIL_COUNT; i++) {
-          const delay = (i + 1) * TRAIL_SAMPLE_STEP_MS;
-          const p = sampleHistoryAt(now - delay);
-          trailEls[i].style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
-
-          const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
-          const opacity = isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i];
-          trailEls[i].style.opacity = String(opacity);
-        }
-      } else {
-        // Idle: leave every dot's transform exactly where it already was
-        // (the "stain") instead of letting it keep sampling and
-        // collapsing onto the now-still cursor. Only opacity animates
-        // from here — full for TRAIL_HOLD_MS, then fading out over
-        // TRAIL_FADE_MS.
-        if (!frozenPositions) {
-          frozenPositions = Array.from({ length: TRAIL_COUNT }, (_, i) =>
-            sampleHistoryAt(now - (i + 1) * TRAIL_SAMPLE_STEP_MS)
-          );
-        }
-        if (idleSince === null) idleSince = now;
-        const heldFor = now - idleSince;
-        const fadeT = Math.max(0, Math.min(1, (heldFor - TRAIL_HOLD_MS) / TRAIL_FADE_MS));
-        for (let i = 0; i < TRAIL_COUNT; i++) {
-          const p = frozenPositions[i];
-          const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
-          const opacity =
-            isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i] * (1 - fadeT);
-          trailEls[i].style.opacity = String(opacity);
-        }
+        const distFromCursor = Math.hypot(p.x - currentPos.x, p.y - currentPos.y);
+        const opacity = isDown && distFromCursor <= TRAIL_CLICK_SAFE_DISTANCE ? 0 : trailBaseOpacity[i];
+        trailEls[i].style.opacity = String(opacity);
       }
 
       raf = requestAnimationFrame(loop);
@@ -604,14 +557,14 @@ export default function Home() {
 
       {Array.from({ length: TRAIL_COUNT }).map((_, i) => {
         const t = i / TRAIL_COUNT;
-        // Dots stay close to full size and opacity along the whole tail
-        // (a much gentler taper than tried before) so they overlap enough
-        // to cover the gap TRAIL_LERP=0.5 leaves between them at real
-        // cursor speeds, instead of reading as separated little beads —
-        // this is what buys smoothness back without shortening the trail
-        // by tightening the lerp instead.
-        const size = CURSOR_SIZE * (1 - t * 0.12);
-        const opacity = (1 - t * 0.75) * 0.85;
+        // A real taper — thick and solid right behind the cursor, shrinking
+        // down to a thin point — rather than a flat ribbon of same-sized
+        // dots. History-sampled positions (see TRAIL_SAMPLE_STEP_MS above)
+        // are what actually keep this gap-free at any cursor speed; the
+        // taper is purely a shape choice now, not something smoothness
+        // depends on.
+        const size = CURSOR_SIZE * (1 - t * 0.65);
+        const opacity = (1 - t) * 0.85;
         return (
           <div
             key={i}

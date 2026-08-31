@@ -17,34 +17,42 @@ const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const CARD_HOVER_SCALE = 1.035;
 const LARGE_GAP = 20;
 const SMALL_GAP = 18;
+const MIN_CARD_SCALE = 0.85;
+// How much scrollLeft (px) the shrink ramps over. Small enough that it
+// still feels tied to "you just started scrolling," but spread across
+// this many pixels instead of snapping at one instant, so scrollWidth
+// changes in many tiny steps in lockstep with the scroll itself, rather
+// than one large jump — the jump is what fought native scroll physics.
+const SHRINK_RAMP_PX = 60;
 
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [progress, setProgress] = useState(0);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [shrinkT, setShrinkT] = useState(0);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
-  const settleTimerRef = useRef<number | null>(null);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
   const fg = isDark ? CREAM : RUST;
-  const cardScale = isScrolled ? 0.85 : 1;
+  const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The shrink-on-scroll effect resizes every card's real flex-basis, which
-  // changes the track's total scrollWidth. Flipping isScrolled the instant
-  // scrollLeft crosses the threshold means that resize (and the width
-  // change it causes) lands in the middle of an active scroll gesture —
-  // the browser's own scroll physics and our own layout change end up
-  // fighting each other, which is what read as a small stutter/reversal
-  // right around that crossing point. Waiting until scroll motion has
-  // actually paused before flipping it means the resize never overlaps
-  // live scrolling at all.
+  // changes the track's total scrollWidth. A binary "shrunk or not" flag
+  // (even debounced until scrolling paused) meant the whole resize applied
+  // as one large, sudden width change, and doing that mid-gesture is what
+  // fought the browser's own scroll physics and read as a stutter/reversal.
+  // Deferring it until scrolling stopped removed the fight but also meant
+  // the shrink no longer felt tied to the act of scrolling itself.
+  // Driving it continuously off scrollLeft instead means the width changes
+  // in many tiny steps, each one the same order of magnitude as the
+  // scroll's own motion — smooth and simultaneous with scrolling, same as
+  // before, without the one big jump that caused the original issue.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
@@ -52,23 +60,11 @@ export default function Home() {
       const max = el.scrollWidth - el.clientWidth;
       const p = max > 0 ? el.scrollLeft / max : 0;
       setProgress(p);
-
-      const nextIsScrolled = el.scrollLeft > 6;
-      if (settleTimerRef.current !== null) {
-        window.clearTimeout(settleTimerRef.current);
-      }
-      settleTimerRef.current = window.setTimeout(() => {
-        setIsScrolled(nextIsScrolled);
-      }, 120);
+      setShrinkT(Math.max(0, Math.min(1, el.scrollLeft / SHRINK_RAMP_PX)));
     };
     el.addEventListener("scroll", handleScroll);
     handleScroll();
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
-      if (settleTimerRef.current !== null) {
-        window.clearTimeout(settleTimerRef.current);
-      }
-    };
+    return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
   // Wheel/trackpad scrolling only drives the track natively when the
@@ -189,10 +185,13 @@ export default function Home() {
   // the original full-size gap between neighbors once it's smaller. The
   // vertical shrink stays a transform (scaleY) since there's no "next row"
   // for that to leave a gap against — it's a single horizontal row.
+  // No CSS transition here on purpose: cardScale already updates every
+  // scroll event, directly off scrollLeft, so the DOM value should match
+  // the current scroll position exactly — a transition would just lag
+  // behind a value that's already changing continuously.
   const slotStyle = (baseWidth: number): React.CSSProperties => ({
     flexBasis: baseWidth * cardScale,
     transform: `scaleY(${cardScale})`,
-    transition: `flex-basis 0.5s ${REVEAL_EASING}, transform 0.5s ${REVEAL_EASING}`,
   });
 
   return (
@@ -248,8 +247,7 @@ export default function Home() {
         className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch overflow-x-auto overflow-y-hidden px-12 pb-14"
         style={{
           top: 100,
-          gap: isScrolled ? SMALL_GAP : LARGE_GAP,
-          transition: `gap 0.5s ${REVEAL_EASING}`,
+          gap: LARGE_GAP + shrinkT * (SMALL_GAP - LARGE_GAP),
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>

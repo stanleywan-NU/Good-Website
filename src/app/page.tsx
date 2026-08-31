@@ -8,6 +8,16 @@ const RUST = "#a8592f";
 const REVEAL_DURATION = 750;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
+// Card hover grows each box by this factor (see `cardBox`'s hover:scale-*
+// class below — keep the two in sync). The widest card is 720px, so at a
+// 1.035 scale it grows ~12.6px on each side; the gap has to clear that or
+// the widest card touches its neighbor on hover while narrower ones don't
+// (an inconsistency, not a design choice). 20px/18px below are chosen with
+// that headroom in mind, not just "a bit more."
+const CARD_HOVER_SCALE = 1.035;
+const LARGE_GAP = 20;
+const SMALL_GAP = 18;
+
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
 
 export default function Home() {
@@ -23,7 +33,7 @@ export default function Home() {
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
   const fg = isDark ? CREAM : RUST;
-  const cardScale = isScrolled ? 0.78 : 1;
+  const cardScale = isScrolled ? 0.85 : 1;
 
   useEffect(() => {
     const el = trackRef.current;
@@ -190,7 +200,7 @@ export default function Home() {
         className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch overflow-x-auto overflow-y-hidden px-12 pb-14"
         style={{
           top: 100,
-          gap: isScrolled ? 13 : 11.5,
+          gap: isScrolled ? SMALL_GAP : LARGE_GAP,
           transition: `gap 0.5s ${REVEAL_EASING}`,
         }}
       >

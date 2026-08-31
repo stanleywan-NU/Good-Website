@@ -29,12 +29,22 @@ export default function Home() {
   const trackRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const isTransitioningRef = useRef(false);
+  const settleTimerRef = useRef<number | null>(null);
 
   const isDark = theme === "dark";
   const bg = isDark ? RUST : CREAM;
   const fg = isDark ? CREAM : RUST;
   const cardScale = isScrolled ? 0.85 : 1;
 
+  // The shrink-on-scroll effect resizes every card's real flex-basis, which
+  // changes the track's total scrollWidth. Flipping isScrolled the instant
+  // scrollLeft crosses the threshold means that resize (and the width
+  // change it causes) lands in the middle of an active scroll gesture —
+  // the browser's own scroll physics and our own layout change end up
+  // fighting each other, which is what read as a small stutter/reversal
+  // right around that crossing point. Waiting until scroll motion has
+  // actually paused before flipping it means the resize never overlaps
+  // live scrolling at all.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
@@ -42,11 +52,23 @@ export default function Home() {
       const max = el.scrollWidth - el.clientWidth;
       const p = max > 0 ? el.scrollLeft / max : 0;
       setProgress(p);
-      setIsScrolled(el.scrollLeft > 6);
+
+      const nextIsScrolled = el.scrollLeft > 6;
+      if (settleTimerRef.current !== null) {
+        window.clearTimeout(settleTimerRef.current);
+      }
+      settleTimerRef.current = window.setTimeout(() => {
+        setIsScrolled(nextIsScrolled);
+      }, 120);
     };
     el.addEventListener("scroll", handleScroll);
     handleScroll();
-    return () => el.removeEventListener("scroll", handleScroll);
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      if (settleTimerRef.current !== null) {
+        window.clearTimeout(settleTimerRef.current);
+      }
+    };
   }, []);
 
   // Wheel/trackpad scrolling only drives the track natively when the

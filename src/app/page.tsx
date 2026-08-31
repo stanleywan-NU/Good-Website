@@ -410,7 +410,7 @@ export default function Home() {
             </svg>
           )}
         </button>
-        <div data-cursor-melt className="flex h-[34px] w-[220px] items-center justify-center gap-[3px]">
+        <div className="flex h-[34px] w-[220px] items-center justify-center gap-[3px]">
           {PEAKS.map((peak, i) => {
             const active = i < activeCount;
             return (

@@ -21,10 +21,10 @@ const INK = "#2b2420";
 // One pastel per box, in the order the boxes appear (name box excluded —
 // it keeps the neutral bg-matching fill it always had).
 const PASTEL_BLUE = "#a8d8ea";
-const PASTEL_RED = "#f4a9a8";
+const PASTEL_RED = "#e57373";
 const PASTEL_GREEN = "#a8e0b8";
 const PASTEL_ORANGE = "#ffcfa0";
-const PASTEL_PINK = "#f6c6dd";
+const PASTEL_MAGENTA = "#e8b0e8";
 // Unfilled progress-bar track — a fixed neutral gray rather than translucent
 // white, so it stays visible against both the light cream and dark
 // backgrounds (translucent white all but disappeared against light cream).
@@ -640,7 +640,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: BLACK, backgroundColor: PASTEL_BLUE, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: BLACK, backgroundColor: PASTEL_RED, color: INK }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
                 <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={INK} strokeWidth="4" strokeLinecap="round" />
@@ -654,7 +654,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: BLACK, backgroundColor: PASTEL_RED, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: BLACK, backgroundColor: PASTEL_BLUE, color: INK }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
                 <path d="M22 10h20l6 10-18 34-18-34z" stroke={INK} strokeWidth="4" strokeLinejoin="round" />
@@ -689,7 +689,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: BLACK, backgroundColor: PASTEL_PINK, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: BLACK, backgroundColor: PASTEL_MAGENTA, color: INK }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: INK }}>
               [ Your email ]

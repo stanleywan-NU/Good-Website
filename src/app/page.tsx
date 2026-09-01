@@ -644,12 +644,12 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(720)}>
           <div data-cursor-melt className={`${cardBox} relative justify-center gap-5 overflow-hidden`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
             {/* Decorative only — centered exactly on the box's corner via
-                right/bottom 0 plus a self-translate, so its radius (half its
-                own diameter, which equals the box's width) reaches exactly
-                halfway across regardless of the box's actual rendered size. */}
+                right/bottom 0 plus a self-translate, so it stays anchored
+                there regardless of size. Diameter is 175% of the box's own
+                width (75% bigger than the original "one box-width" size). */}
             <div
               aria-hidden
-              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-full translate-x-1/2 translate-y-1/2 rounded-full"
+              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[175%] translate-x-1/2 translate-y-1/2 rounded-full"
               style={{ backgroundColor: pastelYellow }}
             />
             <span className="relative text-sm font-medium">Product Design &amp; Content Strategy</span>

@@ -40,23 +40,33 @@ const PROGRESS_TRACK = "#a39c8e";
 const REVEAL_DURATION = 1550;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
-// Opening sequence, played once on load: a small square pops into place
-// centered on the blank (dot-covered) page — a springy bounce in size, not
-// a position shake — then swims slowly up to the top, stopping there, and
-// only then grows into the toggle/progress "command center" chrome, which
-// is otherwise invisible until that lands. Its button/progress bar pop in
-// right after, then the card row pops in a beat later. The dot grid treats
-// the square like the real cursor for the pop-in and the swim, scattering
-// dots away from it (see introRepelRef).
+// Opening sequence, played once on load: a blank cream screen, then the
+// dot grid fades in, then a small square pops into place centered on it —
+// a springy bounce in size, not a position shake — then swims up to the
+// top, stopping there, and only then grows into the toggle/progress
+// "command center" chrome, which is otherwise invisible until that lands.
+// Its button/progress bar pop in right after, then the card row pops in a
+// beat later. The dot grid treats the square like the real cursor for the
+// pop-in and the swim, scattering dots away from it (see introRepelRef) —
+// with more clearance than the cursor's own hover radius, since a wide gap
+// reads better around something this size moving this slowly.
 //
 // INTRO_SQUARE_POP_DURATION must match the keyframes' own duration in
 // globals.css (.intro-square-pop) — CSS keyframes can't read a JS constant,
 // so this is the one place that pairing has to be kept in sync by hand.
+const INTRO_DOTS_FADE_DELAY = 400;
+const INTRO_DOTS_FADE_DURATION = 700;
 const INTRO_SQUARE_POP_DURATION = 500;
-const INTRO_TRAVEL_DURATION = 5000;
+const INTRO_TRAVEL_DURATION = 4000;
 const INTRO_TRAVEL_HOLD = 250;
 const INTRO_EXPAND_DURATION = 600;
 const INTRO_SQUARE_SIZE = 56;
+// Less than rounded-3xl's 24px — at this size, 24px reads as almost a
+// circle (half its own width). Transitions up to 24px alongside width/
+// height so it lands on the chrome box's actual rounded-3xl by the time
+// it's that size.
+const INTRO_SQUARE_RADIUS = 12;
+const INTRO_CHROME_RADIUS = 24;
 // Sizes below match the chrome box's own fixed-content natural size
 // (button + 220px progress row + padding + border) — if that content ever
 // changes, these should be re-measured.
@@ -67,6 +77,11 @@ const INTRO_CHROME_POP_DURATION = 450;
 const INTRO_POP_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const INTRO_CARDS_DELAY = 200;
 const INTRO_CARDS_POP_DURATION = 550;
+// Repel radius/force the dot grid uses while reacting to the intro square
+// specifically — wider and a bit stronger than the cursor's own
+// MOUSE_RADIUS/REPEL_FORCE below, for more visible clearance around it.
+const INTRO_REPEL_RADIUS = 160;
+const INTRO_REPEL_FORCE = 34;
 
 // Card hover grows each box by this factor (see `cardBox`'s hover:scale-*
 // class below — keep the two in sync). The widest card is 720px, so at a
@@ -114,18 +129,23 @@ export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [progress, setProgress] = useState(0);
   const [shrinkT, setShrinkT] = useState(0);
-  // Opening sequence state. `squareExpanded` flips the intro square's width/
-  // height transition from small to the chrome box's exact size — its
-  // *position* (top) isn't React-driven at all; the travel effect below
-  // writes el.style.top directly every frame (same reasoning as the custom
-  // cursor elsewhere: a value React never mentions in its own style object
-  // is one it will never reset, so the two can't fight). `introPhase` gates
-  // which real content is visible: the chrome box (border/bg only) snaps in
-  // the instant the square finishes expanding (no transition on its own
+  // Opening sequence state. `dotsVisible` fades the background dot grid in
+  // from a blank page (see the canvas's own style below). `squareExpanded`
+  // flips the intro square's width/height transition from small to the
+  // chrome box's exact size — its *position* (top) isn't React-driven at
+  // all; the travel effect below writes el.style.top directly every frame
+  // (same reasoning as the custom cursor elsewhere: a value React never
+  // mentions in its own style object is one it will never reset, so the
+  // two can't fight). `introPhase` gates which real content is visible:
+  // "blank" is the pre-dots pause, then the square appears and plays out
+  // its own pop/swim/expand during "intro", then the chrome box (border/bg
+  // only) snaps in the instant that finishes (no transition on its own
   // opacity — it's an exact geometric match, nothing to visibly animate
-  // there), then its button/progress-bar pop in, then the cards.
+  // there), then its button/progress-bar pop in during "chrome", then the
+  // cards during "boxes".
+  const [dotsVisible, setDotsVisible] = useState(false);
   const [squareExpanded, setSquareExpanded] = useState(false);
-  const [introPhase, setIntroPhase] = useState<"intro" | "chrome" | "boxes">("intro");
+  const [introPhase, setIntroPhase] = useState<"blank" | "intro" | "chrome" | "boxes">("blank");
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -141,12 +161,28 @@ export default function Home() {
   // back to the real mouse.
   const introRepelRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Drives the opening sequence described above: the square's own pop-in
-  // plays as a CSS animation (autoplaying from mount, see .intro-square-pop
-  // in globals.css) while this effect handles everything that needs a
-  // live, per-frame position — the swim itself and feeding the dot grid's
-  // repel point — plus the plain timed handoffs into each later phase.
+  // Blank page, then the dot grid fades in (see the canvas's opacity
+  // style), then the square appears — cheap enough to be a plain
+  // setTimeout pair with no per-frame work of its own.
   useEffect(() => {
+    const timers = [
+      window.setTimeout(() => setDotsVisible(true), INTRO_DOTS_FADE_DELAY),
+      window.setTimeout(() => setIntroPhase("intro"), INTRO_DOTS_FADE_DELAY + INTRO_DOTS_FADE_DURATION),
+    ];
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, []);
+
+  // Drives the rest of the opening sequence, once the square itself has
+  // actually mounted (introPhase turning "intro" is what renders it below).
+  // Its own pop-in plays as a CSS animation (autoplaying from mount, see
+  // .intro-square-pop in globals.css) while this effect handles everything
+  // that needs a live, per-frame position — the swim itself and feeding
+  // the dot grid's repel point — plus the plain timed handoffs into each
+  // later phase. Re-runs (harmlessly) as introPhase advances further, since
+  // that's this same effect's own doing; every run past the first just
+  // exits immediately.
+  useEffect(() => {
+    if (introPhase !== "intro") return;
     const el = introSquareRef.current;
     if (!el) return;
 
@@ -193,8 +229,9 @@ export default function Home() {
       timers.forEach((timer) => window.clearTimeout(timer));
       cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [introPhase]);
 
+  const chromeVisible = introPhase === "chrome" || introPhase === "boxes";
   const isDark = theme === "dark";
   const bg = isDark ? BG_DARK : BG_LIGHT;
   // Text/icon color for every box (dark ink in light mode, white in dark
@@ -289,18 +326,22 @@ export default function Home() {
       ctx.globalAlpha = DOT_OPACITY;
       ctx.fillStyle = fgRef.current;
       // During the intro, dots repel from the traveling square instead of
-      // the real cursor — same field, just a different source point.
-      const repelFrom = introRepelRef.current ?? mouse;
+      // the real cursor — same field, just a different source point (and a
+      // wider, slightly stronger radius/force — see INTRO_REPEL_RADIUS).
+      const introRepel = introRepelRef.current;
+      const repelFrom = introRepel ?? mouse;
+      const repelRadius = introRepel ? INTRO_REPEL_RADIUS : MOUSE_RADIUS;
+      const repelForce = introRepel ? INTRO_REPEL_FORCE : REPEL_FORCE;
       for (const dot of dots) {
         const dx = repelFrom.x - dot.baseX;
         const dy = repelFrom.y - dot.baseY;
         const dist = Math.hypot(dx, dy);
         let targetX = dot.baseX;
         let targetY = dot.baseY;
-        if (dist < MOUSE_RADIUS) {
-          const ratio = (MOUSE_RADIUS - dist) / MOUSE_RADIUS;
+        if (dist < repelRadius) {
+          const ratio = (repelRadius - dist) / repelRadius;
           const angle = Math.atan2(dy, dx);
-          const push = ratio * REPEL_FORCE;
+          const push = ratio * repelForce;
           targetX -= Math.cos(angle) * push;
           targetY -= Math.sin(angle) * push;
         }
@@ -695,13 +736,20 @@ export default function Home() {
       className="relative h-screen w-full overflow-hidden font-sans"
       style={{ backgroundColor: bg, color: fg }}
     >
-      <canvas ref={bgCanvasRef} className="pointer-events-none absolute inset-0 z-0" />
+      <canvas
+        ref={bgCanvasRef}
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          opacity: dotsVisible ? 1 : 0,
+          transition: `opacity ${INTRO_DOTS_FADE_DURATION}ms ease-out`,
+        }}
+      />
 
       {introPhase === "intro" && (
         <div
           ref={introSquareRef}
           aria-hidden
-          className="intro-square-pop pointer-events-none absolute z-30 rounded-3xl border-[3px]"
+          className="intro-square-pop pointer-events-none absolute z-30 border-[3px]"
           style={{
             borderColor: borderOnBg,
             backgroundColor: bg,
@@ -717,8 +765,13 @@ export default function Home() {
             left: "50%",
             width: squareExpanded ? INTRO_CHROME_WIDTH : INTRO_SQUARE_SIZE,
             height: squareExpanded ? INTRO_CHROME_HEIGHT : INTRO_SQUARE_SIZE,
+            borderRadius: squareExpanded ? INTRO_CHROME_RADIUS : INTRO_SQUARE_RADIUS,
             transform: "translateX(-50%)",
-            transition: `width ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}, height ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}`,
+            transition: [
+              `width ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}`,
+              `height ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}`,
+              `border-radius ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}`,
+            ].join(", "),
           }}
         />
       )}
@@ -728,8 +781,8 @@ export default function Home() {
         style={{
           borderColor: borderOnBg,
           backgroundColor: bg,
-          opacity: introPhase === "intro" ? 0 : 1,
-          pointerEvents: introPhase === "intro" ? "none" : "auto",
+          opacity: chromeVisible ? 1 : 0,
+          pointerEvents: chromeVisible ? "auto" : "none",
         }}
       >
         {/* The chrome box above snaps in the instant the intro square lands
@@ -740,8 +793,8 @@ export default function Home() {
         <div
           className="flex flex-col items-center gap-2.5"
           style={{
-            opacity: introPhase === "intro" ? 0 : 1,
-            transform: introPhase === "intro" ? "scale(0.6)" : "scale(1)",
+            opacity: chromeVisible ? 1 : 0,
+            transform: chromeVisible ? "scale(1)" : "scale(0.6)",
             transition: `opacity ${INTRO_CHROME_POP_DURATION}ms ${INTRO_POP_EASING}, transform ${INTRO_CHROME_POP_DURATION}ms ${INTRO_POP_EASING}`,
           }}
         >

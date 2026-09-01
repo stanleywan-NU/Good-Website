@@ -33,7 +33,7 @@ const PASTEL_MAGENTA_DARK = "#b563b5";
 // white, so it stays visible against both the light cream and dark
 // backgrounds (translucent white all but disappeared against light cream).
 const PROGRESS_TRACK = "#a39c8e";
-const REVEAL_DURATION = 1050;
+const REVEAL_DURATION = 1400;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 // Card hover grows each box by this factor (see `cardBox`'s hover:scale-*

@@ -645,13 +645,12 @@ export default function Home() {
           <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
             {/* Decorative only — centered exactly on the box's corner via
                 right/bottom 0 plus a self-translate, so it stays anchored
-                there regardless of size. Diameter is 100% of the box's own
-                width, so its radius reaches about halfway across. Text
-                sitting on top of it stays the normal fg color, same as
-                everywhere else in the box. */}
+                there regardless of size. Diameter is 150% of the box's own
+                width. Text sitting on top of it stays the normal fg color,
+                same as everywhere else in the box. */}
             <div
               aria-hidden
-              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-full translate-x-1/2 translate-y-1/2 rounded-full"
+              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[150%] translate-x-1/2 translate-y-1/2 rounded-full"
               style={{ backgroundColor: pastelYellow }}
             />
 

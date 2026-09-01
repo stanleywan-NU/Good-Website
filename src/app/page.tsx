@@ -652,7 +652,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Rising Team</span>
-              <span className="text-sm opacity-70">Product Design</span>
+              <span className="text-sm">Product Design</span>
             </div>
           </div>
         </div>
@@ -667,7 +667,7 @@ export default function Home() {
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">BorderX Lab — BeyondStyle</span>
-              <span className="text-sm opacity-70">Content Strategy &amp; GEO</span>
+              <span className="text-sm">Content Strategy &amp; GEO</span>
             </div>
           </div>
         </div>

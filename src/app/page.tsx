@@ -40,6 +40,24 @@ const PROGRESS_TRACK = "#a39c8e";
 const REVEAL_DURATION = 1550;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
+// Opening sequence, played once on load: a small square sits centered on
+// the blank (dot-covered) page, then rises to the top and grows into the
+// toggle/progress "command center" chrome, which is otherwise invisible
+// until that lands. Its button/progress bar pop in right after, then the
+// card row pops in a beat later. Sizes below match that chrome box's own
+// fixed-content natural size (button + 220px progress row + padding +
+// border) — if that content ever changes, these should be re-measured.
+const INTRO_START_DELAY = 300;
+const INTRO_RISE_DURATION = 750;
+const INTRO_SQUARE_SIZE = 56;
+const INTRO_CHROME_WIDTH = 274;
+const INTRO_CHROME_HEIGHT = 118;
+const INTRO_CHROME_TOP = 24;
+const INTRO_POP_DURATION = 450;
+const INTRO_POP_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const INTRO_CARDS_DELAY = 200;
+const INTRO_CARDS_POP_DURATION = 550;
+
 // Card hover grows each box by this factor (see `cardBox`'s hover:scale-*
 // class below — keep the two in sync). The widest card is 720px, so at a
 // 1.035 scale it grows ~12.6px on each side; the gap has to clear that or
@@ -86,6 +104,15 @@ export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [progress, setProgress] = useState(0);
   const [shrinkT, setShrinkT] = useState(0);
+  // Opening sequence state. `squareExpanded` flips the temporary intro
+  // square's own CSS transition from small/centered to the chrome box's
+  // top position/size. `introPhase` gates which real content is visible:
+  // the chrome box (border/bg only) snaps in the instant the square
+  // finishes (no transition on its own opacity — it's an exact geometric
+  // match for the square's end state, so there's nothing to visibly
+  // animate there), then its button/progress-bar pop in, then the cards.
+  const [squareExpanded, setSquareExpanded] = useState(false);
+  const [introPhase, setIntroPhase] = useState<"intro" | "chrome" | "boxes">("intro");
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -94,6 +121,21 @@ export default function Home() {
   const cursorRef = useRef<HTMLDivElement>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const fgRef = useRef<string>(INK);
+
+  // Drives the opening sequence described above. A plain setTimeout chain
+  // rather than per-phase effects since each step is a one-shot, absolute
+  // offset from mount — nothing here needs to react to intermediate state.
+  useEffect(() => {
+    const timers = [
+      window.setTimeout(() => setSquareExpanded(true), INTRO_START_DELAY),
+      window.setTimeout(() => setIntroPhase("chrome"), INTRO_START_DELAY + INTRO_RISE_DURATION),
+      window.setTimeout(
+        () => setIntroPhase("boxes"),
+        INTRO_START_DELAY + INTRO_RISE_DURATION + INTRO_CARDS_DELAY
+      ),
+    ];
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, []);
 
   const isDark = theme === "dark";
   const bg = isDark ? BG_DARK : BG_LIGHT;
@@ -594,42 +636,83 @@ export default function Home() {
     >
       <canvas ref={bgCanvasRef} className="pointer-events-none absolute inset-0 z-0" />
 
+      {introPhase === "intro" && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute z-30 rounded-3xl border-[3px]"
+          style={{
+            borderColor: borderOnBg,
+            backgroundColor: bg,
+            top: squareExpanded ? INTRO_CHROME_TOP : "50%",
+            left: "50%",
+            width: squareExpanded ? INTRO_CHROME_WIDTH : INTRO_SQUARE_SIZE,
+            height: squareExpanded ? INTRO_CHROME_HEIGHT : INTRO_SQUARE_SIZE,
+            transform: squareExpanded ? "translateX(-50%)" : "translate(-50%, -50%)",
+            transition: [
+              `top ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
+              `width ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
+              `height ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
+              `transform ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
+            ].join(", "),
+          }}
+        />
+      )}
+
       <div
-        className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2.5 rounded-3xl border-[3px] px-6 py-4"
-        style={{ borderColor: borderOnBg, backgroundColor: bg }}
+        className="absolute top-6 left-1/2 z-10 -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
+        style={{
+          borderColor: borderOnBg,
+          backgroundColor: bg,
+          opacity: introPhase === "intro" ? 0 : 1,
+          pointerEvents: introPhase === "intro" ? "none" : "auto",
+        }}
       >
-        <button
-          ref={toggleBtnRef}
-          onClick={toggleTheme}
-          data-cursor-melt
-          className="flex h-9 w-9 items-center justify-center rounded-xl border-[3px] p-0 transition-transform duration-200 hover:scale-[1.12]"
-          style={{ borderColor: borderOnBg, backgroundColor: bg, color: fg }}
+        {/* The chrome box above snaps in the instant the intro square lands
+            (no transition on its own opacity) since the two are an exact
+            geometric match — nothing to visibly animate there. This inner
+            wrapper is what actually pops in, a beat later, once introPhase
+            reaches "chrome". */}
+        <div
+          className="flex flex-col items-center gap-2.5"
+          style={{
+            opacity: introPhase === "intro" ? 0 : 1,
+            transform: introPhase === "intro" ? "scale(0.6)" : "scale(1)",
+            transition: `opacity ${INTRO_POP_DURATION}ms ${INTRO_POP_EASING}, transform ${INTRO_POP_DURATION}ms ${INTRO_POP_EASING}`,
+          }}
         >
-          {isDark ? (
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-            </svg>
-          ) : (
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          )}
-        </button>
-        <div className="flex h-[34px] w-[220px] items-center justify-center gap-[3px]">
-          {PEAKS.map((peak, i) => {
-            const active = i < activeCount;
-            return (
-              <div
-                key={i}
-                className="w-1 rounded-sm transition-[height] duration-150 ease-out"
-                style={{
-                  height: active ? peak : 6,
-                  backgroundColor: active ? borderOnBg : PROGRESS_TRACK,
-                }}
-              />
-            );
-          })}
+          <button
+            ref={toggleBtnRef}
+            onClick={toggleTheme}
+            data-cursor-melt
+            className="flex h-9 w-9 items-center justify-center rounded-xl border-[3px] p-0 transition-transform duration-200 hover:scale-[1.12]"
+            style={{ borderColor: borderOnBg, backgroundColor: bg, color: fg }}
+          >
+            {isDark ? (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+              </svg>
+            ) : (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+          <div className="flex h-[34px] w-[220px] items-center justify-center gap-[3px]">
+            {PEAKS.map((peak, i) => {
+              const active = i < activeCount;
+              return (
+                <div
+                  key={i}
+                  className="w-1 rounded-sm transition-[height] duration-150 ease-out"
+                  style={{
+                    height: active ? peak : 6,
+                    backgroundColor: active ? borderOnBg : PROGRESS_TRACK,
+                  }}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -639,6 +722,10 @@ export default function Home() {
         style={{
           top: 100,
           gap: LARGE_GAP + shrinkT * (SMALL_GAP - LARGE_GAP),
+          opacity: introPhase === "boxes" ? 1 : 0,
+          transform: introPhase === "boxes" ? "translateY(0) scale(1)" : "translateY(16px) scale(0.97)",
+          transition: `opacity ${INTRO_CARDS_POP_DURATION}ms ${INTRO_POP_EASING}, transform ${INTRO_CARDS_POP_DURATION}ms ${INTRO_POP_EASING}`,
+          pointerEvents: introPhase === "boxes" ? "auto" : "none",
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>

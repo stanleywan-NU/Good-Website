@@ -67,6 +67,11 @@ body {
 }
 
 ::view-transition-new(root) {
+  /* Hints the browser to isolate this in its own layer ahead of time
+     rather than discovering mid-animation that the mask is changing every
+     frame — this pseudo-element only exists for the transition's duration,
+     so there's no lingering cost from leaving the hint on. */
+  will-change: mask-image, -webkit-mask-image;
   mask-image: radial-gradient(
     circle at var(--reveal-x) var(--reveal-y),
     black 0px,

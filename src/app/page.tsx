@@ -40,20 +40,30 @@ const PROGRESS_TRACK = "#a39c8e";
 const REVEAL_DURATION = 1550;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
-// Opening sequence, played once on load: a small square sits centered on
-// the blank (dot-covered) page, then rises to the top and grows into the
-// toggle/progress "command center" chrome, which is otherwise invisible
-// until that lands. Its button/progress bar pop in right after, then the
-// card row pops in a beat later. Sizes below match that chrome box's own
-// fixed-content natural size (button + 220px progress row + padding +
-// border) — if that content ever changes, these should be re-measured.
-const INTRO_START_DELAY = 300;
-const INTRO_RISE_DURATION = 750;
+// Opening sequence, played once on load: a small square pops into place
+// centered on the blank (dot-covered) page — a springy bounce in size, not
+// a position shake — then swims slowly up to the top, stopping there, and
+// only then grows into the toggle/progress "command center" chrome, which
+// is otherwise invisible until that lands. Its button/progress bar pop in
+// right after, then the card row pops in a beat later. The dot grid treats
+// the square like the real cursor for the pop-in and the swim, scattering
+// dots away from it (see introRepelRef).
+//
+// INTRO_SQUARE_POP_DURATION must match the keyframes' own duration in
+// globals.css (.intro-square-pop) — CSS keyframes can't read a JS constant,
+// so this is the one place that pairing has to be kept in sync by hand.
+const INTRO_SQUARE_POP_DURATION = 500;
+const INTRO_TRAVEL_DURATION = 5000;
+const INTRO_TRAVEL_HOLD = 250;
+const INTRO_EXPAND_DURATION = 600;
 const INTRO_SQUARE_SIZE = 56;
+// Sizes below match the chrome box's own fixed-content natural size
+// (button + 220px progress row + padding + border) — if that content ever
+// changes, these should be re-measured.
 const INTRO_CHROME_WIDTH = 274;
 const INTRO_CHROME_HEIGHT = 118;
 const INTRO_CHROME_TOP = 24;
-const INTRO_POP_DURATION = 450;
+const INTRO_CHROME_POP_DURATION = 450;
 const INTRO_POP_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const INTRO_CARDS_DELAY = 200;
 const INTRO_CARDS_POP_DURATION = 550;
@@ -104,13 +114,16 @@ export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [progress, setProgress] = useState(0);
   const [shrinkT, setShrinkT] = useState(0);
-  // Opening sequence state. `squareExpanded` flips the temporary intro
-  // square's own CSS transition from small/centered to the chrome box's
-  // top position/size. `introPhase` gates which real content is visible:
-  // the chrome box (border/bg only) snaps in the instant the square
-  // finishes (no transition on its own opacity — it's an exact geometric
-  // match for the square's end state, so there's nothing to visibly
-  // animate there), then its button/progress-bar pop in, then the cards.
+  // Opening sequence state. `squareExpanded` flips the intro square's width/
+  // height transition from small to the chrome box's exact size — its
+  // *position* (top) isn't React-driven at all; the travel effect below
+  // writes el.style.top directly every frame (same reasoning as the custom
+  // cursor elsewhere: a value React never mentions in its own style object
+  // is one it will never reset, so the two can't fight). `introPhase` gates
+  // which real content is visible: the chrome box (border/bg only) snaps in
+  // the instant the square finishes expanding (no transition on its own
+  // opacity — it's an exact geometric match, nothing to visibly animate
+  // there), then its button/progress-bar pop in, then the cards.
   const [squareExpanded, setSquareExpanded] = useState(false);
   const [introPhase, setIntroPhase] = useState<"intro" | "chrome" | "boxes">("intro");
 
@@ -121,20 +134,65 @@ export default function Home() {
   const cursorRef = useRef<HTMLDivElement>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const fgRef = useRef<string>(INK);
+  const introSquareRef = useRef<HTMLDivElement>(null);
+  // Where the background dot grid should repel from during the intro —
+  // the square's current center — instead of the real cursor. Read by the
+  // dot-grid effect below; null once the intro is over, handing repulsion
+  // back to the real mouse.
+  const introRepelRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Drives the opening sequence described above. A plain setTimeout chain
-  // rather than per-phase effects since each step is a one-shot, absolute
-  // offset from mount — nothing here needs to react to intermediate state.
+  // Drives the opening sequence described above: the square's own pop-in
+  // plays as a CSS animation (autoplaying from mount, see .intro-square-pop
+  // in globals.css) while this effect handles everything that needs a
+  // live, per-frame position — the swim itself and feeding the dot grid's
+  // repel point — plus the plain timed handoffs into each later phase.
   useEffect(() => {
+    const el = introSquareRef.current;
+    if (!el) return;
+
+    let raf = 0;
+    let travelStart = 0;
+    const startTop = window.innerHeight / 2 - INTRO_SQUARE_SIZE / 2;
+    const centerX = window.innerWidth / 2;
+    introRepelRef.current = { x: centerX, y: startTop + INTRO_SQUARE_SIZE / 2 };
+
+    const travel = (now: number) => {
+      if (!travelStart) travelStart = now;
+      const t = Math.min(1, (now - travelStart) / INTRO_TRAVEL_DURATION);
+      const eased = easeInOutCubic(t);
+      const top = startTop + (INTRO_CHROME_TOP - startTop) * eased;
+      el.style.top = `${top}px`;
+      introRepelRef.current = { x: centerX, y: top + INTRO_SQUARE_SIZE / 2 };
+      if (t < 1) {
+        raf = requestAnimationFrame(travel);
+      }
+    };
+
     const timers = [
-      window.setTimeout(() => setSquareExpanded(true), INTRO_START_DELAY),
-      window.setTimeout(() => setIntroPhase("chrome"), INTRO_START_DELAY + INTRO_RISE_DURATION),
+      window.setTimeout(() => {
+        raf = requestAnimationFrame(travel);
+      }, INTRO_SQUARE_POP_DURATION),
+      window.setTimeout(() => setSquareExpanded(true), INTRO_SQUARE_POP_DURATION + INTRO_TRAVEL_DURATION + INTRO_TRAVEL_HOLD),
+      window.setTimeout(
+        () => {
+          setIntroPhase("chrome");
+          introRepelRef.current = null;
+        },
+        INTRO_SQUARE_POP_DURATION + INTRO_TRAVEL_DURATION + INTRO_TRAVEL_HOLD + INTRO_EXPAND_DURATION
+      ),
       window.setTimeout(
         () => setIntroPhase("boxes"),
-        INTRO_START_DELAY + INTRO_RISE_DURATION + INTRO_CARDS_DELAY
+        INTRO_SQUARE_POP_DURATION +
+          INTRO_TRAVEL_DURATION +
+          INTRO_TRAVEL_HOLD +
+          INTRO_EXPAND_DURATION +
+          INTRO_CARDS_DELAY
       ),
     ];
-    return () => timers.forEach((t) => window.clearTimeout(t));
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   const isDark = theme === "dark";
@@ -230,9 +288,12 @@ export default function Home() {
       ctx.clearRect(0, 0, width, height);
       ctx.globalAlpha = DOT_OPACITY;
       ctx.fillStyle = fgRef.current;
+      // During the intro, dots repel from the traveling square instead of
+      // the real cursor — same field, just a different source point.
+      const repelFrom = introRepelRef.current ?? mouse;
       for (const dot of dots) {
-        const dx = mouse.x - dot.baseX;
-        const dy = mouse.y - dot.baseY;
+        const dx = repelFrom.x - dot.baseX;
+        const dy = repelFrom.y - dot.baseY;
         const dist = Math.hypot(dx, dy);
         let targetX = dot.baseX;
         let targetY = dot.baseY;
@@ -638,22 +699,26 @@ export default function Home() {
 
       {introPhase === "intro" && (
         <div
+          ref={introSquareRef}
           aria-hidden
-          className="pointer-events-none absolute z-30 rounded-3xl border-[3px]"
+          className="intro-square-pop pointer-events-none absolute z-30 rounded-3xl border-[3px]"
           style={{
             borderColor: borderOnBg,
             backgroundColor: bg,
-            top: squareExpanded ? INTRO_CHROME_TOP : "50%",
+            // Expressed as a vh-based calc (not a JS-measured value) so the
+            // very first paint — before the travel effect below has run at
+            // all — already matches the pixel top that effect computes for
+            // the same centered position, with nothing for React to touch
+            // afterward: from here on, only that effect's rAF loop ever
+            // writes to this element's `top` (see introSquareRef there),
+            // exactly like the custom cursor further down mutates its own
+            // element directly rather than through React state.
+            top: `calc(50vh - ${INTRO_SQUARE_SIZE / 2}px)`,
             left: "50%",
             width: squareExpanded ? INTRO_CHROME_WIDTH : INTRO_SQUARE_SIZE,
             height: squareExpanded ? INTRO_CHROME_HEIGHT : INTRO_SQUARE_SIZE,
-            transform: squareExpanded ? "translateX(-50%)" : "translate(-50%, -50%)",
-            transition: [
-              `top ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
-              `width ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
-              `height ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
-              `transform ${INTRO_RISE_DURATION}ms ${REVEAL_EASING}`,
-            ].join(", "),
+            transform: "translateX(-50%)",
+            transition: `width ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}, height ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}`,
           }}
         />
       )}
@@ -677,7 +742,7 @@ export default function Home() {
           style={{
             opacity: introPhase === "intro" ? 0 : 1,
             transform: introPhase === "intro" ? "scale(0.6)" : "scale(1)",
-            transition: `opacity ${INTRO_POP_DURATION}ms ${INTRO_POP_EASING}, transform ${INTRO_POP_DURATION}ms ${INTRO_POP_EASING}`,
+            transition: `opacity ${INTRO_CHROME_POP_DURATION}ms ${INTRO_POP_EASING}, transform ${INTRO_CHROME_POP_DURATION}ms ${INTRO_POP_EASING}`,
           }}
         >
           <button

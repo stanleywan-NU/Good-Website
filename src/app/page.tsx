@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 // Page background (the empty space around/between boxes) — a warm cream in
-// light mode, a warm near-black in dark mode. The pastel box fills are the
-// only thing that stay fixed across both themes; borders, box text/icons,
-// and the cursor/dot-grid accent all adapt (see `fg`/`borderOnBg` below).
+// light mode, a warm near-black in dark mode.
 const BG_LIGHT = "#f9f1de";
 const BG_DARK = "#211d1a";
 // Dark-mode value for both the box/button outline and the text-and-icon
@@ -17,12 +15,20 @@ const BLACK = "#000000";
 // Light-mode value for the text-and-icon accent (see `fg` below).
 const INK = "#2b2420";
 // One pastel per box, in the order the boxes appear (name box excluded —
-// it keeps the neutral bg-matching fill it always had).
+// it keeps the neutral bg-matching fill it always had). Each has a light-
+// and dark-mode value — same hue, but deepened a bit in dark mode so the
+// fill doesn't look washed-out pale against the dark page background (and,
+// as a side effect, gives the white box text more natural contrast).
 const PASTEL_BLUE = "#a8d8ea";
+const PASTEL_BLUE_DARK = "#5aa9c9";
 const PASTEL_RED = "#e57373";
+const PASTEL_RED_DARK = "#c14f4f";
 const PASTEL_GREEN = "#a8e0b8";
+const PASTEL_GREEN_DARK = "#5fa878";
 const PASTEL_ORANGE = "#ffcfa0";
+const PASTEL_ORANGE_DARK = "#d99a4e";
 const PASTEL_MAGENTA = "#e8b0e8";
+const PASTEL_MAGENTA_DARK = "#b563b5";
 // Unfilled progress-bar track — a fixed neutral gray rather than translucent
 // white, so it stays visible against both the light cream and dark
 // backgrounds (translucent white all but disappeared against light cream).
@@ -96,13 +102,17 @@ export default function Home() {
   // fixed-fill pastel boxes would lose their black outline against a dark
   // page background otherwise, same reasoning as the bg-blended boxes.
   const borderOnBg = isDark ? WHITE : BLACK;
-  // In dark mode, `fg` text/icons on the pastel boxes are white sitting on a
-  // fill that's still light (the pastels don't darken per theme) — low
-  // contrast without some help. A soft dark shadow (not a color change)
-  // keeps the white consistent across every box while making it readable
-  // against the lighter pastels specifically.
+  // `fg` text/icons on the pastel boxes are white in dark mode, and even
+  // with the deeper dark-mode pastel fills below, a soft dark shadow (not a
+  // color change) keeps that white reading crisply against every one of
+  // them.
   const pastelTextShadow = isDark ? "0 1px 3px rgba(0,0,0,0.45)" : "none";
   const pastelIconShadow = isDark ? "drop-shadow(0 1px 2px rgba(0,0,0,0.45))" : "none";
+  const pastelBlue = isDark ? PASTEL_BLUE_DARK : PASTEL_BLUE;
+  const pastelRed = isDark ? PASTEL_RED_DARK : PASTEL_RED;
+  const pastelGreen = isDark ? PASTEL_GREEN_DARK : PASTEL_GREEN;
+  const pastelOrange = isDark ? PASTEL_ORANGE_DARK : PASTEL_ORANGE;
+  const pastelMagenta = isDark ? PASTEL_MAGENTA_DARK : PASTEL_MAGENTA;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The background dot grid reads color off a ref instead of the `fg`
@@ -644,7 +654,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_RED, color: fg, textShadow: pastelTextShadow }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
                 <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={fg} strokeWidth="4" strokeLinecap="round" />
@@ -658,7 +668,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_BLUE, color: fg, textShadow: pastelTextShadow }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
                 <path d="M22 10h20l6 10-18 34-18-34z" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
@@ -673,7 +683,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_GREEN, color: fg, textShadow: pastelTextShadow }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow }}>
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Coming Soon</span>
@@ -683,7 +693,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_ORANGE, color: fg, textShadow: pastelTextShadow }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow }}>
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed">
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
@@ -693,7 +703,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_MAGENTA, color: fg, textShadow: pastelTextShadow }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
               [ Your email ]

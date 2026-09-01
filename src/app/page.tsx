@@ -3,8 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
-const CREAM = "#efe1c4";
-const RUST = "#a8592f";
+// Page background (the empty space around/between boxes) — a warm cream in
+// light mode, a warm near-black in dark mode. Everything else (borders, the
+// pastel box fills, the ink text color) stays fixed across both themes;
+// only this and the cursor/dot-grid accent adapt.
+const BG_LIGHT = "#f9f1de";
+const BG_DARK = "#211d1a";
+// Borders on every box/button and the progress bar itself are always white,
+// regardless of theme — the thing that reads as "outline" here, not a
+// themed color.
+const WHITE = "#ffffff";
+// Fixed dark ink for text/icons inside the pastel boxes — always sitting on
+// a light pastel fill, so it doesn't need to adapt per theme.
+const INK = "#2b2420";
+// One pastel per box, in the order the boxes appear (name box excluded —
+// it keeps the neutral bg-matching fill it always had).
+const PASTEL_BLUE = "#a8d8ea";
+const PASTEL_RED = "#f4a9a8";
+const PASTEL_GREEN = "#a8e0b8";
+const PASTEL_ORANGE = "#ffcfa0";
+const PASTEL_PINK = "#f6c6dd";
+// Unfilled progress-bar track — a fixed neutral gray rather than translucent
+// white, so it stays visible against both the light cream and dark
+// backgrounds (translucent white all but disappeared against light cream).
+const PROGRESS_TRACK = "#a39c8e";
 const REVEAL_DURATION = 750;
 const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
@@ -61,11 +83,15 @@ export default function Home() {
   const isTransitioningRef = useRef(false);
   const cursorRef = useRef<HTMLDivElement>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
-  const fgRef = useRef<string>(RUST);
+  const fgRef = useRef<string>(INK);
 
   const isDark = theme === "dark";
-  const bg = isDark ? RUST : CREAM;
-  const fg = isDark ? CREAM : RUST;
+  const bg = isDark ? BG_DARK : BG_LIGHT;
+  // Accent for whatever sits directly on the page-blend surfaces (the name
+  // box, the toggle icon, the cursor, the background dot grid) — the one
+  // thing that still needs to flip per theme, since everything else here
+  // (borders, pastel box fills, ink text) is fixed across both.
+  const fg = isDark ? WHITE : INK;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The background dot grid reads color off a ref instead of the `fg`
@@ -544,14 +570,14 @@ export default function Home() {
 
       <div
         className="absolute top-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2.5 rounded-3xl border-[3px] px-6 py-4"
-        style={{ borderColor: fg, backgroundColor: bg }}
+        style={{ borderColor: WHITE, backgroundColor: bg }}
       >
         <button
           ref={toggleBtnRef}
           onClick={toggleTheme}
           data-cursor-melt
           className="flex h-9 w-9 items-center justify-center rounded-xl border-[3px] p-0 transition-transform duration-200 hover:scale-[1.12]"
-          style={{ borderColor: fg, backgroundColor: bg, color: fg }}
+          style={{ borderColor: WHITE, backgroundColor: bg, color: fg }}
         >
           {isDark ? (
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2" strokeLinecap="round">
@@ -573,8 +599,7 @@ export default function Home() {
                 className="w-1 rounded-sm transition-[height] duration-150 ease-out"
                 style={{
                   height: active ? peak : 6,
-                  backgroundColor: fg,
-                  opacity: active ? 1 : 0.35,
+                  backgroundColor: active ? WHITE : PROGRESS_TRACK,
                 }}
               />
             );
@@ -591,7 +616,7 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-5`} style={{ borderColor: fg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-5`} style={{ borderColor: WHITE, backgroundColor: bg }}>
             <span className="text-sm font-medium opacity-70">Product Design &amp; Content Strategy</span>
             <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
             <p className="m-0 max-w-[460px] text-[17px] leading-snug opacity-85">
@@ -608,10 +633,10 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: WHITE, backgroundColor: PASTEL_BLUE, color: INK }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
-                <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={fg} strokeWidth="4" strokeLinecap="round" />
+                <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={INK} strokeWidth="4" strokeLinecap="round" />
               </svg>
             </div>
             <div className="flex flex-col gap-1">
@@ -622,11 +647,11 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: fg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: WHITE, backgroundColor: PASTEL_RED, color: INK }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
-                <path d="M22 10h20l6 10-18 34-18-34z" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
-                <path d="M28 10l4 8 4-8" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
+                <path d="M22 10h20l6 10-18 34-18-34z" stroke={INK} strokeWidth="4" strokeLinejoin="round" />
+                <path d="M28 10l4 8 4-8" stroke={INK} strokeWidth="4" strokeLinejoin="round" />
               </svg>
             </div>
             <div className="flex flex-col gap-1">
@@ -637,7 +662,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: fg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: WHITE, backgroundColor: PASTEL_GREEN, color: INK }}>
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Coming Soon</span>
@@ -647,7 +672,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: WHITE, backgroundColor: PASTEL_ORANGE, color: INK }}>
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed opacity-85">
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
@@ -657,9 +682,9 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: fg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: WHITE, backgroundColor: PASTEL_PINK, color: INK }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
-            <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
+            <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: INK }}>
               [ Your email ]
             </a>
           </div>

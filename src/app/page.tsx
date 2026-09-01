@@ -4,19 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 // Page background (the empty space around/between boxes) — a warm cream in
-// light mode, a warm near-black in dark mode. Everything else (borders, the
-// pastel box fills, the ink text color) stays fixed across both themes;
-// only this and the cursor/dot-grid accent adapt.
+// light mode, a warm near-black in dark mode. The pastel box fills are the
+// only thing that stay fixed across both themes; borders, box text/icons,
+// and the cursor/dot-grid accent all adapt (see `fg`/`borderOnBg` below).
 const BG_LIGHT = "#f9f1de";
 const BG_DARK = "#211d1a";
-// The progress bar's filled segments and the dark-mode accent (cursor, dot
-// grid, name-box text) are always white, regardless of theme.
+// Dark-mode value for both the box/button outline and the text-and-icon
+// accent (see `borderOnBg`/`fg` below).
 const WHITE = "#ffffff";
-// Every box/button outline is always black, regardless of theme — the thing
-// that reads as "outline" here, not a themed color.
+// Light-mode value for the box/button outline (see `borderOnBg` below).
 const BLACK = "#000000";
-// Fixed dark ink for text/icons inside the pastel boxes — always sitting on
-// a light pastel fill, so it doesn't need to adapt per theme.
+// Light-mode value for the text-and-icon accent (see `fg` below).
 const INK = "#2b2420";
 // One pastel per box, in the order the boxes appear (name box excluded —
 // it keeps the neutral bg-matching fill it always had).
@@ -89,15 +87,14 @@ export default function Home() {
 
   const isDark = theme === "dark";
   const bg = isDark ? BG_DARK : BG_LIGHT;
-  // Accent for whatever sits directly on the page-blend surfaces (the name
-  // box, the toggle icon, the cursor, the background dot grid) — the one
-  // thing that still needs to flip per theme, since everything else here
-  // (borders, pastel box fills, ink text) is fixed across both.
+  // Text/icon color for every box (dark ink in light mode, white in dark
+  // mode) plus the cursor and background dot grid. Pastel box fills stay
+  // fixed across themes, so this is what keeps their contents readable in
+  // both — matching how the name box's own text already flipped.
   const fg = isDark ? WHITE : INK;
-  // The pastel boxes' border is always black — they always sit on a light
-  // fill, in either theme. But the name box and toggle/progress container
-  // fill with the page bg itself, so a black border on them would nearly
-  // vanish against the dark-mode background; those three flip to white.
+  // Every box/button outline: black in light mode, white in dark mode — the
+  // fixed-fill pastel boxes would lose their black outline against a dark
+  // page background otherwise, same reasoning as the bg-blended boxes.
   const borderOnBg = isDark ? WHITE : BLACK;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
@@ -606,7 +603,7 @@ export default function Home() {
                 className="w-1 rounded-sm transition-[height] duration-150 ease-out"
                 style={{
                   height: active ? peak : 6,
-                  backgroundColor: active ? WHITE : PROGRESS_TRACK,
+                  backgroundColor: active ? borderOnBg : PROGRESS_TRACK,
                 }}
               />
             );
@@ -640,10 +637,10 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: BLACK, backgroundColor: PASTEL_RED, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_RED, color: fg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
-                <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={INK} strokeWidth="4" strokeLinecap="round" />
+                <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={fg} strokeWidth="4" strokeLinecap="round" />
               </svg>
             </div>
             <div className="flex flex-col gap-1">
@@ -654,11 +651,11 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: BLACK, backgroundColor: PASTEL_BLUE, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_BLUE, color: fg }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
-                <path d="M22 10h20l6 10-18 34-18-34z" stroke={INK} strokeWidth="4" strokeLinejoin="round" />
-                <path d="M28 10l4 8 4-8" stroke={INK} strokeWidth="4" strokeLinejoin="round" />
+                <path d="M22 10h20l6 10-18 34-18-34z" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
+                <path d="M28 10l4 8 4-8" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
               </svg>
             </div>
             <div className="flex flex-col gap-1">
@@ -669,7 +666,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: BLACK, backgroundColor: PASTEL_GREEN, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_GREEN, color: fg }}>
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Coming Soon</span>
@@ -679,7 +676,7 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: BLACK, backgroundColor: PASTEL_ORANGE, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_ORANGE, color: fg }}>
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed opacity-85">
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
@@ -689,9 +686,9 @@ export default function Home() {
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: BLACK, backgroundColor: PASTEL_MAGENTA, color: INK }}>
+          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_MAGENTA, color: fg }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
-            <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: INK }}>
+            <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
               [ Your email ]
             </a>
           </div>

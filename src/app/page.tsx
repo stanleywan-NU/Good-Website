@@ -574,31 +574,16 @@ export default function Home() {
 
   // Real layout shrink (flexBasis), not just a cosmetic transform: scaling
   // a fixed-width slot visually without changing its actual width leaves
-  // the original full-size gap between neighbors once it's smaller.
+  // the original full-size gap between neighbors once it's smaller. The
+  // vertical shrink stays a transform (scaleY) since there's no "next row"
+  // for that to leave a gap against — it's a single horizontal row.
   // No CSS transition here on purpose: cardScale already updates every
   // scroll event, directly off scrollLeft, so the DOM value should match
   // the current scroll position exactly — a transition would just lag
   // behind a value that's already changing continuously.
   const slotStyle = (baseWidth: number): React.CSSProperties => ({
     flexBasis: baseWidth * cardScale,
-  });
-
-  // The actual visual shrink (both dimensions) lives on this wrapper, one
-  // level in from the slot above — not scaleY on the slot itself, which
-  // used to visibly distort every letter inside (squishing rendered pixels
-  // vertically while width had already changed via real layout, an
-  // asymmetric combination no uniform scale can reproduce). A uniform
-  // scale() on a box fixed at its original size avoids that: width and
-  // height shrink by the same factor, so text/icons/borders shrink
-  // proportionally instead of stretching. Kept on its own element (rather
-  // than folded into cardBox below) so cardBox's own hover:scale-[1.035]
-  // keeps working — an inline `transform` here would otherwise permanently
-  // override that CSS class's transform, hover or not.
-  const cardShrinkStyle = (baseWidth: number): React.CSSProperties => ({
-    width: baseWidth,
-    height: "100%",
-    transform: `scale(${cardScale})`,
-    transformOrigin: "top left",
+    transform: `scaleY(${cardScale})`,
   });
 
   return (
@@ -657,16 +642,15 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div style={cardShrinkStyle(720)}>
           <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
             {/* Decorative only — centered exactly on the box's corner via
                 right/bottom 0 plus a self-translate, so it stays anchored
-                there regardless of size. Diameter is 150% of the box's own
+                there regardless of size. Diameter is 200% of the box's own
                 width. Text sitting on top of it stays the normal fg color,
                 same as everywhere else in the box. */}
             <div
               aria-hidden
-              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[150%] translate-x-1/2 translate-y-1/2 rounded-full"
+              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[200%] translate-x-1/2 translate-y-1/2 rounded-full"
               style={{ backgroundColor: pastelYellow }}
             />
 
@@ -685,11 +669,9 @@ export default function Home() {
               </div>
             </div>
           </div>
-          </div>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div style={cardShrinkStyle(520)}>
           <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
@@ -701,11 +683,9 @@ export default function Home() {
               <span className="text-sm">Product Design</span>
             </div>
           </div>
-          </div>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div style={cardShrinkStyle(520)}>
           <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow }}>
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
@@ -718,11 +698,9 @@ export default function Home() {
               <span className="text-sm">Content Strategy &amp; GEO</span>
             </div>
           </div>
-          </div>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div style={cardShrinkStyle(420)}>
           <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow }}>
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
@@ -730,11 +708,9 @@ export default function Home() {
               <span className="text-sm">&nbsp;</span>
             </div>
           </div>
-          </div>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div style={cardShrinkStyle(420)}>
           <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow }}>
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed">
@@ -742,17 +718,14 @@ export default function Home() {
             </p>
             <span className="text-[13px]">[ Full bio coming soon ]</span>
           </div>
-          </div>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div style={cardShrinkStyle(380)}>
           <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow }}>
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
               [ Your email ]
             </a>
-          </div>
           </div>
         </div>
       </div>

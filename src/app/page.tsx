@@ -33,14 +33,13 @@ const PASTEL_MAGENTA_DARK = "#b563b5";
 // box fill, so it's on its own rather than in the per-box order above).
 const PASTEL_YELLOW = "#f5e6a3";
 const PASTEL_YELLOW_DARK = "#cbab48";
-// Where the name/title text crosses the circle: a straight channel-average
-// of the text ink and the circle's yellow (INK+PASTEL_YELLOW, WHITE+
-// PASTEL_YELLOW_DARK) — an actual mixed color, not a blend-mode trick
-// (mix-blend-mode reacts to *everything* behind an element, including the
-// plain background, and produces a barely-there result against colors this
-// extreme — near-black ink or pure white text — so it was ruled out).
-const MIXED_TEXT_LIGHT = "#908562";
-const MIXED_TEXT_DARK = "#e5d5a4";
+// Where the name/title text crosses the circle: chosen (not averaged) for
+// contrast against the pale circle and harmony with the cream/gold around
+// it, rather than a literal ink+yellow blend, which read too muddy/low-
+// contrast to "pop." Also doubles as a callback to the site's original
+// rust-on-cream palette.
+const MIXED_TEXT_LIGHT = "#a8592f";
+const MIXED_TEXT_DARK = "#3d2410";
 // Unfilled progress-bar track — a fixed neutral gray rather than translucent
 // white, so it stays visible against both the light cream and dark
 // backgrounds (translucent white all but disappeared against light cream).
@@ -654,11 +653,18 @@ export default function Home() {
           <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden @container`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
             {/* Decorative only — centered exactly on the box's corner via
                 right/bottom 0 plus a self-translate, so it stays anchored
-                there regardless of size. Diameter is 175% of the box's own
-                width (75% bigger than the original "one box-width" size). */}
+                there regardless of size. Diameter is 175cqw (75% bigger
+                than the original one-box-width size) — sized in cqw rather
+                than a plain "w-[175%]" specifically so it shares the exact
+                same reference box as the clip-path below (a plain % here
+                resolves against this box's *padding* edge as an absolutely
+                positioned element, while cqw resolves against the
+                @container's *content* box — those two are different sizes,
+                which is what desynced the clipped "mixed" text from this
+                circle's actual bounds before). */}
             <div
               aria-hidden
-              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[175%] translate-x-1/2 translate-y-1/2 rounded-full"
+              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[175cqw] translate-x-1/2 translate-y-1/2 rounded-full"
               style={{ backgroundColor: pastelYellow }}
             />
 
@@ -677,14 +683,13 @@ export default function Home() {
               </div>
             </div>
 
-            {/* An exact duplicate of the text above, colored as a mix of
-                the ink and the circle's yellow, clipped to the same circle
-                geometry (radius expressed in cqw, i.e. relative to this
-                box's own width, so it lines up with the visible circle
-                regardless of the box's actual rendered size). Sitting
-                directly on top of the real text at identical layout/size,
-                this makes exactly — and only — the parts of the letters
-                inside the circle read as the mixed color. */}
+            {/* An exact duplicate of the text above, recolored for contrast
+                against the circle, clipped to the same circle geometry
+                (87.5cqw = half of the circle's own 175cqw diameter, so it
+                tracks the visible circle exactly). Sitting directly on top
+                of the real text at identical layout/size, this makes
+                exactly — and only — the parts of the letters inside the
+                circle read as the accent color. */}
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center gap-5 p-10"

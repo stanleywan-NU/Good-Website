@@ -66,6 +66,24 @@ body {
   mix-blend-mode: normal;
 }
 
+/* The view-transition pseudo-element tree lives in the top layer and, by
+   default, captures hit-testing for the whole viewport — so wheel/scroll
+   input aimed at the real page underneath is swallowed by the snapshot
+   for as long as the transition is active (roughly REVEAL_DURATION), not
+   just visually blocked but actually undeliverable. This isn't needed:
+   nothing in the transition itself is interactive, so let every pointer
+   event fall straight through to the real, live page underneath. Set on
+   every level of the pseudo tree individually rather than relying on
+   inheritance from the root down through UA-generated pseudo-elements,
+   which isn't reliable across browsers. */
+::view-transition,
+::view-transition-group(*),
+::view-transition-image-pair(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  pointer-events: none;
+}
+
 ::view-transition-new(root) {
   /* Hints the browser to isolate this in its own layer ahead of time
      rather than discovering mid-animation that the mask is changing every

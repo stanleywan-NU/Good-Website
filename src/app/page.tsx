@@ -628,12 +628,12 @@ export default function Home() {
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
           <div data-cursor-melt className={`${cardBox} justify-center gap-5`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
-            <span className="text-sm font-medium opacity-70">Product Design &amp; Content Strategy</span>
+            <span className="text-sm font-medium">Product Design &amp; Content Strategy</span>
             <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
-            <p className="m-0 max-w-[460px] text-[17px] leading-snug opacity-85">
+            <p className="m-0 max-w-[460px] text-[17px] leading-snug">
               Building at Rising Team and BorderX Lab&apos;s BeyondStyle.
             </p>
-            <div className="mt-2 flex items-center gap-2 text-sm font-medium opacity-60">
+            <div className="mt-2 flex items-center gap-2 text-sm font-medium">
               Scroll for work
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14" />
@@ -685,10 +685,10 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(420)}>
           <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: PASTEL_ORANGE, color: fg, textShadow: pastelTextShadow }}>
             <span className="text-[22px] font-bold">About</span>
-            <p className="m-0 text-[15px] leading-relaxed opacity-85">
+            <p className="m-0 text-[15px] leading-relaxed">
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
             </p>
-            <span className="text-[13px] opacity-50">[ Full bio coming soon ]</span>
+            <span className="text-[13px]">[ Full bio coming soon ]</span>
           </div>
         </div>
 

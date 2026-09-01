@@ -33,11 +33,6 @@ const PASTEL_MAGENTA_DARK = "#b563b5";
 // box fill, so it's on its own rather than in the per-box order above).
 const PASTEL_YELLOW = "#f5e6a3";
 const PASTEL_YELLOW_DARK = "#cbab48";
-// Where the name/title text crosses the circle: a plum accent, roughly
-// opposite yellow on the color wheel, so it pops clearly against the
-// circle without just being "a darker version" of it.
-const MIXED_TEXT_LIGHT = "#6b3f5e";
-const MIXED_TEXT_DARK = "#3d1f38";
 // Unfilled progress-bar track — a fixed neutral gray rather than translucent
 // white, so it stays visible against both the light cream and dark
 // backgrounds (translucent white all but disappeared against light cream).
@@ -123,7 +118,6 @@ export default function Home() {
   const pastelOrange = isDark ? PASTEL_ORANGE_DARK : PASTEL_ORANGE;
   const pastelMagenta = isDark ? PASTEL_MAGENTA_DARK : PASTEL_MAGENTA;
   const pastelYellow = isDark ? PASTEL_YELLOW_DARK : PASTEL_YELLOW;
-  const mixedTextColor = isDark ? MIXED_TEXT_DARK : MIXED_TEXT_LIGHT;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The background dot grid reads color off a ref instead of the `fg`
@@ -648,20 +642,15 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden @container`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
             {/* Decorative only — centered exactly on the box's corner via
                 right/bottom 0 plus a self-translate, so it stays anchored
-                there regardless of size. Diameter is 200cqw — sized in cqw
-                rather than a plain "w-[200%]" specifically so it shares the
-                exact same reference box as the clip-path below (a plain %
-                here resolves against this box's *padding* edge as an
-                absolutely positioned element, while cqw resolves against
-                the @container's *content* box — those two are different
-                sizes, which is what desynced the clipped "accent" text
-                from this circle's actual bounds before). */}
+                there regardless of size. Diameter is 200% of the box's own
+                width. Text sitting on top of it stays the normal fg color,
+                same as everywhere else in the box. */}
             <div
               aria-hidden
-              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[200cqw] translate-x-1/2 translate-y-1/2 rounded-full"
+              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[200%] translate-x-1/2 translate-y-1/2 rounded-full"
               style={{ backgroundColor: pastelYellow }}
             />
 
@@ -674,32 +663,6 @@ export default function Home() {
               <div className="mt-2 flex items-center gap-2 text-sm font-medium">
                 Scroll for work
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14" />
-                  <path d="M13 6l6 6-6 6" />
-                </svg>
-              </div>
-            </div>
-
-            {/* An exact duplicate of the text above, recolored for contrast
-                against the circle, clipped to the same circle geometry
-                (100cqw = half of the circle's own 200cqw diameter, so it
-                tracks the visible circle exactly). Sitting directly on top
-                of the real text at identical layout/size, this makes
-                exactly — and only — the parts of the letters inside the
-                circle read as the accent color. */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center gap-5 p-10"
-              style={{ clipPath: "circle(100cqw at 100% 100%)", color: mixedTextColor }}
-            >
-              <span className="text-sm font-medium">Product Design &amp; Content Strategy</span>
-              <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
-              <p className="m-0 max-w-[460px] text-[17px] leading-snug">
-                Building at Rising Team and BorderX Lab&apos;s BeyondStyle.
-              </p>
-              <div className="mt-2 flex items-center gap-2 text-sm font-medium">
-                Scroll for work
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={mixedTextColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14" />
                   <path d="M13 6l6 6-6 6" />
                 </svg>

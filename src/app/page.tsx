@@ -29,6 +29,10 @@ const PASTEL_ORANGE = "#ffcfa0";
 const PASTEL_ORANGE_DARK = "#d99a4e";
 const PASTEL_MAGENTA = "#e8b0e8";
 const PASTEL_MAGENTA_DARK = "#b563b5";
+// Decorative accent circle in the name box's bottom-right corner (not a
+// box fill, so it's on its own rather than in the per-box order above).
+const PASTEL_YELLOW = "#f5e6a3";
+const PASTEL_YELLOW_DARK = "#cbab48";
 // Unfilled progress-bar track — a fixed neutral gray rather than translucent
 // white, so it stays visible against both the light cream and dark
 // backgrounds (translucent white all but disappeared against light cream).
@@ -113,6 +117,7 @@ export default function Home() {
   const pastelGreen = isDark ? PASTEL_GREEN_DARK : PASTEL_GREEN;
   const pastelOrange = isDark ? PASTEL_ORANGE_DARK : PASTEL_ORANGE;
   const pastelMagenta = isDark ? PASTEL_MAGENTA_DARK : PASTEL_MAGENTA;
+  const pastelYellow = isDark ? PASTEL_YELLOW_DARK : PASTEL_YELLOW;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The background dot grid reads color off a ref instead of the `fg`
@@ -637,13 +642,22 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-5`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
-            <span className="text-sm font-medium">Product Design &amp; Content Strategy</span>
-            <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
-            <p className="m-0 max-w-[460px] text-[17px] leading-snug">
+          <div data-cursor-melt className={`${cardBox} relative justify-center gap-5 overflow-hidden`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
+            {/* Decorative only — centered exactly on the box's corner via
+                right/bottom 0 plus a self-translate, so its radius (half its
+                own diameter, which equals the box's width) reaches exactly
+                halfway across regardless of the box's actual rendered size. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-full translate-x-1/2 translate-y-1/2 rounded-full"
+              style={{ backgroundColor: pastelYellow }}
+            />
+            <span className="relative text-sm font-medium">Product Design &amp; Content Strategy</span>
+            <h1 className="relative m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
+            <p className="relative m-0 max-w-[460px] text-[17px] leading-snug">
               Building at Rising Team and BorderX Lab&apos;s BeyondStyle.
             </p>
-            <div className="mt-2 flex items-center gap-2 text-sm font-medium">
+            <div className="relative mt-2 flex items-center gap-2 text-sm font-medium">
               Scroll for work
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14" />

@@ -63,6 +63,9 @@ const INTRO_DOTS_FADE_DURATION = 250;
 // distinct ones.
 const INTRO_PRE_SQUARE_DELAY = 350;
 const INTRO_SQUARE_POP_DURATION = 300;
+// How long the square (with its "s.") sits still after popping in, before
+// it starts swimming up.
+const INTRO_SQUARE_HOLD = 1000;
 const INTRO_TRAVEL_DURATION = 550;
 const INTRO_TRAVEL_HOLD = 80;
 const INTRO_EXPAND_DURATION = 220;
@@ -189,7 +192,7 @@ export default function Home() {
   // entirely up front has nothing to cancel itself.
   useEffect(() => {
     const squareAppearsAt = INTRO_DOTS_FADE_DELAY + INTRO_DOTS_FADE_DURATION + INTRO_PRE_SQUARE_DELAY;
-    const travelStartsAt = squareAppearsAt + INTRO_SQUARE_POP_DURATION;
+    const travelStartsAt = squareAppearsAt + INTRO_SQUARE_POP_DURATION + INTRO_SQUARE_HOLD;
     const expandStartsAt = travelStartsAt + INTRO_TRAVEL_DURATION + INTRO_TRAVEL_HOLD;
     const chromeAt = expandStartsAt + INTRO_EXPAND_DURATION;
     const boxesAt = chromeAt + INTRO_CARDS_DELAY;

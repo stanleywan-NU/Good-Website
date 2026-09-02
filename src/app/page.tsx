@@ -527,18 +527,26 @@ export default function Home() {
       currentPos.y += (targetPos.y - currentPos.y) * CURSOR_LERP;
 
       // Hard containment check, not distance/proximity — it should grow
-      // exactly when the cursor is actually inside a target's box, never
+      // exactly when the cursor actually touches a target's box, never
       // before. (Proximity-based growth was a leftover from the earlier
       // goo-merge design, which needed an "approaching" lead-in; without
       // that, growing before actual contact just reads as a glitch.)
+      //
+      // Tests the cursor's own square footprint against the target's rect
+      // (an AABB overlap, not a point-in-rect test against currentPos
+      // alone) — the cursor is a visible CURSOR_SIZE square, not a single
+      // pixel, so it should register contact the instant any part of that
+      // square touches the target, same as it'd look to the eye, rather
+      // than waiting for its exact center to cross the boundary.
+      const half = CURSOR_SIZE / 2;
       let isOverTarget = false;
       for (const el of meltTargets) {
         const rect = el.getBoundingClientRect();
         if (
-          currentPos.x >= rect.left &&
-          currentPos.x <= rect.right &&
-          currentPos.y >= rect.top &&
-          currentPos.y <= rect.bottom
+          currentPos.x + half >= rect.left &&
+          currentPos.x - half <= rect.right &&
+          currentPos.y + half >= rect.top &&
+          currentPos.y - half <= rect.bottom
         ) {
           isOverTarget = true;
           break;

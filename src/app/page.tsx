@@ -54,16 +54,18 @@ const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 // INTRO_SQUARE_POP_DURATION must match the keyframes' own duration in
 // globals.css (.intro-square-pop) — CSS keyframes can't read a JS constant,
 // so this is the one place that pairing has to be kept in sync by hand.
-const INTRO_DOTS_FADE_DELAY = 400;
-const INTRO_DOTS_FADE_DURATION = 700;
+// Every duration below is deliberately tight — the whole sequence, start
+// to the cards fully settled, adds up to ~2000ms.
+const INTRO_DOTS_FADE_DELAY = 100;
+const INTRO_DOTS_FADE_DURATION = 250;
 // Another pause once the dots have finished fading in before the square
 // appears — otherwise the two read as one continuous beat instead of two
 // distinct ones.
-const INTRO_PRE_SQUARE_DELAY = 400;
-const INTRO_SQUARE_POP_DURATION = 500;
-const INTRO_TRAVEL_DURATION = 4000;
-const INTRO_TRAVEL_HOLD = 250;
-const INTRO_EXPAND_DURATION = 600;
+const INTRO_PRE_SQUARE_DELAY = 100;
+const INTRO_SQUARE_POP_DURATION = 300;
+const INTRO_TRAVEL_DURATION = 550;
+const INTRO_TRAVEL_HOLD = 80;
+const INTRO_EXPAND_DURATION = 220;
 const INTRO_SQUARE_SIZE = 56;
 // Less than rounded-3xl's 24px — at this size, 24px reads as almost a
 // circle (half its own width). Transitions up to 24px alongside width/
@@ -77,10 +79,10 @@ const INTRO_CHROME_RADIUS = 24;
 const INTRO_CHROME_WIDTH = 274;
 const INTRO_CHROME_HEIGHT = 118;
 const INTRO_CHROME_TOP = 24;
-const INTRO_CHROME_POP_DURATION = 450;
+const INTRO_CHROME_POP_DURATION = 250;
 const INTRO_POP_EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
-const INTRO_CARDS_DELAY = 200;
-const INTRO_CARDS_POP_DURATION = 550;
+const INTRO_CARDS_DELAY = 100;
+const INTRO_CARDS_POP_DURATION = 300;
 // Repel radius/force the dot grid uses while reacting to the intro square
 // specifically — wider and a bit stronger than the cursor's own
 // MOUSE_RADIUS/REPEL_FORCE below, for more visible clearance around it.
@@ -186,13 +188,12 @@ export default function Home() {
     const boxesAt = chromeAt + INTRO_CARDS_DELAY;
 
     let raf = 0;
+    const startTop = window.innerHeight / 2 - INTRO_SQUARE_SIZE / 2;
+    const centerX = window.innerWidth / 2;
 
     const startTravel = () => {
       const el = introSquareRef.current;
       if (!el) return;
-      const startTop = window.innerHeight / 2 - INTRO_SQUARE_SIZE / 2;
-      const centerX = window.innerWidth / 2;
-      introRepelRef.current = { x: centerX, y: startTop + INTRO_SQUARE_SIZE / 2 };
       let travelStart = 0;
       const travel = (now: number) => {
         if (!travelStart) travelStart = now;
@@ -208,7 +209,13 @@ export default function Home() {
 
     const timers = [
       window.setTimeout(() => setDotsVisible(true), INTRO_DOTS_FADE_DELAY),
-      window.setTimeout(() => setIntroPhase("intro"), squareAppearsAt),
+      window.setTimeout(() => {
+        // Set the instant the square itself appears (not deferred until its
+        // pop-in finishes and travel starts) — dots should react to it the
+        // second it's on screen, not a beat later.
+        introRepelRef.current = { x: centerX, y: startTop + INTRO_SQUARE_SIZE / 2 };
+        setIntroPhase("intro");
+      }, squareAppearsAt),
       window.setTimeout(startTravel, travelStartsAt),
       window.setTimeout(() => setSquareExpanded(true), expandStartsAt),
       window.setTimeout(() => {
@@ -323,22 +330,29 @@ export default function Home() {
       // During the intro, dots repel from the traveling square instead of
       // the real cursor — same field, just a different source point (and a
       // wider, slightly stronger radius/force — see INTRO_REPEL_RADIUS).
+      // Before the intro's fully done and neither is set, dots shouldn't
+      // react to anything — falling back to the real mouse here (which is
+      // always tracked, invisible cursor or not) is what let dots visibly
+      // repel from wherever the real pointer was even before the square
+      // ever appeared.
       const introRepel = introRepelRef.current;
-      const repelFrom = introRepel ?? mouse;
+      const repelFrom = introRepel ?? (introDoneRef.current ? mouse : null);
       const repelRadius = introRepel ? INTRO_REPEL_RADIUS : MOUSE_RADIUS;
       const repelForce = introRepel ? INTRO_REPEL_FORCE : REPEL_FORCE;
       for (const dot of dots) {
-        const dx = repelFrom.x - dot.baseX;
-        const dy = repelFrom.y - dot.baseY;
-        const dist = Math.hypot(dx, dy);
         let targetX = dot.baseX;
         let targetY = dot.baseY;
-        if (dist < repelRadius) {
-          const ratio = (repelRadius - dist) / repelRadius;
-          const angle = Math.atan2(dy, dx);
-          const push = ratio * repelForce;
-          targetX -= Math.cos(angle) * push;
-          targetY -= Math.sin(angle) * push;
+        if (repelFrom) {
+          const dx = repelFrom.x - dot.baseX;
+          const dy = repelFrom.y - dot.baseY;
+          const dist = Math.hypot(dx, dy);
+          if (dist < repelRadius) {
+            const ratio = (repelRadius - dist) / repelRadius;
+            const angle = Math.atan2(dy, dx);
+            const push = ratio * repelForce;
+            targetX -= Math.cos(angle) * push;
+            targetY -= Math.sin(angle) * push;
+          }
         }
         dot.x += (targetX - dot.x) * EASE;
         dot.y += (targetY - dot.y) * EASE;

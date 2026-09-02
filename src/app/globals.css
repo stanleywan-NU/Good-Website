@@ -113,7 +113,7 @@ body {
    shape repeats at every segment boundary instead of flowing through it.
    Each stop below gets its own timing-function instead, so the whole
    thing is one continuous curve — springy, but smooth. Duration here
-   (500ms) must match INTRO_SQUARE_POP_DURATION in page.tsx by hand — CSS
+   (300ms) must match INTRO_SQUARE_POP_DURATION in page.tsx by hand — CSS
    keyframes can't read a JS constant. */
 @keyframes intro-square-pop {
   0% {
@@ -132,5 +132,5 @@ body {
 }
 
 .intro-square-pop {
-  animation: intro-square-pop 500ms both;
+  animation: intro-square-pop 300ms both;
 }

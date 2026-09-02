@@ -929,8 +929,8 @@ export default function Home() {
 
             <div className="relative z-10 flex flex-col gap-5">
               <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
-              <p className="m-0 max-w-[460px] text-[17px] leading-snug">
-                Building at Rising Team and BorderX Lab&apos;s BeyondStyle.
+              <p className="m-0 max-w-[460px] text-[19px] leading-snug">
+                is an interdisciplinary designer studying cognitive and computer science at Northwestern.
               </p>
               <div className="mt-2 flex items-center gap-2 text-sm font-medium">
                 Scroll for work

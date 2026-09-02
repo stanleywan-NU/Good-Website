@@ -160,7 +160,10 @@ export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
-  const isTransitioningRef = useRef(false);
+  // The currently in-flight theme reveal, if any — lets a new click skip it
+  // early (see toggleTheme) instead of being blocked until it finishes on
+  // its own, which read as a cooldown on rapid successive clicks.
+  const activeTransitionRef = useRef<ReturnType<Document["startViewTransition"]> | null>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const fgRef = useRef<string>(INK);
@@ -660,7 +663,14 @@ export default function Home() {
   // don't reliably tween smoothly; that mismatch was the actual source of
   // the choppiness, not the transition type or the blur.
   function toggleTheme() {
-    if (isTransitioningRef.current) return;
+    // A previous reveal blocked new clicks until it finished entirely
+    // (~REVEAL_DURATION+), which read as a cooldown on rapid successive
+    // presses. Skipping it instead — jumping it straight to its end state —
+    // is what the View Transition API is actually for here: it's a real,
+    // documented way to end one early so a new one can start immediately.
+    if (activeTransitionRef.current) {
+      activeTransitionRef.current.skipTransition();
+    }
 
     // document.startViewTransition (below) snapshots the button's *current*
     // rendered state synchronously, before its callback even runs. The
@@ -679,15 +689,24 @@ export default function Home() {
     const btnRect = toggleBtnRef.current?.getBoundingClientRect();
     const x = btnRect ? btnRect.left + btnRect.width / 2 : window.innerWidth / 2;
     const y = btnRect ? btnRect.top + btnRect.height / 2 : 0;
-    const nextTheme = theme === "light" ? "dark" : "light";
 
     const root = document.documentElement;
     root.style.setProperty("--reveal-x", `${x}px`);
     root.style.setProperty("--reveal-y", `${y}px`);
     root.style.setProperty("--reveal-radius", "0px");
 
+    // The functional updater form, not `theme === "light" ? "dark" :
+    // "light"` computed once up front — that read `theme` from this call's
+    // own closure, captured at whatever render created it. Rapid clicks
+    // firing faster than a re-render all shared that same stale snapshot,
+    // so every one of them computed the *same* target instead of actually
+    // toggling back and forth — e.g. four quick clicks landing on dark
+    // instead of cycling back to light. The updater form always applies to
+    // React's latest pending value regardless of timing.
+    const flipTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
+
     if (typeof document.startViewTransition !== "function") {
-      setTheme(nextTheme);
+      flipTheme();
       return;
     }
 
@@ -696,23 +715,18 @@ export default function Home() {
       Math.max(y, window.innerHeight - y)
     );
 
-    isTransitioningRef.current = true;
-    // Safety net: if `finished` never settles (e.g. the tab is backgrounded
-    // mid-transition, which the spec can leave hanging), don't let the
-    // toggle stay locked forever.
-    const unlockTimer = setTimeout(() => {
-      isTransitioningRef.current = false;
-    }, REVEAL_DURATION + 1000);
-
     const transition = document.startViewTransition(() => {
-      flushSync(() => {
-        setTheme(nextTheme);
-      });
+      flushSync(flipTheme);
     });
+    activeTransitionRef.current = transition;
 
     transition.finished.finally(() => {
-      clearTimeout(unlockTimer);
-      isTransitioningRef.current = false;
+      // Only clear if this is still the active one — a newer transition's
+      // own finally may have already replaced it (or, after a skip, will
+      // run before this stale one's cleanup does).
+      if (activeTransitionRef.current === transition) {
+        activeTransitionRef.current = null;
+      }
       root.style.removeProperty("--reveal-x");
       root.style.removeProperty("--reveal-y");
       root.style.removeProperty("--reveal-radius");
@@ -731,8 +745,9 @@ export default function Home() {
         );
       })
       .catch(() => {
-        // Transition was skipped/aborted (e.g. tab hidden mid-flight) —
-        // isTransitioningRef is still cleared via transition.finished above.
+        // Transition was skipped/aborted (e.g. tab hidden mid-flight, or a
+        // newer click calling skipTransition() on this one) — cleanup still
+        // runs via transition.finished above either way.
       });
   }
 

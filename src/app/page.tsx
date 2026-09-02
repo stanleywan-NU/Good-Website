@@ -56,6 +56,10 @@ const REVEAL_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 // so this is the one place that pairing has to be kept in sync by hand.
 const INTRO_DOTS_FADE_DELAY = 400;
 const INTRO_DOTS_FADE_DURATION = 700;
+// Another pause once the dots have finished fading in before the square
+// appears — otherwise the two read as one continuous beat instead of two
+// distinct ones.
+const INTRO_PRE_SQUARE_DELAY = 400;
 const INTRO_SQUARE_POP_DURATION = 500;
 const INTRO_TRAVEL_DURATION = 4000;
 const INTRO_TRAVEL_HOLD = 250;
@@ -160,76 +164,67 @@ export default function Home() {
   // dot-grid effect below; null once the intro is over, handing repulsion
   // back to the real mouse.
   const introRepelRef = useRef<{ x: number; y: number } | null>(null);
+  // The custom cursor stays invisible until the whole sequence is done —
+  // read by the cursor effect below instead of a React state, so showing
+  // it doesn't need its own re-render.
+  const introDoneRef = useRef(false);
 
-  // Blank page, then the dot grid fades in (see the canvas's opacity
-  // style), then the square appears — cheap enough to be a plain
-  // setTimeout pair with no per-frame work of its own.
+  // Drives the entire opening sequence as one chain of absolute offsets
+  // from mount. Deliberately ONE effect with no dependencies, not one per
+  // phase: an earlier version split this up, keyed to `introPhase` so the
+  // travel step could reach `introSquareRef` once the square existed — but
+  // every phase change is itself triggered by a timer *inside* that same
+  // effect, so each transition re-ran the effect and its cleanup canceled
+  // whatever later timer hadn't fired yet (the cards were the last one in
+  // the chain, so they silently never appeared). A single run scheduled
+  // entirely up front has nothing to cancel itself.
   useEffect(() => {
-    const timers = [
-      window.setTimeout(() => setDotsVisible(true), INTRO_DOTS_FADE_DELAY),
-      window.setTimeout(() => setIntroPhase("intro"), INTRO_DOTS_FADE_DELAY + INTRO_DOTS_FADE_DURATION),
-    ];
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, []);
-
-  // Drives the rest of the opening sequence, once the square itself has
-  // actually mounted (introPhase turning "intro" is what renders it below).
-  // Its own pop-in plays as a CSS animation (autoplaying from mount, see
-  // .intro-square-pop in globals.css) while this effect handles everything
-  // that needs a live, per-frame position — the swim itself and feeding
-  // the dot grid's repel point — plus the plain timed handoffs into each
-  // later phase. Re-runs (harmlessly) as introPhase advances further, since
-  // that's this same effect's own doing; every run past the first just
-  // exits immediately.
-  useEffect(() => {
-    if (introPhase !== "intro") return;
-    const el = introSquareRef.current;
-    if (!el) return;
+    const squareAppearsAt = INTRO_DOTS_FADE_DELAY + INTRO_DOTS_FADE_DURATION + INTRO_PRE_SQUARE_DELAY;
+    const travelStartsAt = squareAppearsAt + INTRO_SQUARE_POP_DURATION;
+    const expandStartsAt = travelStartsAt + INTRO_TRAVEL_DURATION + INTRO_TRAVEL_HOLD;
+    const chromeAt = expandStartsAt + INTRO_EXPAND_DURATION;
+    const boxesAt = chromeAt + INTRO_CARDS_DELAY;
 
     let raf = 0;
-    let travelStart = 0;
-    const startTop = window.innerHeight / 2 - INTRO_SQUARE_SIZE / 2;
-    const centerX = window.innerWidth / 2;
-    introRepelRef.current = { x: centerX, y: startTop + INTRO_SQUARE_SIZE / 2 };
 
-    const travel = (now: number) => {
-      if (!travelStart) travelStart = now;
-      const t = Math.min(1, (now - travelStart) / INTRO_TRAVEL_DURATION);
-      const eased = easeInOutCubic(t);
-      const top = startTop + (INTRO_CHROME_TOP - startTop) * eased;
-      el.style.top = `${top}px`;
-      introRepelRef.current = { x: centerX, y: top + INTRO_SQUARE_SIZE / 2 };
-      if (t < 1) {
-        raf = requestAnimationFrame(travel);
-      }
+    const startTravel = () => {
+      const el = introSquareRef.current;
+      if (!el) return;
+      const startTop = window.innerHeight / 2 - INTRO_SQUARE_SIZE / 2;
+      const centerX = window.innerWidth / 2;
+      introRepelRef.current = { x: centerX, y: startTop + INTRO_SQUARE_SIZE / 2 };
+      let travelStart = 0;
+      const travel = (now: number) => {
+        if (!travelStart) travelStart = now;
+        const t = Math.min(1, (now - travelStart) / INTRO_TRAVEL_DURATION);
+        const eased = easeInOutCubic(t);
+        const top = startTop + (INTRO_CHROME_TOP - startTop) * eased;
+        el.style.top = `${top}px`;
+        introRepelRef.current = { x: centerX, y: top + INTRO_SQUARE_SIZE / 2 };
+        if (t < 1) raf = requestAnimationFrame(travel);
+      };
+      raf = requestAnimationFrame(travel);
     };
 
     const timers = [
+      window.setTimeout(() => setDotsVisible(true), INTRO_DOTS_FADE_DELAY),
+      window.setTimeout(() => setIntroPhase("intro"), squareAppearsAt),
+      window.setTimeout(startTravel, travelStartsAt),
+      window.setTimeout(() => setSquareExpanded(true), expandStartsAt),
       window.setTimeout(() => {
-        raf = requestAnimationFrame(travel);
-      }, INTRO_SQUARE_POP_DURATION),
-      window.setTimeout(() => setSquareExpanded(true), INTRO_SQUARE_POP_DURATION + INTRO_TRAVEL_DURATION + INTRO_TRAVEL_HOLD),
-      window.setTimeout(
-        () => {
-          setIntroPhase("chrome");
-          introRepelRef.current = null;
-        },
-        INTRO_SQUARE_POP_DURATION + INTRO_TRAVEL_DURATION + INTRO_TRAVEL_HOLD + INTRO_EXPAND_DURATION
-      ),
-      window.setTimeout(
-        () => setIntroPhase("boxes"),
-        INTRO_SQUARE_POP_DURATION +
-          INTRO_TRAVEL_DURATION +
-          INTRO_TRAVEL_HOLD +
-          INTRO_EXPAND_DURATION +
-          INTRO_CARDS_DELAY
-      ),
+        setIntroPhase("chrome");
+        introRepelRef.current = null;
+      }, chromeAt),
+      window.setTimeout(() => {
+        setIntroPhase("boxes");
+        introDoneRef.current = true;
+      }, boxesAt),
     ];
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
       cancelAnimationFrame(raf);
     };
-  }, [introPhase]);
+  }, []);
 
   const chromeVisible = introPhase === "chrome" || introPhase === "boxes";
   const isDark = theme === "dark";
@@ -537,7 +532,7 @@ export default function Home() {
       currentScale += (targetScale - currentScale) * scaleLerp;
       cursorEl.style.transform = `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%) scale(${currentScale})`;
 
-      const targetOpacity = isOutside ? 0 : 1;
+      const targetOpacity = isOutside || !introDoneRef.current ? 0 : 1;
       currentOpacity += (targetOpacity - currentOpacity) * OPACITY_LERP;
       cursorEl.style.opacity = String(currentOpacity);
 

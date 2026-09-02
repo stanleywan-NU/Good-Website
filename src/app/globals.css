@@ -107,24 +107,24 @@ body {
 }
 
 /* The opening sequence's intro square pops into place — a size bounce,
-   not a position shake: two shrinking oscillations past 100% rather than
-   a single overshoot, milder than a typical "pop" preset. Duration here
+   not a position shake. Two stops (grow past 100%, settle back) rather
+   than the multi-oscillation version this replaced: more keyframe stops
+   sharing one overall timing-function reads as choppy, since the easing
+   shape repeats at every segment boundary instead of flowing through it.
+   Each stop below gets its own timing-function instead, so the whole
+   thing is one continuous curve — springy, but smooth. Duration here
    (500ms) must match INTRO_SQUARE_POP_DURATION in page.tsx by hand — CSS
    keyframes can't read a JS constant. */
 @keyframes intro-square-pop {
   0% {
     transform: translateX(-50%) scale(0.4);
     opacity: 0;
-  }
-  40% {
-    transform: translateX(-50%) scale(1.15);
-    opacity: 1;
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   60% {
-    transform: translateX(-50%) scale(0.92);
-  }
-  80% {
-    transform: translateX(-50%) scale(1.05);
+    transform: translateX(-50%) scale(1.08);
+    opacity: 1;
+    animation-timing-function: ease-in-out;
   }
   100% {
     transform: translateX(-50%) scale(1);
@@ -132,5 +132,5 @@ body {
 }
 
 .intro-square-pop {
-  animation: intro-square-pop 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: intro-square-pop 500ms both;
 }

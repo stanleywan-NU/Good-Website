@@ -61,17 +61,17 @@ const INTRO_DOTS_FADE_DURATION = 250;
 // Another pause once the dots have finished fading in before the square
 // appears — otherwise the two read as one continuous beat instead of two
 // distinct ones.
-const INTRO_PRE_SQUARE_DELAY = 100;
+const INTRO_PRE_SQUARE_DELAY = 350;
 const INTRO_SQUARE_POP_DURATION = 300;
 const INTRO_TRAVEL_DURATION = 550;
 const INTRO_TRAVEL_HOLD = 80;
 const INTRO_EXPAND_DURATION = 220;
 const INTRO_SQUARE_SIZE = 56;
-// Less than rounded-3xl's 24px — at this size, 24px reads as almost a
-// circle (half its own width). Transitions up to 24px alongside width/
-// height so it lands on the chrome box's actual rounded-3xl by the time
-// it's that size.
-const INTRO_SQUARE_RADIUS = 12;
+// Less than rounded-3xl's 24px — at this size, 24px still reads as
+// noticeably rounded without going all the way to a circle. Transitions
+// up to 24px alongside width/height so it lands on the chrome box's
+// actual rounded-3xl by the time it's that size.
+const INTRO_SQUARE_RADIUS = 18;
 const INTRO_CHROME_RADIUS = 24;
 // Sizes below match the chrome box's own fixed-content natural size
 // (button + 220px progress row + padding + border) — if that content ever

@@ -96,6 +96,10 @@ const INTRO_REPEL_FORCE = 34;
 // (an inconsistency, not a design choice). 20px/18px below are chosen with
 // that headroom in mind, not just "a bit more."
 const CARD_HOVER_SCALE = 1.035;
+// The toggle button's own hover:scale-[1.12] class — kept in sync by hand,
+// same reasoning as CARD_HOVER_SCALE above. Used by the press-shrink effect
+// to know what "still hovering" should release back to.
+const TOGGLE_HOVER_SCALE = 1.12;
 const LARGE_GAP = 20;
 const SMALL_GAP = 18;
 const MIN_CARD_SCALE = 0.85;
@@ -576,26 +580,37 @@ export default function Home() {
   // above uses to find its targets. It shrinks on mousedown and *holds*
   // there, expanding back only on mouseup, however long the press lasts.
   //
-  // Every step animates to an absolute scale (not composite: "add" layered
-  // on top of the CSS hover-scale, tried first) starting from whatever the
-  // element's current rendered transform actually is, read fresh each time
-  // via getComputedStyle. That's what guarantees release always lands at
-  // *exactly* scale(1) — the true original size — rather than back at
-  // whatever the hover-scale currently is (1.035x/1.12x while still
-  // hovering), which "add" would do since it only ever adds *relative* to
-  // the live CSS value instead of targeting an absolute one.
+  // Release used to always target scale(1) — the true base size — no
+  // matter what, on the theory that handing back to CSS's own :hover
+  // transition afterward (via the onfinish->cancel below) would reassert
+  // the grown size if still hovering. In practice the 150ms release
+  // animation plays down to base *first*, and only reaches the hover size
+  // after that finishes and gets cancelled — a visible two-step landing
+  // that read as "stuck small" if anything interrupted the handoff. Release
+  // now checks :hover directly and animates straight to whichever size is
+  // actually correct — the hover-grown size if the cursor's still over it,
+  // base otherwise — so there's exactly one motion, not two.
   useEffect(() => {
     const PRESS_SCALE = 0.91;
 
-    // Reads the element's *current* rendered transform before touching
-    // any animation on it — cancelling an existing animation first would
-    // snap it back to the CSS-only value, losing whatever mid-shrink (or
-    // mid-release) point it was actually showing.
+    // Animates the standalone `scale` property, not `transform` — Tailwind
+    // v4's hover:scale-* utilities set *that* property (a separate,
+    // composable one in modern CSS, alongside translate/rotate/transform),
+    // not transform. Animating transform instead (the original approach)
+    // meant this was never actually overriding the CSS hover-scale at all;
+    // the two composed multiplicatively — a mousedown while hovering (CSS
+    // scale: 1.12) animating transform down to scale(0.91) rendered at
+    // 1.12 * 0.91 ≈ 1.02, i.e. barely different from the hover size, which
+    // is why presses read as unreliable/unreactive specifically while
+    // hovering. Reads the element's *current* computed scale before
+    // touching any animation on it — cancelling an existing animation
+    // first would snap it back to the CSS-only value, losing whatever
+    // mid-shrink (or mid-release) point it was actually showing.
     const animateScaleTo = (el: HTMLElement, target: number) => {
-      const current = getComputedStyle(el).transform;
+      const current = getComputedStyle(el).scale;
       for (const a of el.getAnimations()) a.cancel();
       return el.animate(
-        [{ transform: current === "none" ? "scale(1)" : current }, { transform: `scale(${target})` }],
+        [{ scale: current === "none" ? "1" : current }, { scale: `${target}` }],
         { duration: 150, easing: "ease-out", fill: "forwards" }
       );
     };
@@ -611,7 +626,10 @@ export default function Home() {
     };
     const handleMouseUp = () => {
       if (!pressed) return;
-      const release = animateScaleTo(pressed.el, 1);
+      const { el } = pressed;
+      const hoverScale = el === toggleBtnRef.current ? TOGGLE_HOVER_SCALE : CARD_HOVER_SCALE;
+      const target = el.matches(":hover") ? hoverScale : 1;
+      const release = animateScaleTo(el, target);
       release.onfinish = () => release.cancel();
       pressed = null;
     };

@@ -928,8 +928,9 @@ export default function Home() {
             />
 
             <div className="relative z-10 flex flex-col gap-5">
-              <h1 className="m-0 text-[68px] leading-[0.98] font-normal tracking-tight">
-                Stanley Wan is an interdisciplinary designer studying cognitive and computer science at Northwestern.
+              <h1 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight">
+                <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}
+                <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.
               </h1>
             </div>
           </div>

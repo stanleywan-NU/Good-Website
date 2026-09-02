@@ -928,17 +928,9 @@ export default function Home() {
             />
 
             <div className="relative z-10 flex flex-col gap-5">
-              <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">Stanley Wan</h1>
-              <p className="m-0 max-w-[460px] text-[19px] leading-snug">
-                is an interdisciplinary designer studying cognitive and computer science at Northwestern.
-              </p>
-              <div className="mt-2 flex items-center gap-2 text-sm font-medium">
-                Scroll for work
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14" />
-                  <path d="M13 6l6 6-6 6" />
-                </svg>
-              </div>
+              <h1 className="m-0 text-[68px] leading-[0.98] font-bold tracking-tight">
+                Stanley Wan is an interdisciplinary designer studying cognitive and computer science at Northwestern.
+              </h1>
             </div>
           </div>
         </div>

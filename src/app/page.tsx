@@ -799,7 +799,7 @@ export default function Home() {
         <div
           ref={introSquareRef}
           aria-hidden
-          className="intro-square-pop pointer-events-none absolute z-30 border-[3px]"
+          className="intro-square-pop pointer-events-none absolute z-30 flex items-center justify-center overflow-hidden border-[3px]"
           style={{
             borderColor: borderOnBg,
             backgroundColor: bg,
@@ -823,7 +823,22 @@ export default function Home() {
               `border-radius ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}`,
             ].join(", "),
           }}
-        />
+        >
+          {/* A little wordmark riding along with the square — visible while
+              it's still small, faded out the instant it starts expanding
+              into the chrome box (which has no room/reason for it once
+              its real button and progress bar pop in). */}
+          <span
+            className="text-2xl leading-none font-bold"
+            style={{
+              color: fg,
+              opacity: squareExpanded ? 0 : 1,
+              transition: `opacity ${INTRO_EXPAND_DURATION}ms ${REVEAL_EASING}`,
+            }}
+          >
+            s.
+          </span>
+        </div>
       )}
 
       <div

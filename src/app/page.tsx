@@ -251,6 +251,10 @@ export default function Home() {
   // fixed across themes, so this is what keeps their contents readable in
   // both — matching how the name box's own text already flipped.
   const fg = isDark ? WHITE : INK;
+  // Name-box text specifically where it crosses the accent circle: white in
+  // light mode, black in dark mode — the opposite of `fg`, not a shade of
+  // it, so it reads as a deliberate cutout rather than a contrast tweak.
+  const coveredColor = isDark ? BLACK : WHITE;
   // Every box/button outline: black in light mode, white in dark mode — the
   // fixed-fill pastel boxes would lose their black outline against a dark
   // page background otherwise, same reasoning as the bg-blended boxes.
@@ -915,19 +919,39 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
+          <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden @container`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
             {/* Decorative only — centered exactly on the box's corner via
                 right/bottom 0 plus a self-translate, so it stays anchored
-                there regardless of size. Diameter is 170% of the box's own
-                width. Text sitting on top of it stays the normal fg color,
-                same as everywhere else in the box. */}
+                there regardless of size. Diameter is 170cqw (cqw, not a
+                plain %, specifically so it shares the same reference box as
+                the clip-path below — see the clipped layer's own comment). */}
             <div
               aria-hidden
-              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[170%] translate-x-1/2 translate-y-1/2 rounded-full"
+              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[170cqw] translate-x-1/2 translate-y-1/2 rounded-full"
               style={{ backgroundColor: pastelYellow }}
             />
 
             <div className="relative z-10 flex flex-col gap-5">
+              <h1 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight">
+                <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}
+                <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.
+              </h1>
+            </div>
+
+            {/* An exact duplicate of the text above, recolored (white in
+                light mode, black in dark — the opposite of fg, not a shade
+                of it) and clipped to the same circle geometry: 85cqw = half
+                of the circle's own 170cqw diameter, centered at the same
+                100% 100% corner, so it tracks the visible circle exactly
+                regardless of the box's actual rendered size. Percentages in
+                clip-path's circle() resolve against the box's *diagonal*,
+                not its width, which is why this needs cqw at all rather
+                than a plain percentage matching the circle above. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center gap-5 p-10"
+              style={{ clipPath: "circle(85cqw at 100% 100%)", color: coveredColor }}
+            >
               <h1 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight">
                 <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}
                 <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.

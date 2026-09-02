@@ -65,7 +65,7 @@ const INTRO_PRE_SQUARE_DELAY = 350;
 const INTRO_SQUARE_POP_DURATION = 300;
 // How long the square (with its "s.") sits still after popping in, before
 // it starts swimming up.
-const INTRO_SQUARE_HOLD = 1000;
+const INTRO_SQUARE_HOLD = 800;
 const INTRO_TRAVEL_DURATION = 550;
 const INTRO_TRAVEL_HOLD = 80;
 const INTRO_EXPAND_DURATION = 220;

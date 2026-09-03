@@ -122,10 +122,10 @@ const SHRINK_DURATION = 650;
 // clone, no content duplication, and the cursor-melt hover-grow logic (which
 // re-reads getBoundingClientRect() every frame) keeps tracking it correctly
 // through the whole animation without any special-casing.
-const EXPAND_DURATION = 500;
+const EXPAND_DURATION = 650;
 const EXPAND_EASING = REVEAL_EASING;
 const EXPAND_SIDE_MARGIN = 32;
-const EXPAND_HEIGHT_BUMP = 100;
+const EXPAND_HEIGHT_BUMP = 200;
 
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
@@ -196,6 +196,13 @@ export default function Home() {
     null
   );
   const [expandGrown, setExpandGrown] = useState(false);
+  // Mirrors expandedIndex for the mousedown/mouseup listeners below, which
+  // are set up once (empty deps) and would otherwise only ever see the
+  // value from their first render.
+  const expandedIndexRef = useRef<number | null>(null);
+  useEffect(() => {
+    expandedIndexRef.current = expandedIndex;
+  }, [expandedIndex]);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -677,22 +684,57 @@ export default function Home() {
     };
 
     let pressed: { el: HTMLElement } | null = null;
+    // A card becomes a candidate to expand on mousedown, but only actually
+    // opens on mouseup over that same element — a real "press and release",
+    // not a press-and-drag-away. The rect is captured right here, before
+    // animateScaleTo below has a chance to touch `scale`, so it's always the
+    // card's true rest-size box — measuring it any later (e.g. from the
+    // click handler this used to use) could catch it mid-press-shrink and
+    // grow the expanded box from the wrong size/position.
+    let expandCandidate: { el: HTMLElement; index: number; rect: DOMRect } | null = null;
 
     const handleMouseDown = (e: MouseEvent) => {
       if (!(e.target instanceof Element)) return;
       const el = e.target.closest("[data-cursor-melt]");
       if (!(el instanceof HTMLElement)) return;
+
+      const cardIndexAttr = el.dataset.cardIndex;
+      expandCandidate =
+        cardIndexAttr !== undefined && expandedIndexRef.current === null
+          ? { el, index: Number(cardIndexAttr), rect: el.getBoundingClientRect() }
+          : null;
+
       animateScaleTo(el, PRESS_SCALE);
       pressed = { el };
     };
-    const handleMouseUp = () => {
-      if (!pressed) return;
-      const { el } = pressed;
-      const hoverScale = el === toggleBtnRef.current ? TOGGLE_HOVER_SCALE : CARD_HOVER_SCALE;
-      const target = el.matches(":hover") ? hoverScale : 1;
-      const release = animateScaleTo(el, target);
-      release.onfinish = () => release.cancel();
-      pressed = null;
+    const handleMouseUp = (e: MouseEvent) => {
+      if (pressed) {
+        const { el } = pressed;
+        const hoverScale = el === toggleBtnRef.current ? TOGGLE_HOVER_SCALE : CARD_HOVER_SCALE;
+        const target = el.matches(":hover") ? hoverScale : 1;
+        const release = animateScaleTo(el, target);
+        release.onfinish = () => release.cancel();
+        pressed = null;
+      }
+
+      const upEl = e.target instanceof Element ? e.target.closest("[data-cursor-melt]") : null;
+      const upIndexAttr = upEl instanceof HTMLElement ? upEl.dataset.cardIndex : undefined;
+
+      if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
+        // Released on the card that's already expanded — collapse it.
+        setExpandGrown(false);
+        window.setTimeout(() => {
+          setExpandedIndex(null);
+          setExpandRect(null);
+        }, EXPAND_DURATION);
+      } else if (expandCandidate && upEl === expandCandidate.el) {
+        const { index, rect } = expandCandidate;
+        setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+        setExpandedIndex(index);
+        setExpandGrown(false);
+        requestAnimationFrame(() => requestAnimationFrame(() => setExpandGrown(true)));
+      }
+      expandCandidate = null;
     };
 
     window.addEventListener("mousedown", handleMouseDown);
@@ -703,23 +745,12 @@ export default function Home() {
     };
   }, []);
 
-  // Click-to-expand for the cards (see the state comment above). Opening
-  // captures the clicked card's real rect before touching any state, so the
-  // very first expanded render can pin it there exactly — only the *next*
-  // render (once expandGrown flips) actually triggers the transition.
-  function handleCardClick(index: number, e: React.MouseEvent<HTMLDivElement>) {
-    if (expandedIndex === index) {
-      collapseExpanded();
-      return;
-    }
-    if (expandedIndex !== null) return; // another card is open; only it (or the backdrop) can close
-    const rect = e.currentTarget.getBoundingClientRect();
-    setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
-    setExpandedIndex(index);
-    setExpandGrown(false);
-    requestAnimationFrame(() => requestAnimationFrame(() => setExpandGrown(true)));
-  }
-
+  // Click-to-expand open/close for the cards is driven by the native
+  // mousedown/mouseup listeners above (see the state comment near
+  // expandedIndex) — that's what lets opening measure the card's rect
+  // before the press-shrink touches its scale, and lets it trigger
+  // specifically on release rather than on the synthetic click event.
+  // This is only for the other two ways to close: the backdrop and Escape.
   function collapseExpanded() {
     if (expandedIndex === null) return;
     setExpandGrown(false);
@@ -749,7 +780,10 @@ export default function Home() {
   function getExpandStyle(index: number): React.CSSProperties {
     if (expandedIndex !== index || !expandRect) return {};
     const targetWidth = window.innerWidth - EXPAND_SIDE_MARGIN * 2;
-    const targetHeight = expandRect.height + EXPAND_HEIGHT_BUMP;
+    // Capped against the viewport (minus a small margin) rather than just
+    // "original height + bump" outright — a tall-ish card plus the bump can
+    // otherwise exceed the actual screen height on shorter viewports.
+    const targetHeight = Math.min(expandRect.height + EXPAND_HEIGHT_BUMP, window.innerHeight - 32);
     const targetLeft = EXPAND_SIDE_MARGIN;
     const targetTop = Math.max(16, (window.innerHeight - targetHeight) / 2);
     return {
@@ -1039,7 +1073,7 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(720, 0)}>
           <div
             data-cursor-melt
-            onClick={(e) => handleCardClick(0, e)}
+            data-card-index={0}
             className={`${cardBox} relative justify-center overflow-hidden @container`}
             style={{ borderColor: borderOnBg, backgroundColor: bg, ...getExpandStyle(0) }}
           >
@@ -1090,7 +1124,7 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(520, 1)}>
           <div
             data-cursor-melt
-            onClick={(e) => handleCardClick(1, e)}
+            data-card-index={1}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
           >
@@ -1109,7 +1143,7 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(520, 2)}>
           <div
             data-cursor-melt
-            onClick={(e) => handleCardClick(2, e)}
+            data-card-index={2}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
@@ -1129,7 +1163,7 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(420, 3)}>
           <div
             data-cursor-melt
-            onClick={(e) => handleCardClick(3, e)}
+            data-card-index={3}
             className={`${cardBox} justify-between gap-6 border-dashed opacity-60`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
@@ -1144,7 +1178,7 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(420, 4)}>
           <div
             data-cursor-melt
-            onClick={(e) => handleCardClick(4, e)}
+            data-card-index={4}
             className={`${cardBox} justify-center gap-4`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
           >
@@ -1159,7 +1193,7 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(380, 5)}>
           <div
             data-cursor-melt
-            onClick={(e) => handleCardClick(5, e)}
+            data-card-index={5}
             className={`${cardBox} justify-center gap-4`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
           >
@@ -1171,21 +1205,18 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Dims and covers everything else while a card is expanded — sits
-          above the toggle chrome and the (now-gapped) track, below the
-          expanded card itself. Clicking it collapses, same as clicking the
-          expanded card again or pressing Escape. Kept mounted always (not
-          conditionally rendered) so its own opacity transition can fade
-          out on close instead of just vanishing. */}
+      {/* Invisible click-catcher covering everything else while a card is
+          expanded — sits above the toggle chrome and the (now-gapped)
+          track, below the expanded card itself. Clicking it collapses, same
+          as clicking the expanded card again or pressing Escape. No visual
+          dimming; it's purely there to make an outside click mean
+          "collapse" instead of falling through to whatever's underneath. */}
       <div
         aria-hidden={expandedIndex === null}
         onClick={collapseExpanded}
         className="fixed inset-0 z-40"
         style={{
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          opacity: expandedIndex !== null && expandGrown ? 1 : 0,
           pointerEvents: expandedIndex !== null ? "auto" : "none",
-          transition: `opacity ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
         }}
       />
 

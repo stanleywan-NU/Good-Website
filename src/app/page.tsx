@@ -112,6 +112,21 @@ const MIN_CARD_SCALE = 0.85;
 // stops partway through.
 const SHRINK_DURATION = 650;
 
+// Click-to-expand: a card grows from wherever it's actually sitting (its
+// captured on-screen rect at click time) to a near-fullscreen panel — width
+// grows a lot, height only a little, per the design brief. Implemented as a
+// two-phase style flip (render at the captured starting rect first, then
+// next tick flip to the target — same technique as the intro square's own
+// rise) rather than reparenting the element anywhere, so the *same* DOM
+// node just switches from static/relative to fixed positioning: nothing to
+// clone, no content duplication, and the cursor-melt hover-grow logic (which
+// re-reads getBoundingClientRect() every frame) keeps tracking it correctly
+// through the whole animation without any special-casing.
+const EXPAND_DURATION = 500;
+const EXPAND_EASING = REVEAL_EASING;
+const EXPAND_SIDE_MARGIN = 32;
+const EXPAND_HEIGHT_BUMP = 100;
+
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
 // a card/border/button, and shrinks by half (of whatever its current
@@ -159,6 +174,28 @@ export default function Home() {
   const [dotsVisible, setDotsVisible] = useState(false);
   const [squareExpanded, setSquareExpanded] = useState(false);
   const [introPhase, setIntroPhase] = useState<"blank" | "intro" | "chrome" | "boxes">("blank");
+  // True once the cards' own pop-in transition has fully finished. Until
+  // then the track needs a real (if numerically identity) `transform` to
+  // animate through; once true, that's cleared entirely (see the track's
+  // style below) — any specified transform value, even a no-op one, gives
+  // position:fixed descendants a new containing block, which would break
+  // the click-to-expand cards' math (computed relative to the viewport).
+  const [cardsSettled, setCardsSettled] = useState(false);
+
+  // Click-to-expand state. `expandedIndex` is which of the 6 cards (if any)
+  // is expanded. `expandRect` is that card's on-screen rect *at the moment
+  // it was clicked* — both the starting point to grow from and, on
+  // collapse, the point to shrink back to. `expandGrown` is the two-phase
+  // flip: false renders the card pinned to expandRect (so switching to
+  // position:fixed causes zero visual jump), then a tick later flips true
+  // to trigger the transition out to the full target size — collapsing
+  // just flips it back to false and waits out the same transition before
+  // clearing the other two.
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [expandRect, setExpandRect] = useState<{ top: number; left: number; width: number; height: number } | null>(
+    null
+  );
+  const [expandGrown, setExpandGrown] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -236,6 +273,7 @@ export default function Home() {
         setIntroPhase("boxes");
         introDoneRef.current = true;
       }, boxesAt),
+      window.setTimeout(() => setCardsSettled(true), boxesAt + INTRO_CARDS_POP_DURATION),
     ];
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
@@ -665,6 +703,72 @@ export default function Home() {
     };
   }, []);
 
+  // Click-to-expand for the cards (see the state comment above). Opening
+  // captures the clicked card's real rect before touching any state, so the
+  // very first expanded render can pin it there exactly — only the *next*
+  // render (once expandGrown flips) actually triggers the transition.
+  function handleCardClick(index: number, e: React.MouseEvent<HTMLDivElement>) {
+    if (expandedIndex === index) {
+      collapseExpanded();
+      return;
+    }
+    if (expandedIndex !== null) return; // another card is open; only it (or the backdrop) can close
+    const rect = e.currentTarget.getBoundingClientRect();
+    setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
+    setExpandedIndex(index);
+    setExpandGrown(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => setExpandGrown(true)));
+  }
+
+  function collapseExpanded() {
+    if (expandedIndex === null) return;
+    setExpandGrown(false);
+    window.setTimeout(() => {
+      setExpandedIndex(null);
+      setExpandRect(null);
+    }, EXPAND_DURATION);
+  }
+
+  // Escape closes an expanded card the same way clicking the backdrop does.
+  useEffect(() => {
+    if (expandedIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") collapseExpanded();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedIndex]);
+
+  // The expanded card's own style: fixed at its captured rect until
+  // expandGrown flips, then transitions out to a near-fullscreen panel
+  // sized from *that* rect (so the height bump is relative to whatever the
+  // card actually started at, not a fixed guess). Everything here is plain
+  // pixels on both ends — no percentages or vh mixed in — because
+  // interpolating between a px start and a %/vh end doesn't tween cleanly.
+  function getExpandStyle(index: number): React.CSSProperties {
+    if (expandedIndex !== index || !expandRect) return {};
+    const targetWidth = window.innerWidth - EXPAND_SIDE_MARGIN * 2;
+    const targetHeight = expandRect.height + EXPAND_HEIGHT_BUMP;
+    const targetLeft = EXPAND_SIDE_MARGIN;
+    const targetTop = Math.max(16, (window.innerHeight - targetHeight) / 2);
+    return {
+      position: "fixed",
+      zIndex: 50,
+      margin: 0,
+      top: expandGrown ? targetTop : expandRect.top,
+      left: expandGrown ? targetLeft : expandRect.left,
+      width: expandGrown ? targetWidth : expandRect.width,
+      height: expandGrown ? targetHeight : expandRect.height,
+      transition: [
+        `top ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
+        `left ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
+        `width ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
+        `height ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
+      ].join(", "),
+    };
+  }
+
   // Uses the real View Transition API: it snapshots the page before and
   // after the theme flips, then lets us mask the "after" snapshot with a
   // growing soft-edged circle. That's why colors change progressively as
@@ -787,9 +891,14 @@ export default function Home() {
   // scroll event, directly off scrollLeft, so the DOM value should match
   // the current scroll position exactly — a transition would just lag
   // behind a value that's already changing continuously.
-  const slotStyle = (baseWidth: number): React.CSSProperties => ({
+  // `index` lets the expanded card's own slot drop its transform entirely
+  // (rather than just leaving it at the numerically-identity scaleY(1)) —
+  // any specified transform value, even a no-op one, gives a fixed-position
+  // child a new containing block instead of the viewport, which would break
+  // the click-to-expand math for that one card specifically.
+  const slotStyle = (baseWidth: number, index: number): React.CSSProperties => ({
     flexBasis: baseWidth * cardScale,
-    transform: `scaleY(${cardScale})`,
+    transform: expandedIndex === index ? undefined : `scaleY(${cardScale})`,
   });
 
   return (
@@ -918,13 +1027,22 @@ export default function Home() {
           top: 100,
           gap: LARGE_GAP + shrinkT * (SMALL_GAP - LARGE_GAP),
           opacity: introPhase === "boxes" ? 1 : 0,
-          transform: introPhase === "boxes" ? "translateY(0) scale(1)" : "translateY(16px) scale(0.97)",
+          transform: cardsSettled
+            ? undefined
+            : introPhase === "boxes"
+              ? "translateY(0) scale(1)"
+              : "translateY(16px) scale(0.97)",
           transition: `opacity ${INTRO_CARDS_POP_DURATION}ms ${INTRO_POP_EASING}, transform ${INTRO_CARDS_POP_DURATION}ms ${INTRO_POP_EASING}`,
           pointerEvents: introPhase === "boxes" ? "auto" : "none",
         }}
       >
-        <div className="my-4 shrink-0" style={slotStyle(720)}>
-          <div data-cursor-melt className={`${cardBox} relative justify-center overflow-hidden @container`} style={{ borderColor: borderOnBg, backgroundColor: bg }}>
+        <div className="my-4 shrink-0" style={slotStyle(720, 0)}>
+          <div
+            data-cursor-melt
+            onClick={(e) => handleCardClick(0, e)}
+            className={`${cardBox} relative justify-center overflow-hidden @container`}
+            style={{ borderColor: borderOnBg, backgroundColor: bg, ...getExpandStyle(0) }}
+          >
             {/* Decorative only — centered exactly on the box's corner via
                 right/bottom 0 plus a self-translate, so it stays anchored
                 there regardless of size. Diameter is 170cqw (cqw, not a
@@ -969,8 +1087,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow }}>
+        <div className="my-4 shrink-0" style={slotStyle(520, 1)}>
+          <div
+            data-cursor-melt
+            onClick={(e) => handleCardClick(1, e)}
+            className={`${cardBox} justify-between gap-6`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
+          >
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
                 <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={fg} strokeWidth="4" strokeLinecap="round" />
@@ -983,8 +1106,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(520)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6`} style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow }}>
+        <div className="my-4 shrink-0" style={slotStyle(520, 2)}>
+          <div
+            data-cursor-melt
+            onClick={(e) => handleCardClick(2, e)}
+            className={`${cardBox} justify-between gap-6`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
+          >
             <div className="flex flex-1 items-center justify-center">
               <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
                 <path d="M22 10h20l6 10-18 34-18-34z" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
@@ -998,8 +1126,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-between gap-6 border-dashed opacity-60`} style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow }}>
+        <div className="my-4 shrink-0" style={slotStyle(420, 3)}>
+          <div
+            data-cursor-melt
+            onClick={(e) => handleCardClick(3, e)}
+            className={`${cardBox} justify-between gap-6 border-dashed opacity-60`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
+          >
             <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Coming Soon</span>
@@ -1008,8 +1141,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(420)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow }}>
+        <div className="my-4 shrink-0" style={slotStyle(420, 4)}>
+          <div
+            data-cursor-melt
+            onClick={(e) => handleCardClick(4, e)}
+            className={`${cardBox} justify-center gap-4`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
+          >
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed">
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
@@ -1018,8 +1156,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(380)}>
-          <div data-cursor-melt className={`${cardBox} justify-center gap-4`} style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow }}>
+        <div className="my-4 shrink-0" style={slotStyle(380, 5)}>
+          <div
+            data-cursor-melt
+            onClick={(e) => handleCardClick(5, e)}
+            className={`${cardBox} justify-center gap-4`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
+          >
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
               [ Your email ]
@@ -1027,6 +1170,24 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Dims and covers everything else while a card is expanded — sits
+          above the toggle chrome and the (now-gapped) track, below the
+          expanded card itself. Clicking it collapses, same as clicking the
+          expanded card again or pressing Escape. Kept mounted always (not
+          conditionally rendered) so its own opacity transition can fade
+          out on close instead of just vanishing. */}
+      <div
+        aria-hidden={expandedIndex === null}
+        onClick={collapseExpanded}
+        className="fixed inset-0 z-40"
+        style={{
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          opacity: expandedIndex !== null && expandGrown ? 1 : 0,
+          pointerEvents: expandedIndex !== null ? "auto" : "none",
+          transition: `opacity ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
+        }}
+      />
 
       <div
         ref={cursorRef}

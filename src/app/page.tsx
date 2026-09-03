@@ -124,8 +124,12 @@ const SHRINK_DURATION = 650;
 // through the whole animation without any special-casing.
 const EXPAND_DURATION = 650;
 const EXPAND_EASING = REVEAL_EASING;
-const EXPAND_SIDE_MARGIN = 32;
-const EXPAND_HEIGHT_BUMP = 200;
+// Same margin on all four sides — the target rect is always exactly
+// viewport-size-minus-this, full stop. It deliberately does NOT factor in
+// the clicked card's own captured size (that used to feed the height
+// target, so a card clicked while scroll-shrunk landed smaller than one
+// clicked at full size — the same fixed box every time is the fix).
+const EXPAND_MARGIN = 24;
 
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
@@ -203,6 +207,10 @@ export default function Home() {
   useEffect(() => {
     expandedIndexRef.current = expandedIndex;
   }, [expandedIndex]);
+  // The track's scrollLeft from just before a card expanded, so collapsing
+  // can put it back — see the scrollLeft snap in the mousedown/mouseup
+  // effect below for why this needs saving at all.
+  const preExpandScrollLeftRef = useRef<number | null>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -723,12 +731,40 @@ export default function Home() {
       if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
         // Released on the card that's already expanded — collapse it.
         setExpandGrown(false);
+        if (trackRef.current && preExpandScrollLeftRef.current !== null) {
+          trackRef.current.scrollLeft = preExpandScrollLeftRef.current;
+          preExpandScrollLeftRef.current = null;
+        }
         window.setTimeout(() => {
           setExpandedIndex(null);
           setExpandRect(null);
         }, EXPAND_DURATION);
       } else if (expandCandidate && upEl === expandCandidate.el) {
-        const { index, rect } = expandCandidate;
+        const { el, index, rect } = expandCandidate;
+        // The release animation just kicked off above (if this card was the
+        // pressed one) targets a `scale` around 1 — belt-and-suspenders
+        // cancel of it here too, since letting a leftover hover/press scale
+        // keep easing on the same element while it's also mid-flight to
+        // fullscreen is exactly the kind of thing that could visually read
+        // as growing from the wrong spot.
+        for (const a of el.getAnimations()) a.cancel();
+        el.style.scale = "1";
+
+        // The slot's own flex-basis growth (see slotStyle) pushes whatever
+        // comes *after* it in the row away for free — flexbox can't do the
+        // same for anything *before* it, since a later sibling's size never
+        // affects an earlier one's position. Scrolling the track so the
+        // card's content-space offset lands at EXPAND_MARGIN on screen gets
+        // the same effect for those: it's the same math as "how far are we
+        // scrolled past everything before this card", so snapping straight
+        // to it also carries whatever was to the left out of view.
+        const track = trackRef.current;
+        if (track) {
+          preExpandScrollLeftRef.current = track.scrollLeft;
+          const trackLeft = track.getBoundingClientRect().left;
+          track.scrollLeft += rect.left - trackLeft - EXPAND_MARGIN;
+        }
+
         setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
         setExpandedIndex(index);
         setExpandGrown(false);
@@ -754,6 +790,10 @@ export default function Home() {
   function collapseExpanded() {
     if (expandedIndex === null) return;
     setExpandGrown(false);
+    if (trackRef.current && preExpandScrollLeftRef.current !== null) {
+      trackRef.current.scrollLeft = preExpandScrollLeftRef.current;
+      preExpandScrollLeftRef.current = null;
+    }
     window.setTimeout(() => {
       setExpandedIndex(null);
       setExpandRect(null);
@@ -771,27 +811,23 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedIndex]);
 
-  // The expanded card's own style: fixed at its captured rect until
-  // expandGrown flips, then transitions out to a near-fullscreen panel
-  // sized from *that* rect (so the height bump is relative to whatever the
-  // card actually started at, not a fixed guess). Everything here is plain
-  // pixels on both ends — no percentages or vh mixed in — because
-  // interpolating between a px start and a %/vh end doesn't tween cleanly.
+  // The expanded card's own style: fixed at its captured rect (wherever
+  // that actually is — even mostly off-screen, if it was clicked mid-
+  // scroll) until expandGrown flips, then transitions out to the same
+  // fixed, viewport-sized target every time (see EXPAND_MARGIN). Everything
+  // here is plain pixels on both ends — no percentages or vh mixed in —
+  // because interpolating between a px start and a %/vh end doesn't tween
+  // cleanly.
   function getExpandStyle(index: number): React.CSSProperties {
     if (expandedIndex !== index || !expandRect) return {};
-    const targetWidth = window.innerWidth - EXPAND_SIDE_MARGIN * 2;
-    // Capped against the viewport (minus a small margin) rather than just
-    // "original height + bump" outright — a tall-ish card plus the bump can
-    // otherwise exceed the actual screen height on shorter viewports.
-    const targetHeight = Math.min(expandRect.height + EXPAND_HEIGHT_BUMP, window.innerHeight - 32);
-    const targetLeft = EXPAND_SIDE_MARGIN;
-    const targetTop = Math.max(16, (window.innerHeight - targetHeight) / 2);
+    const targetWidth = window.innerWidth - EXPAND_MARGIN * 2;
+    const targetHeight = window.innerHeight - EXPAND_MARGIN * 2;
     return {
       position: "fixed",
       zIndex: 50,
       margin: 0,
-      top: expandGrown ? targetTop : expandRect.top,
-      left: expandGrown ? targetLeft : expandRect.left,
+      top: expandGrown ? EXPAND_MARGIN : expandRect.top,
+      left: expandGrown ? EXPAND_MARGIN : expandRect.left,
       width: expandGrown ? targetWidth : expandRect.width,
       height: expandGrown ? targetHeight : expandRect.height,
       transition: [
@@ -930,10 +966,29 @@ export default function Home() {
   // any specified transform value, even a no-op one, gives a fixed-position
   // child a new containing block instead of the viewport, which would break
   // the click-to-expand math for that one card specifically.
-  const slotStyle = (baseWidth: number, index: number): React.CSSProperties => ({
-    flexBasis: baseWidth * cardScale,
-    transform: expandedIndex === index ? undefined : `scaleY(${cardScale})`,
-  });
+  //
+  // While that card is expanded, its slot ALSO grows to the same target
+  // width the fixed-position card itself is animating to (see
+  // getExpandStyle) — every other slot here is flex-shrink:0, so a slot
+  // that actually grows in the real layout pushes whatever comes *after*
+  // it in the row for real, instead of leaving it sitting untouched
+  // underneath the fixed card that's covering it. Flexbox has no way to
+  // make a slot's growth push whatever comes *before* it too (an item's
+  // position only ever depends on earlier siblings, never later ones) —
+  // that side is handled instead by snapping the track's scrollLeft when
+  // the expansion starts (see the mousedown/mouseup effect above).
+  const slotStyle = (baseWidth: number, index: number): React.CSSProperties => {
+    if (expandedIndex === index) {
+      return {
+        flexBasis: expandGrown ? window.innerWidth - EXPAND_MARGIN * 2 : baseWidth * cardScale,
+        transition: `flex-basis ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
+      };
+    }
+    return {
+      flexBasis: baseWidth * cardScale,
+      transform: `scaleY(${cardScale})`,
+    };
+  };
 
   return (
     <div

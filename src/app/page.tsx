@@ -255,6 +255,11 @@ export default function Home() {
   // light mode, black in dark mode — the opposite of `fg`, not a shade of
   // it, so it reads as a deliberate cutout rather than a contrast tweak.
   const coveredColor = isDark ? BLACK : WHITE;
+  // White-on-pale-yellow (light mode) is the low-contrast case here — dark
+  // mode's black-on-gold already reads fine on its own. Same recipe as
+  // pastelTextShadow below, just the other theme, for the same reason: a
+  // soft dark shadow, not a color change, to keep it legible at a glance.
+  const coveredTextShadow = isDark ? "none" : "0 1px 3px rgba(0,0,0,0.45)";
   // Every box/button outline: black in light mode, white in dark mode — the
   // fixed-fill pastel boxes would lose their black outline against a dark
   // page background otherwise, same reasoning as the bg-blended boxes.
@@ -950,7 +955,11 @@ export default function Home() {
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center gap-5 p-10"
-              style={{ clipPath: "circle(85cqw at 100% 100%)", color: coveredColor }}
+              style={{
+                clipPath: "circle(85cqw at 100% 100%)",
+                color: coveredColor,
+                textShadow: coveredTextShadow,
+              }}
             >
               <h1 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight">
                 <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}

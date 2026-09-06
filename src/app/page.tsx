@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 
 // Page background (the empty space around/between boxes) — a warm cream in
 // light mode, a warm near-black in dark mode.
@@ -113,23 +113,35 @@ const MIN_CARD_SCALE = 0.85;
 const SHRINK_DURATION = 650;
 
 // Click-to-expand: a card grows from wherever it's actually sitting (its
-// captured on-screen rect at click time) to a near-fullscreen panel — width
-// grows a lot, height only a little, per the design brief. Implemented as a
-// two-phase style flip (render at the captured starting rect first, then
-// next tick flip to the target — same technique as the intro square's own
-// rise) rather than reparenting the element anywhere, so the *same* DOM
-// node just switches from static/relative to fixed positioning: nothing to
-// clone, no content duplication, and the cursor-melt hover-grow logic (which
-// re-reads getBoundingClientRect() every frame) keeps tracking it correctly
-// through the whole animation without any special-casing.
-const EXPAND_DURATION = 650;
+// captured on-screen rect at click time) and slides to a centered panel,
+// pushing its neighbors aside as it goes. Implemented as a two-phase style
+// flip (render at the captured starting rect first, then next tick flip to
+// the target — same technique as the intro square's own rise) rather than
+// reparenting the element anywhere, so the *same* DOM node just switches
+// from static/relative to fixed positioning: nothing to clone, no content
+// duplication, and the cursor-melt hover-grow logic (which re-reads
+// getBoundingClientRect() every frame) keeps tracking it correctly through
+// the whole animation without any special-casing.
+const EXPAND_DURATION = 900;
 const EXPAND_EASING = REVEAL_EASING;
-// Same margin on all four sides — the target rect is always exactly
-// viewport-size-minus-this, full stop. It deliberately does NOT factor in
-// the clicked card's own captured size (that used to feed the height
-// target, so a card clicked while scroll-shrunk landed smaller than one
-// clicked at full size — the same fixed box every time is the fix).
-const EXPAND_MARGIN = 24;
+// The target is always this fraction of the viewport, centered — a fixed
+// ratio rather than anything derived from the clicked card's own captured
+// size (that used to feed the target directly, so a card clicked while
+// scroll-shrunk landed smaller than one clicked at full size — the same
+// box every time, regardless of where it started, is the fix). Width only
+// a little short of the viewport; height noticeably more so.
+const EXPAND_WIDTH_RATIO = 0.82;
+const EXPAND_HEIGHT_RATIO = 0.62;
+// How far *other* cards slide aside (toward whichever side they're already
+// on) while one is expanded — purely cosmetic, a transform on top of their
+// normal flex layout, not a real reflow. Real flex-basis growth on the
+// expanding slot was tried instead of this and was the actual source of
+// the reported glitchiness: it required also snapping the track's
+// scrollLeft to keep the math working, and that snap is an instant DOM
+// mutation racing the React state update that turns the card into a fixed
+// overlay — any tiny ordering slip between the two showed up as a visible
+// jump. A plain transform on the untouched siblings can't race anything.
+const EXPAND_PUSH_DISTANCE = 140;
 
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
@@ -207,10 +219,18 @@ export default function Home() {
   useEffect(() => {
     expandedIndexRef.current = expandedIndex;
   }, [expandedIndex]);
-  // The track's scrollLeft from just before a card expanded, so collapsing
-  // can put it back — see the scrollLeft snap in the mousedown/mouseup
-  // effect below for why this needs saving at all.
-  const preExpandScrollLeftRef = useRef<number | null>(null);
+  // Portal target for whichever card is currently expanded (see
+  // ExpandableCard below) — the track has its own z-[1] + position:absolute,
+  // which makes it a stacking context of its own. A `position:fixed`
+  // descendant's z-index only ever competes against *siblings within that
+  // same context*, never escapes it, so the expanded card's z-index:50 was
+  // actually losing to the z-40 backdrop at the real, top-level stacking
+  // order the whole time — it was rendering, just behind the backdrop,
+  // which explains the "glitchy"/unclickable feel. Porting the expanded
+  // card out to a plain, unstyled sibling of the backdrop (no z-index or
+  // position of its own, so it can't trap anything) is what actually fixes
+  // that rather than papering over it with a higher z-index somewhere.
+  const overlayRootRef = useRef<HTMLDivElement>(null);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -731,10 +751,6 @@ export default function Home() {
       if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
         // Released on the card that's already expanded — collapse it.
         setExpandGrown(false);
-        if (trackRef.current && preExpandScrollLeftRef.current !== null) {
-          trackRef.current.scrollLeft = preExpandScrollLeftRef.current;
-          preExpandScrollLeftRef.current = null;
-        }
         window.setTimeout(() => {
           setExpandedIndex(null);
           setExpandRect(null);
@@ -744,26 +760,16 @@ export default function Home() {
         // The release animation just kicked off above (if this card was the
         // pressed one) targets a `scale` around 1 — belt-and-suspenders
         // cancel of it here too, since letting a leftover hover/press scale
-        // keep easing on the same element while it's also mid-flight to
-        // fullscreen is exactly the kind of thing that could visually read
-        // as growing from the wrong spot.
+        // keep easing on the same element while it's also mid-flight to its
+        // new size is exactly the kind of thing that could visually read as
+        // growing from the wrong spot. Cancelling (not also setting
+        // `el.style.scale` directly) matters: an inline style sticks around
+        // forever once set outside React's own style prop, which is exactly
+        // what happened here before — it silently broke this card's hover
+        // grow for good after its first expand, since an inline style beats
+        // the CSS hover class no matter what. Cancelling an animation just
+        // reverts to whatever the stylesheet already says, hover included.
         for (const a of el.getAnimations()) a.cancel();
-        el.style.scale = "1";
-
-        // The slot's own flex-basis growth (see slotStyle) pushes whatever
-        // comes *after* it in the row away for free — flexbox can't do the
-        // same for anything *before* it, since a later sibling's size never
-        // affects an earlier one's position. Scrolling the track so the
-        // card's content-space offset lands at EXPAND_MARGIN on screen gets
-        // the same effect for those: it's the same math as "how far are we
-        // scrolled past everything before this card", so snapping straight
-        // to it also carries whatever was to the left out of view.
-        const track = trackRef.current;
-        if (track) {
-          preExpandScrollLeftRef.current = track.scrollLeft;
-          const trackLeft = track.getBoundingClientRect().left;
-          track.scrollLeft += rect.left - trackLeft - EXPAND_MARGIN;
-        }
 
         setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
         setExpandedIndex(index);
@@ -790,10 +796,6 @@ export default function Home() {
   function collapseExpanded() {
     if (expandedIndex === null) return;
     setExpandGrown(false);
-    if (trackRef.current && preExpandScrollLeftRef.current !== null) {
-      trackRef.current.scrollLeft = preExpandScrollLeftRef.current;
-      preExpandScrollLeftRef.current = null;
-    }
     window.setTimeout(() => {
       setExpandedIndex(null);
       setExpandRect(null);
@@ -814,22 +816,35 @@ export default function Home() {
   // The expanded card's own style: fixed at its captured rect (wherever
   // that actually is — even mostly off-screen, if it was clicked mid-
   // scroll) until expandGrown flips, then transitions out to the same
-  // fixed, viewport-sized target every time (see EXPAND_MARGIN). Everything
-  // here is plain pixels on both ends — no percentages or vh mixed in —
-  // because interpolating between a px start and a %/vh end doesn't tween
-  // cleanly.
+  // centered target every time (see EXPAND_WIDTH_RATIO/EXPAND_HEIGHT_RATIO)
+  // — top/left move toward the center at the same time width/height grow,
+  // so it reads as one card sliding-and-growing into the middle of the
+  // screen, not growing in place. Everything here is plain pixels on both
+  // ends — no percentages or vh mixed in — because interpolating between a
+  // px start and a %/vh end doesn't tween cleanly.
   function getExpandStyle(index: number): React.CSSProperties {
     if (expandedIndex !== index || !expandRect) return {};
-    const targetWidth = window.innerWidth - EXPAND_MARGIN * 2;
-    const targetHeight = window.innerHeight - EXPAND_MARGIN * 2;
+    const targetWidth = window.innerWidth * EXPAND_WIDTH_RATIO;
+    const targetHeight = window.innerHeight * EXPAND_HEIGHT_RATIO;
+    const targetLeft = (window.innerWidth - targetWidth) / 2;
+    const targetTop = (window.innerHeight - targetHeight) / 2;
     return {
       position: "fixed",
       zIndex: 50,
       margin: 0,
-      top: expandGrown ? EXPAND_MARGIN : expandRect.top,
-      left: expandGrown ? EXPAND_MARGIN : expandRect.left,
+      top: expandGrown ? targetTop : expandRect.top,
+      left: expandGrown ? targetLeft : expandRect.left,
       width: expandGrown ? targetWidth : expandRect.width,
       height: expandGrown ? targetHeight : expandRect.height,
+      // cardBox still carries hover:scale-[1.035] — irrelevant most of the
+      // time since a mouse can't "hover" a full-viewport-ish panel in any
+      // meaningful sense, but the cursor is still sitting wherever it was
+      // clicked, which is now *inside* the grown card, so that hover rule
+      // stays matched and was quietly inflating the final size by another
+      // 3.5% on top of the real target. An inline scale wins over the
+      // class either way, so pin it off for as long as this card is the
+      // one being expanded.
+      scale: 1,
       transition: [
         `top ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
         `left ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
@@ -965,30 +980,62 @@ export default function Home() {
   // (rather than just leaving it at the numerically-identity scaleY(1)) —
   // any specified transform value, even a no-op one, gives a fixed-position
   // child a new containing block instead of the viewport, which would break
-  // the click-to-expand math for that one card specifically.
+  // the click-to-expand math for that one card specifically. Its own real
+  // layout footprint stays exactly as it was — it's not growing in the
+  // flex row, it's a fixed-position overlay floating above it (see
+  // getExpandStyle) — so there's nothing here for it to grow *into*.
   //
-  // While that card is expanded, its slot ALSO grows to the same target
-  // width the fixed-position card itself is animating to (see
-  // getExpandStyle) — every other slot here is flex-shrink:0, so a slot
-  // that actually grows in the real layout pushes whatever comes *after*
-  // it in the row for real, instead of leaving it sitting untouched
-  // underneath the fixed card that's covering it. Flexbox has no way to
-  // make a slot's growth push whatever comes *before* it too (an item's
-  // position only ever depends on earlier siblings, never later ones) —
-  // that side is handled instead by snapping the track's scrollLeft when
-  // the expansion starts (see the mousedown/mouseup effect above).
+  // Every *other* slot slides sideways, away from whichever one is
+  // expanded, while it's expanded — purely a cosmetic transform on top of
+  // their normal flex layout, not a real reflow of the row. A real
+  // flex-basis grow on the expanding slot was tried first, matched with
+  // snapping the track's scrollLeft to keep earlier cards pushed too, and
+  // that combination was the actual source of the reported glitchiness:
+  // the scrollLeft snap is an instant DOM mutation racing the React state
+  // update that turns the card into a fixed overlay, and any tiny
+  // ordering slip between the two showed up as a visible jump. A plain
+  // transform on the untouched siblings can't race anything — there's
+  // only one thing changing.
   const slotStyle = (baseWidth: number, index: number): React.CSSProperties => {
     if (expandedIndex === index) {
-      return {
-        flexBasis: expandGrown ? window.innerWidth - EXPAND_MARGIN * 2 : baseWidth * cardScale,
-        transition: `flex-basis ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
-      };
+      return { flexBasis: baseWidth * cardScale };
     }
+    const pushX =
+      expandedIndex !== null && expandGrown ? (index < expandedIndex ? -EXPAND_PUSH_DISTANCE : EXPAND_PUSH_DISTANCE) : 0;
     return {
       flexBasis: baseWidth * cardScale,
-      transform: `scaleY(${cardScale})`,
+      transform: `translateX(${pushX}px) scaleY(${cardScale})`,
+      transition: expandedIndex !== null ? `transform ${EXPAND_DURATION}ms ${EXPAND_EASING}` : undefined,
     };
   };
+
+  // Renders a card in place normally; while it's the expanded one, ports
+  // the *same* element into overlayRootRef instead (see that ref's own
+  // comment for why). This only ever switches at the two moments the card
+  // is already snapping into or out of position:fixed pinned exactly at
+  // its own captured rect — see getExpandStyle — so the remount a portal
+  // swap causes lands on a frame that already looks identical to the one
+  // before it. The CSS transition that actually animates the flip runs
+  // entirely on subsequent renders of the (by then already-ported, no
+  // longer remounting) same node, so it's unaffected.
+  function ExpandableCard({
+    index,
+    className,
+    style,
+    children,
+  }: {
+    index: number;
+    className: string;
+    style: React.CSSProperties;
+    children: React.ReactNode;
+  }) {
+    const card = (
+      <div data-cursor-melt data-card-index={index} className={className} style={style}>
+        {children}
+      </div>
+    );
+    return expandedIndex === index && overlayRootRef.current ? createPortal(card, overlayRootRef.current) : card;
+  }
 
   return (
     <div
@@ -1126,9 +1173,8 @@ export default function Home() {
         }}
       >
         <div className="my-4 shrink-0" style={slotStyle(720, 0)}>
-          <div
-            data-cursor-melt
-            data-card-index={0}
+          <ExpandableCard
+            index={0}
             className={`${cardBox} relative justify-center overflow-hidden @container`}
             style={{ borderColor: borderOnBg, backgroundColor: bg, ...getExpandStyle(0) }}
           >
@@ -1173,13 +1219,12 @@ export default function Home() {
                 <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.
               </h1>
             </div>
-          </div>
+          </ExpandableCard>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520, 1)}>
-          <div
-            data-cursor-melt
-            data-card-index={1}
+          <ExpandableCard
+            index={1}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
           >
@@ -1192,13 +1237,12 @@ export default function Home() {
               <span className="text-[22px] font-bold">Rising Team</span>
               <span className="text-sm">Product Design</span>
             </div>
-          </div>
+          </ExpandableCard>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(520, 2)}>
-          <div
-            data-cursor-melt
-            data-card-index={2}
+          <ExpandableCard
+            index={2}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
@@ -1212,13 +1256,12 @@ export default function Home() {
               <span className="text-[22px] font-bold">BorderX Lab — BeyondStyle</span>
               <span className="text-sm">Content Strategy &amp; GEO</span>
             </div>
-          </div>
+          </ExpandableCard>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420, 3)}>
-          <div
-            data-cursor-melt
-            data-card-index={3}
+          <ExpandableCard
+            index={3}
             className={`${cardBox} justify-between gap-6 border-dashed opacity-60`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
@@ -1227,13 +1270,12 @@ export default function Home() {
               <span className="text-[22px] font-bold">Coming Soon</span>
               <span className="text-sm">&nbsp;</span>
             </div>
-          </div>
+          </ExpandableCard>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(420, 4)}>
-          <div
-            data-cursor-melt
-            data-card-index={4}
+          <ExpandableCard
+            index={4}
             className={`${cardBox} justify-center gap-4`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
           >
@@ -1242,13 +1284,12 @@ export default function Home() {
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
             </p>
             <span className="text-[13px]">[ Full bio coming soon ]</span>
-          </div>
+          </ExpandableCard>
         </div>
 
         <div className="my-4 shrink-0" style={slotStyle(380, 5)}>
-          <div
-            data-cursor-melt
-            data-card-index={5}
+          <ExpandableCard
+            index={5}
             className={`${cardBox} justify-center gap-4`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
           >
@@ -1256,9 +1297,11 @@ export default function Home() {
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
               [ Your email ]
             </a>
-          </div>
+          </ExpandableCard>
         </div>
       </div>
+
+      <div ref={overlayRootRef} />
 
       {/* Invisible click-catcher covering everything else while a card is
           expanded — sits above the toggle chrome and the (now-gapped)

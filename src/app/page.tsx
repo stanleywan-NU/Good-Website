@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { flushSync } from "react-dom";
 
 // Page background (the empty space around/between boxes) — a warm cream in
 // light mode, a warm near-black in dark mode.
@@ -122,26 +122,26 @@ const SHRINK_DURATION = 650;
 // duplication, and the cursor-melt hover-grow logic (which re-reads
 // getBoundingClientRect() every frame) keeps tracking it correctly through
 // the whole animation without any special-casing.
-const EXPAND_DURATION = 900;
-const EXPAND_EASING = REVEAL_EASING;
-// The target is always this fraction of the viewport, centered — a fixed
-// ratio rather than anything derived from the clicked card's own captured
-// size (that used to feed the target directly, so a card clicked while
-// scroll-shrunk landed smaller than one clicked at full size — the same
-// box every time, regardless of where it started, is the fix). Width only
-// a little short of the viewport; height noticeably more so.
-const EXPAND_WIDTH_RATIO = 0.82;
-const EXPAND_HEIGHT_RATIO = 0.62;
-// How far *other* cards slide aside (toward whichever side they're already
-// on) while one is expanded — purely cosmetic, a transform on top of their
-// normal flex layout, not a real reflow. Real flex-basis growth on the
-// expanding slot was tried instead of this and was the actual source of
-// the reported glitchiness: it required also snapping the track's
-// scrollLeft to keep the math working, and that snap is an instant DOM
-// mutation racing the React state update that turns the card into a fixed
-// overlay — any tiny ordering slip between the two showed up as a visible
-// jump. A plain transform on the untouched siblings can't race anything.
-const EXPAND_PUSH_DISTANCE = 140;
+const EXPAND_DURATION = 1500;
+// A proper ease-in-out (slow start, slow end) rather than REVEAL_EASING's
+// ease-out (fast start) — a fast start read as an abrupt/sharp snap into
+// motion rather than a flowing one, which is exactly what made a
+// technically-smooth CSS transition still feel jarring.
+const EXPAND_EASING = "cubic-bezier(0.65, 0, 0.35, 1)";
+// The target is anchored to fixed points rather than a size ratio: top
+// sits halfway through the toggle/progress chrome rectangle, bottom sits
+// close to the viewport's own bottom edge, sides close to full width.
+const EXPAND_TOP = INTRO_CHROME_TOP + INTRO_CHROME_HEIGHT / 2;
+const EXPAND_BOTTOM_MARGIN = 24;
+const EXPAND_SIDE_MARGIN = 48;
+// How much of a pushed-aside sibling has to stay clear of the expanded
+// card's edge — the push amount itself isn't a fixed distance (a fixed
+// distance can't guarantee no overlap once the target size changes), it's
+// computed per-card at expand time from real geometry (see the
+// mousedown/mouseup effect) so every pushed card's edge ends up at least
+// this far outside the expanded card's own edge, with a sliver of it
+// visibly clear rather than hidden behind it.
+const EXPAND_PUSH_CLEARANCE = 48;
 
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
@@ -167,7 +167,45 @@ function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+// Shared by getExpandStyle (what the expanded card animates to) and the
+// mousedown/mouseup effect (how far every other card needs to be pushed to
+// clear it) — both need the exact same rectangle, so it's computed once
+// here rather than duplicated.
+function computeExpandTarget() {
+  const targetWidth = window.innerWidth - EXPAND_SIDE_MARGIN * 2;
+  const targetHeight = window.innerHeight - EXPAND_BOTTOM_MARGIN - EXPAND_TOP;
+  return { targetLeft: EXPAND_SIDE_MARGIN, targetTop: EXPAND_TOP, targetWidth, targetHeight };
+}
+
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
+
+// Thin wrapper just to avoid repeating data-cursor-melt/data-card-index on
+// all 6 cards. Defined at module scope, not inside Home() — a component
+// defined inside another component's body is a brand-new function (and
+// therefore a brand-new *type*, as far as React's reconciliation is
+// concerned) on every single render of the parent. Home() re-renders
+// constantly here (scroll-driven shrink, cursor tracking, the intro
+// sequence, theme toggles), so every card was being fully unmounted and
+// remounted — losing hover state, restarting CSS transitions — on nearly
+// every render. That's the real explanation for the pervasive glitchiness,
+// not anything specific to the expand animation's own logic.
+function ExpandableCard({
+  index,
+  className,
+  style,
+  children,
+}: {
+  index: number;
+  className: string;
+  style: React.CSSProperties;
+  children: React.ReactNode;
+}) {
+  return (
+    <div data-cursor-melt data-card-index={index} className={className} style={style}>
+      {children}
+    </div>
+  );
+}
 
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -212,6 +250,12 @@ export default function Home() {
     null
   );
   const [expandGrown, setExpandGrown] = useState(false);
+  // How far each *other* card needs to slide to clear the expanded card's
+  // edge with EXPAND_PUSH_CLEARANCE to spare — computed once, from real
+  // geometry, at the moment a card expands (see the mousedown/mouseup
+  // effect below), not a fixed guess, since a fixed distance can't
+  // guarantee no overlap once the expanded size changes.
+  const [pushOffsets, setPushOffsets] = useState<Record<number, number>>({});
   // Mirrors expandedIndex for the mousedown/mouseup listeners below, which
   // are set up once (empty deps) and would otherwise only ever see the
   // value from their first render.
@@ -219,19 +263,6 @@ export default function Home() {
   useEffect(() => {
     expandedIndexRef.current = expandedIndex;
   }, [expandedIndex]);
-  // Portal target for whichever card is currently expanded (see
-  // ExpandableCard below) — the track has its own z-[1] + position:absolute,
-  // which makes it a stacking context of its own. A `position:fixed`
-  // descendant's z-index only ever competes against *siblings within that
-  // same context*, never escapes it, so the expanded card's z-index:50 was
-  // actually losing to the z-40 backdrop at the real, top-level stacking
-  // order the whole time — it was rendering, just behind the backdrop,
-  // which explains the "glitchy"/unclickable feel. Porting the expanded
-  // card out to a plain, unstyled sibling of the backdrop (no z-index or
-  // position of its own, so it can't trap anything) is what actually fixes
-  // that rather than papering over it with a higher z-index somewhere.
-  const overlayRootRef = useRef<HTMLDivElement>(null);
-
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
@@ -751,6 +782,7 @@ export default function Home() {
       if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
         // Released on the card that's already expanded — collapse it.
         setExpandGrown(false);
+        setPushOffsets({});
         window.setTimeout(() => {
           setExpandedIndex(null);
           setExpandRect(null);
@@ -770,6 +802,35 @@ export default function Home() {
         // the CSS hover class no matter what. Cancelling an animation just
         // reverts to whatever the stylesheet already says, hover included.
         for (const a of el.getAnimations()) a.cancel();
+
+        // Measure every other card's *current* (un-pushed) rect right now,
+        // before any state change, and work out how far the "before" and
+        // "after" groups each need to slide to clear the target rect's
+        // edge — see EXPAND_PUSH_CLEARANCE. Each side moves as one rigid
+        // group (by however far its *closest* card to the expanding one
+        // needs to go), not each card pushed independently by its own
+        // distance — pushing each card separately by "just enough to clear
+        // the expanded card" ignores the other pushed cards on the same
+        // side entirely, so a card further away (needing a *smaller* push
+        // to clear on its own) can end up shoved into one that needed a
+        // *bigger* push, overlapping each other instead of the one they
+        // were actually supposed to clear.
+        const { targetLeft, targetWidth } = computeExpandTarget();
+        const targetRight = targetLeft + targetWidth;
+        const rectByIndex = new Map<number, DOMRect>();
+        document.querySelectorAll("[data-card-index]").forEach((otherEl) => {
+          rectByIndex.set(Number((otherEl as HTMLElement).dataset.cardIndex), otherEl.getBoundingClientRect());
+        });
+        const before = rectByIndex.get(index - 1);
+        const leftPush = before ? Math.min(0, targetLeft - EXPAND_PUSH_CLEARANCE - before.right) : 0;
+        const after = rectByIndex.get(index + 1);
+        const rightPush = after ? Math.max(0, targetRight + EXPAND_PUSH_CLEARANCE - after.left) : 0;
+        const offsets: Record<number, number> = {};
+        rectByIndex.forEach((_rect, otherIndex) => {
+          if (otherIndex === index) return;
+          offsets[otherIndex] = otherIndex < index ? leftPush : rightPush;
+        });
+        setPushOffsets(offsets);
 
         setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
         setExpandedIndex(index);
@@ -796,6 +857,7 @@ export default function Home() {
   function collapseExpanded() {
     if (expandedIndex === null) return;
     setExpandGrown(false);
+    setPushOffsets({});
     window.setTimeout(() => {
       setExpandedIndex(null);
       setExpandRect(null);
@@ -816,18 +878,15 @@ export default function Home() {
   // The expanded card's own style: fixed at its captured rect (wherever
   // that actually is — even mostly off-screen, if it was clicked mid-
   // scroll) until expandGrown flips, then transitions out to the same
-  // centered target every time (see EXPAND_WIDTH_RATIO/EXPAND_HEIGHT_RATIO)
-  // — top/left move toward the center at the same time width/height grow,
-  // so it reads as one card sliding-and-growing into the middle of the
-  // screen, not growing in place. Everything here is plain pixels on both
+  // target every time (see computeExpandTarget) — top/left move toward
+  // that target at the same time width/height grow, so it reads as one
+  // card sliding-and-growing into place, not growing in place. Everything
+  // here is plain pixels on both
   // ends — no percentages or vh mixed in — because interpolating between a
   // px start and a %/vh end doesn't tween cleanly.
   function getExpandStyle(index: number): React.CSSProperties {
     if (expandedIndex !== index || !expandRect) return {};
-    const targetWidth = window.innerWidth * EXPAND_WIDTH_RATIO;
-    const targetHeight = window.innerHeight * EXPAND_HEIGHT_RATIO;
-    const targetLeft = (window.innerWidth - targetWidth) / 2;
-    const targetTop = (window.innerHeight - targetHeight) / 2;
+    const { targetLeft, targetTop, targetWidth, targetHeight } = computeExpandTarget();
     return {
       position: "fixed",
       zIndex: 50,
@@ -964,8 +1023,15 @@ export default function Home() {
     Math.max(0, Math.min(1, progress)) * PEAKS.length
   );
 
+  // `isolate` (CSS `isolation: isolate`) gives every card its own stacking
+  // context regardless of position/z-index, so each card's own internal
+  // z-10/z-20 decorative layers (the name box's clip-path text, etc.) stay
+  // scoped to that card no matter what happens to the track's — removing
+  // the track's own z-index below was the fix for the expand overlay's
+  // real stacking bug, and this is what keeps that change from letting
+  // unrelated internal z-index values leak into the global stacking order.
   const cardBox =
-    "h-full w-full flex flex-col rounded-3xl border-[3px] p-10 transition-transform duration-200 ease-out hover:scale-[1.035]";
+    "isolate h-full w-full flex flex-col rounded-3xl border-[3px] p-10 transition-transform duration-200 ease-out hover:scale-[1.035]";
 
   // Real layout shrink (flexBasis), not just a cosmetic transform: scaling
   // a fixed-width slot visually without changing its actual width leaves
@@ -1000,42 +1066,13 @@ export default function Home() {
     if (expandedIndex === index) {
       return { flexBasis: baseWidth * cardScale };
     }
-    const pushX =
-      expandedIndex !== null && expandGrown ? (index < expandedIndex ? -EXPAND_PUSH_DISTANCE : EXPAND_PUSH_DISTANCE) : 0;
+    const pushX = expandedIndex !== null && expandGrown ? (pushOffsets[index] ?? 0) : 0;
     return {
       flexBasis: baseWidth * cardScale,
       transform: `translateX(${pushX}px) scaleY(${cardScale})`,
       transition: expandedIndex !== null ? `transform ${EXPAND_DURATION}ms ${EXPAND_EASING}` : undefined,
     };
   };
-
-  // Renders a card in place normally; while it's the expanded one, ports
-  // the *same* element into overlayRootRef instead (see that ref's own
-  // comment for why). This only ever switches at the two moments the card
-  // is already snapping into or out of position:fixed pinned exactly at
-  // its own captured rect — see getExpandStyle — so the remount a portal
-  // swap causes lands on a frame that already looks identical to the one
-  // before it. The CSS transition that actually animates the flip runs
-  // entirely on subsequent renders of the (by then already-ported, no
-  // longer remounting) same node, so it's unaffected.
-  function ExpandableCard({
-    index,
-    className,
-    style,
-    children,
-  }: {
-    index: number;
-    className: string;
-    style: React.CSSProperties;
-    children: React.ReactNode;
-  }) {
-    const card = (
-      <div data-cursor-melt data-card-index={index} className={className} style={style}>
-        {children}
-      </div>
-    );
-    return expandedIndex === index && overlayRootRef.current ? createPortal(card, overlayRootRef.current) : card;
-  }
 
   return (
     <div
@@ -1158,7 +1195,20 @@ export default function Home() {
 
       <div
         ref={trackRef}
-        className="hscroll-track absolute inset-x-0 bottom-0 z-[1] flex items-stretch overflow-x-auto overflow-y-hidden overscroll-x-none px-12 pb-14"
+        // No z-index here (used to be z-[1]) — that, combined with the
+        // position:absolute below, made this element establish its own
+        // stacking context, which trapped the expanded card's z-index:50
+        // inside it: that z-50 was only ever competing against the *other
+        // cards*, never actually against the z-40 backdrop or z-[9999]
+        // cursor at the real top level, so the expanded card was quietly
+        // rendering *behind* the backdrop the whole time — the actual
+        // cause of the reported glitchy/unclickable feel. Dropping this
+        // still stacks correctly without it: an absolutely-positioned
+        // element with no explicit z-index paints in plain DOM order
+        // relative to its siblings here (after the canvas, before the
+        // positive-z chrome/backdrop/cursor), which is exactly the order
+        // already wanted.
+        className="hscroll-track absolute inset-x-0 bottom-0 flex items-stretch overflow-x-auto overflow-y-hidden overscroll-x-none px-12 pb-14"
         style={{
           top: 100,
           gap: LARGE_GAP + shrinkT * (SMALL_GAP - LARGE_GAP),
@@ -1300,8 +1350,6 @@ export default function Home() {
           </ExpandableCard>
         </div>
       </div>
-
-      <div ref={overlayRootRef} />
 
       {/* Invisible click-catcher covering everything else while a card is
           expanded — sits above the toggle chrome and the (now-gapped)

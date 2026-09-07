@@ -128,11 +128,22 @@ const EXPAND_DURATION = 1500;
 // motion rather than a flowing one, which is exactly what made a
 // technically-smooth CSS transition still feel jarring.
 const EXPAND_EASING = "cubic-bezier(0.65, 0, 0.35, 1)";
+// The pushed-aside cards use this instead — same duration, but fast off
+// the start rather than easing into it. Measured directly (via matching
+// getAnimations().currentTime on the panel and a pushed card mid-flight),
+// the push and the grow already start on the exact same frame — that part
+// was never actually the bug. What reads as "it expands, *then* pushes"
+// is that both eased in together under EXPAND_EASING, and a slow start on
+// something as visually dominant as the panel growing to near-fullscreen
+// swallows the first, slow part of a much smaller sideways slide — the
+// push doesn't become noticeable until it's already well underway. Firing
+// fast immediately is what actually reads as simultaneous.
+const EXPAND_PUSH_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
 // The target is anchored to fixed points rather than a size ratio: top
 // sits halfway through the toggle/progress chrome rectangle, bottom sits
 // close to the viewport's own bottom edge, sides close to full width.
 const EXPAND_TOP = INTRO_CHROME_TOP + INTRO_CHROME_HEIGHT / 2;
-const EXPAND_BOTTOM_MARGIN = 24;
+const EXPAND_BOTTOM_MARGIN = 40;
 const EXPAND_SIDE_MARGIN = 48;
 // How much of a pushed-aside sibling has to stay clear of the expanded
 // card's edge — the push amount itself isn't a fixed distance (a fixed
@@ -1070,7 +1081,7 @@ export default function Home() {
     return {
       flexBasis: baseWidth * cardScale,
       transform: `translateX(${pushX}px) scaleY(${cardScale})`,
-      transition: expandedIndex !== null ? `transform ${EXPAND_DURATION}ms ${EXPAND_EASING}` : undefined,
+      transition: expandedIndex !== null ? `transform ${EXPAND_DURATION}ms ${EXPAND_PUSH_EASING}` : undefined,
     };
   };
 
@@ -1136,7 +1147,11 @@ export default function Home() {
       )}
 
       <div
-        className="absolute top-6 left-1/2 z-10 -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
+        // z-[60], not z-10: needs to stay above an expanded card (z-index
+        // 50, see getExpandStyle) — the expanded panel's top edge sits
+        // halfway through this chrome box on purpose (see EXPAND_TOP), so
+        // without this the panel would grow out from *underneath* it.
+        className="absolute top-6 left-1/2 z-[60] -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
         style={{
           borderColor: borderOnBg,
           backgroundColor: bg,

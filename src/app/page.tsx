@@ -128,31 +128,27 @@ const EXPAND_DURATION = 1500;
 // motion rather than a flowing one, which is exactly what made a
 // technically-smooth CSS transition still feel jarring.
 const EXPAND_EASING = "cubic-bezier(0.65, 0, 0.35, 1)";
-// The pushed-aside cards use this instead — same duration, but fast off
-// the start rather than easing into it. Measured directly (via matching
-// getAnimations().currentTime on the panel and a pushed card mid-flight),
-// the push and the grow already start on the exact same frame — that part
-// was never actually the bug. What reads as "it expands, *then* pushes"
-// is that both eased in together under EXPAND_EASING, and a slow start on
-// something as visually dominant as the panel growing to near-fullscreen
-// swallows the first, slow part of a much smaller sideways slide — the
-// push doesn't become noticeable until it's already well underway. Firing
-// fast immediately is what actually reads as simultaneous.
-const EXPAND_PUSH_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
+// Pushed-aside cards use this *exact* duration and curve too, not a
+// different one — that was tried (a faster, fast-starting ease on the
+// push alone) to make the push read as more immediate, but it broke a
+// stronger requirement: a fixed gap between the expanding edge and the
+// card it's pushing has to *stay* fixed for the entire motion, not just
+// arrive at the same final gap. Two elements only track each other in
+// lockstep like that if they move under the identical timing function —
+// different curves let one lead or lag the other mid-flight, opening and
+// closing the gap over the course of the animation even though both
+// still land correctly at t=1. See the mousedown/mouseup effect for how
+// the push distance itself is derived (from the expanding card's own
+// edge movement, not an independent target) — that's the other half of
+// the same guarantee.
+//
 // The target is anchored to fixed points rather than a size ratio: top
-// sits halfway through the toggle/progress chrome rectangle, bottom sits
-// close to the viewport's own bottom edge, sides close to full width.
-const EXPAND_TOP = INTRO_CHROME_TOP + INTRO_CHROME_HEIGHT / 2;
+// sits a little above the middle of the toggle/progress chrome rectangle,
+// bottom sits close to the viewport's own bottom edge, sides close to
+// full width.
+const EXPAND_TOP = INTRO_CHROME_TOP + INTRO_CHROME_HEIGHT / 2 - 18;
 const EXPAND_BOTTOM_MARGIN = 40;
 const EXPAND_SIDE_MARGIN = 48;
-// How much of a pushed-aside sibling has to stay clear of the expanded
-// card's edge — the push amount itself isn't a fixed distance (a fixed
-// distance can't guarantee no overlap once the target size changes), it's
-// computed per-card at expand time from real geometry (see the
-// mousedown/mouseup effect) so every pushed card's edge ends up at least
-// this far outside the expanded card's own edge, with a sliver of it
-// visibly clear rather than hidden behind it.
-const EXPAND_PUSH_CLEARANCE = 48;
 
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
@@ -261,11 +257,11 @@ export default function Home() {
     null
   );
   const [expandGrown, setExpandGrown] = useState(false);
-  // How far each *other* card needs to slide to clear the expanded card's
-  // edge with EXPAND_PUSH_CLEARANCE to spare — computed once, from real
-  // geometry, at the moment a card expands (see the mousedown/mouseup
-  // effect below), not a fixed guess, since a fixed distance can't
-  // guarantee no overlap once the expanded size changes.
+  // How far each *other* card needs to slide, computed once at the moment
+  // a card expands (see the mousedown/mouseup effect below) as exactly the
+  // distance the expanding card's own nearest edge travels — so whatever
+  // gap already existed between them stays exactly that gap the entire
+  // time, not just once everything lands.
   const [pushOffsets, setPushOffsets] = useState<Record<number, number>>({});
   // Mirrors expandedIndex for the mousedown/mouseup listeners below, which
   // are set up once (empty deps) and would otherwise only ever see the
@@ -814,30 +810,21 @@ export default function Home() {
         // reverts to whatever the stylesheet already says, hover included.
         for (const a of el.getAnimations()) a.cancel();
 
-        // Measure every other card's *current* (un-pushed) rect right now,
-        // before any state change, and work out how far the "before" and
-        // "after" groups each need to slide to clear the target rect's
-        // edge — see EXPAND_PUSH_CLEARANCE. Each side moves as one rigid
-        // group (by however far its *closest* card to the expanding one
-        // needs to go), not each card pushed independently by its own
-        // distance — pushing each card separately by "just enough to clear
-        // the expanded card" ignores the other pushed cards on the same
-        // side entirely, so a card further away (needing a *smaller* push
-        // to clear on its own) can end up shoved into one that needed a
-        // *bigger* push, overlapping each other instead of the one they
-        // were actually supposed to clear.
-        const { targetLeft, targetWidth } = computeExpandTarget();
-        const targetRight = targetLeft + targetWidth;
-        const rectByIndex = new Map<number, DOMRect>();
-        document.querySelectorAll("[data-card-index]").forEach((otherEl) => {
-          rectByIndex.set(Number((otherEl as HTMLElement).dataset.cardIndex), otherEl.getBoundingClientRect());
-        });
-        const before = rectByIndex.get(index - 1);
-        const leftPush = before ? Math.min(0, targetLeft - EXPAND_PUSH_CLEARANCE - before.right) : 0;
-        const after = rectByIndex.get(index + 1);
-        const rightPush = after ? Math.max(0, targetRight + EXPAND_PUSH_CLEARANCE - after.left) : 0;
+        // Every other card slides by *exactly* the same distance the
+        // expanding card's own nearest edge travels — not "just far enough
+        // to clear it" — so the gap between that edge and the card it's
+        // pushing is the same natural flex gap at every instant of the
+        // animation, not just once it lands. (Both groups still move as
+        // one rigid block, preserving whatever spacing already existed
+        // between cards further down the line — nothing here needs to
+        // touch their gaps at all, only shift the whole block by the same
+        // fixed amount.)
+        const target = computeExpandTarget();
+        const leftPush = target.targetLeft - rect.left;
+        const rightPush = target.targetLeft + target.targetWidth - (rect.left + rect.width);
         const offsets: Record<number, number> = {};
-        rectByIndex.forEach((_rect, otherIndex) => {
+        document.querySelectorAll("[data-card-index]").forEach((otherEl) => {
+          const otherIndex = Number((otherEl as HTMLElement).dataset.cardIndex);
           if (otherIndex === index) return;
           offsets[otherIndex] = otherIndex < index ? leftPush : rightPush;
         });
@@ -1081,7 +1068,7 @@ export default function Home() {
     return {
       flexBasis: baseWidth * cardScale,
       transform: `translateX(${pushX}px) scaleY(${cardScale})`,
-      transition: expandedIndex !== null ? `transform ${EXPAND_DURATION}ms ${EXPAND_PUSH_EASING}` : undefined,
+      transition: expandedIndex !== null ? `transform ${EXPAND_DURATION}ms ${EXPAND_EASING}` : undefined,
     };
   };
 

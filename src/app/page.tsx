@@ -892,32 +892,57 @@ export default function Home() {
   // here is plain pixels on both
   // ends — no percentages or vh mixed in — because interpolating between a
   // px start and a %/vh end doesn't tween cleanly.
+  // The card's own box (top/left/width/height) is pinned at the *target*
+  // geometry from the moment it expands — never animated — and a single
+  // `transform: translate() scale()` does all the motion instead. That's
+  // a deliberate departure from animating top/left/width/height directly
+  // (tried first): those four properties are a layout-triggering change
+  // on an element that's *also*, on this exact first frame, switching
+  // from static/relative to fixed for the very first time — and browsers
+  // don't reliably treat that combination as a genuine before/after to
+  // transition between. Sometimes it just skips straight to the end
+  // state, which is exactly the "expands instantly" symptom this was
+  // built to fix. `transform` doesn't have that problem (it's the
+  // standard, robust way to animate a freshly-fixed element), and as a
+  // bonus a `scale()` is anchored at the element's own center by default
+  // — which is also literally what was asked for: growing outward from
+  // the card's own center rather than from a fixed top-left corner,
+  // while a `translate()` on top carries that center across the screen
+  // toward the target's center at the same time. Both are 0 (identity)
+  // once grown; the starting values exactly cancel the target geometry
+  // out, so the very first paint still lands on the true starting rect
+  // with zero visual jump, same guarantee as the old approach had.
   function getExpandStyle(index: number): React.CSSProperties {
     if (expandedIndex !== index || !expandRect) return {};
     const { targetLeft, targetTop, targetWidth, targetHeight } = computeExpandTarget();
+    const targetCenterX = targetLeft + targetWidth / 2;
+    const targetCenterY = targetTop + targetHeight / 2;
+    const startCenterX = expandRect.left + expandRect.width / 2;
+    const startCenterY = expandRect.top + expandRect.height / 2;
+    const dx = startCenterX - targetCenterX;
+    const dy = startCenterY - targetCenterY;
+    const sx = expandRect.width / targetWidth;
+    const sy = expandRect.height / targetHeight;
     return {
       position: "fixed",
       zIndex: 50,
       margin: 0,
-      top: expandGrown ? targetTop : expandRect.top,
-      left: expandGrown ? targetLeft : expandRect.left,
-      width: expandGrown ? targetWidth : expandRect.width,
-      height: expandGrown ? targetHeight : expandRect.height,
+      top: targetTop,
+      left: targetLeft,
+      width: targetWidth,
+      height: targetHeight,
+      transform: expandGrown ? "translate(0px, 0px) scale(1, 1)" : `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`,
       // cardBox still carries hover:scale-[1.035] — irrelevant most of the
       // time since a mouse can't "hover" a full-viewport-ish panel in any
       // meaningful sense, but the cursor is still sitting wherever it was
       // clicked, which is now *inside* the grown card, so that hover rule
       // stays matched and was quietly inflating the final size by another
-      // 3.5% on top of the real target. An inline scale wins over the
-      // class either way, so pin it off for as long as this card is the
-      // one being expanded.
+      // 3.5% on top of the real target. This is the standalone `scale`
+      // property, a different thing from the `transform: scale()` above
+      // (both apply, composed together) — an inline value wins over the
+      // class either way, so pin it off for as long as this card expanded.
       scale: 1,
-      transition: [
-        `top ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
-        `left ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
-        `width ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
-        `height ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
-      ].join(", "),
+      transition: `transform ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
     };
   }
 

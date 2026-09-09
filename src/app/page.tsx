@@ -123,11 +123,21 @@ const SHRINK_DURATION = 650;
 // getBoundingClientRect() every frame) keeps tracking it correctly through
 // the whole animation without any special-casing.
 const EXPAND_DURATION = 1500;
-// A proper ease-in-out (slow start, slow end) rather than REVEAL_EASING's
-// ease-out (fast start) — a fast start read as an abrupt/sharp snap into
-// motion rather than a flowing one, which is exactly what made a
-// technically-smooth CSS transition still feel jarring.
-const EXPAND_EASING = "cubic-bezier(0.65, 0, 0.35, 1)";
+// Plain linear, not an eased curve. REVEAL_EASING's ease-out (fast start)
+// read as an abrupt snap; a symmetric ease-in-out tried after that solved
+// the sharp start but introduced a different problem — an S-curve spends
+// most of its *visible* motion in the middle of the timeline with slow
+// bookends at both ends, and top/left/width/height all share that same
+// shape, so the size change (large, visually dominant) reads as "done"
+// once it's through the fast middle section, while the *same* curve's
+// slow tail on the position change is still crawling toward center —
+// two properties moving in perfect mathematical lockstep can still read
+// as sequential ("it expanded, *then* it moved") if the curve's shape
+// makes one of them look finished before it actually is. Linear has no
+// such illusion available: constant speed for the entire duration, so
+// size and position finish looking exactly as done as each other at
+// every instant, not just at t=0 and t=1.
+const EXPAND_EASING = "linear";
 // Pushed-aside cards use this *exact* duration and curve too, not a
 // different one — that was tried (a faster, fast-starting ease on the
 // push alone) to make the push read as more immediate, but it broke a

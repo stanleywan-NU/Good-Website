@@ -268,6 +268,24 @@ export default function Home() {
     null
   );
   const [expandGrown, setExpandGrown] = useState(false);
+  // A CSS transition only animates a property change that happens *after*
+  // the transition rule is already in effect — if a single React commit
+  // both introduces `transition: transform 1500ms ...` for the first time
+  // AND changes the value being transitioned, the browser starts a phantom
+  // transition on that very first value (e.g. none -> the pinned start
+  // offset) which then gets instantly retargeted back near its own start
+  // by the *next* commit two frames later, net effect: no visible motion.
+  // This flag keeps `transition` at "none" for that first pin-in-place
+  // commit and only turns it on once the pinned frame has actually
+  // painted, so the later grow/shrink value changes are the *first* change
+  // the transition ever sees.
+  const [expandTransitionReady, setExpandTransitionReady] = useState(false);
+  // Gates the expanded-only content (e.g. a project's hero image) so it
+  // only appears once the box has fully finished growing, and disappears
+  // the instant a collapse is requested — never visible while the box
+  // itself is mid-resize, which is what was reading as "content squishing
+  // along with the box."
+  const [expandSettled, setExpandSettled] = useState(false);
   // How far each *other* card needs to slide, computed once at the moment
   // a card expands (see the mousedown/mouseup effect below) as exactly the
   // distance the expanding card's own nearest edge travels — so whatever
@@ -799,11 +817,16 @@ export default function Home() {
 
       if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
         // Released on the card that's already expanded — collapse it.
+        // expandSettled drops immediately (same tick) so any expanded-only
+        // content disappears before the box starts shrinking, instead of
+        // riding the shrink down with it.
+        setExpandSettled(false);
         setExpandGrown(false);
         setPushOffsets({});
         window.setTimeout(() => {
           setExpandedIndex(null);
           setExpandRect(null);
+          setExpandTransitionReady(false);
         }, EXPAND_DURATION);
       } else if (expandCandidate && upEl === expandCandidate.el) {
         const { el, index, rect } = expandCandidate;
@@ -844,7 +867,20 @@ export default function Home() {
         setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
         setExpandedIndex(index);
         setExpandGrown(false);
-        requestAnimationFrame(() => requestAnimationFrame(() => setExpandGrown(true)));
+        setExpandSettled(false);
+        // This first commit pins the card at its real starting rect with
+        // no transition (see the expandTransitionReady comment) — the
+        // transition only turns on, and the size/position only changes to
+        // the target, two frames later, once that pinned frame has had a
+        // chance to actually paint.
+        setExpandTransitionReady(false);
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            setExpandTransitionReady(true);
+            setExpandGrown(true);
+            window.setTimeout(() => setExpandSettled(true), EXPAND_DURATION);
+          })
+        );
       }
       expandCandidate = null;
     };
@@ -865,11 +901,13 @@ export default function Home() {
   // This is only for the other two ways to close: the backdrop and Escape.
   function collapseExpanded() {
     if (expandedIndex === null) return;
+    setExpandSettled(false);
     setExpandGrown(false);
     setPushOffsets({});
     window.setTimeout(() => {
       setExpandedIndex(null);
       setExpandRect(null);
+      setExpandTransitionReady(false);
     }, EXPAND_DURATION);
   }
 
@@ -886,64 +924,53 @@ export default function Home() {
 
   // The expanded card's own style: fixed at its captured rect (wherever
   // that actually is — even mostly off-screen, if it was clicked mid-
-  // scroll) until expandGrown flips, then transitions out to the same
-  // target every time (see computeExpandTarget) — top/left move toward
-  // that target at the same time width/height grow, so it reads as one
-  // card sliding-and-growing into place, not growing in place. Everything
-  // here is plain pixels on both
-  // ends — no percentages or vh mixed in — because interpolating between a
-  // px start and a %/vh end doesn't tween cleanly.
-  // The card's own box (top/left/width/height) is pinned at the *target*
-  // geometry from the moment it expands — never animated — and a single
-  // `transform: translate() scale()` does all the motion instead. That's
-  // a deliberate departure from animating top/left/width/height directly
-  // (tried first): those four properties are a layout-triggering change
-  // on an element that's *also*, on this exact first frame, switching
-  // from static/relative to fixed for the very first time — and browsers
-  // don't reliably treat that combination as a genuine before/after to
-  // transition between. Sometimes it just skips straight to the end
-  // state, which is exactly the "expands instantly" symptom this was
-  // built to fix. `transform` doesn't have that problem (it's the
-  // standard, robust way to animate a freshly-fixed element), and as a
-  // bonus a `scale()` is anchored at the element's own center by default
-  // — which is also literally what was asked for: growing outward from
-  // the card's own center rather than from a fixed top-left corner,
-  // while a `translate()` on top carries that center across the screen
-  // toward the target's center at the same time. Both are 0 (identity)
-  // once grown; the starting values exactly cancel the target geometry
-  // out, so the very first paint still lands on the true starting rect
-  // with zero visual jump, same guarantee as the old approach had.
+  // scroll) until expandGrown flips, then transitions to the same target
+  // every time (see computeExpandTarget) — top/left/width/height all move
+  // together on one shared duration+easing. Since each of those four
+  // interpolates linearly (independently) from its own start to its own
+  // end value, the box's *center* — left+width/2, top+height/2 — is
+  // itself just a linear combination of two linear functions of time, so
+  // it automatically traces a straight line from the start rect's center
+  // to the target's center for free, without needing a separate
+  // translate/scale calculation: this is plain layout, not a transform,
+  // so nothing inside the card (text, the hero image) ever gets visually
+  // stretched by a non-uniform scale — it just reflows crisply as the box
+  // resizes, the same as a normal responsive resize.
+  //
+  // Animating these layout properties directly on a freshly-`fixed`
+  // element was tried before and abandoned as unreliable — but the real
+  // cause wasn't the properties or the fresh `position: fixed`, it was
+  // `transition` being introduced in the very same commit as the first
+  // value change (see expandTransitionReady above): that phantom
+  // transition, not a browser limitation on animating layout props, is
+  // what made it "skip straight to the end." With that actually fixed,
+  // plain top/left/width/height is simpler and doesn't warp content, so
+  // it's back.
   function getExpandStyle(index: number): React.CSSProperties {
     if (expandedIndex !== index || !expandRect) return {};
-    const { targetLeft, targetTop, targetWidth, targetHeight } = computeExpandTarget();
-    const targetCenterX = targetLeft + targetWidth / 2;
-    const targetCenterY = targetTop + targetHeight / 2;
-    const startCenterX = expandRect.left + expandRect.width / 2;
-    const startCenterY = expandRect.top + expandRect.height / 2;
-    const dx = startCenterX - targetCenterX;
-    const dy = startCenterY - targetCenterY;
-    const sx = expandRect.width / targetWidth;
-    const sy = expandRect.height / targetHeight;
+    const target = computeExpandTarget();
+    const rect = expandGrown
+      ? { top: target.targetTop, left: target.targetLeft, width: target.targetWidth, height: target.targetHeight }
+      : expandRect;
     return {
       position: "fixed",
       zIndex: 50,
       margin: 0,
-      top: targetTop,
-      left: targetLeft,
-      width: targetWidth,
-      height: targetHeight,
-      transform: expandGrown ? "translate(0px, 0px) scale(1, 1)" : `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`,
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
       // cardBox still carries hover:scale-[1.035] — irrelevant most of the
       // time since a mouse can't "hover" a full-viewport-ish panel in any
       // meaningful sense, but the cursor is still sitting wherever it was
       // clicked, which is now *inside* the grown card, so that hover rule
       // stays matched and was quietly inflating the final size by another
-      // 3.5% on top of the real target. This is the standalone `scale`
-      // property, a different thing from the `transform: scale()` above
-      // (both apply, composed together) — an inline value wins over the
-      // class either way, so pin it off for as long as this card expanded.
+      // 3.5% on top of the real target. An inline value wins over the
+      // class either way, so pin it off for as long as this card is expanded.
       scale: 1,
-      transition: `transform ${EXPAND_DURATION}ms ${EXPAND_EASING}`,
+      transition: expandTransitionReady
+        ? `top ${EXPAND_DURATION}ms ${EXPAND_EASING}, left ${EXPAND_DURATION}ms ${EXPAND_EASING}, width ${EXPAND_DURATION}ms ${EXPAND_EASING}, height ${EXPAND_DURATION}ms ${EXPAND_EASING}`
+        : "none",
     };
   }
 
@@ -1354,7 +1381,7 @@ export default function Home() {
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
             <div className="flex flex-1 items-center justify-center overflow-hidden">
-              {expandedIndex === 3 ? (
+              {expandedIndex === 3 && expandSettled ? (
                 <Image
                   src="/limitus-brace.png"
                   alt="Limitus wrist brace prototype"

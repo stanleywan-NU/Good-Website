@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import Image from "next/image";
 
 // Page background (the empty space around/between boxes) — a warm cream in
 // light mode, a warm near-black in dark mode.
@@ -1349,13 +1350,26 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(420, 3)}>
           <ExpandableCard
             index={3}
-            className={`${cardBox} justify-between gap-6 border-dashed opacity-60`}
+            className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
-            <div className="flex flex-1 items-center justify-center text-[13px]">[ More case studies soon ]</div>
+            <div className="flex flex-1 items-center justify-center overflow-hidden">
+              {expandedIndex === 3 ? (
+                <Image
+                  src="/limitus-brace.png"
+                  alt="Limitus wrist brace prototype"
+                  width={1174}
+                  height={1134}
+                  className="max-h-full max-w-full object-contain"
+                  priority
+                />
+              ) : (
+                <span className="text-[13px]">[ Wrist brace for TFCC tears ]</span>
+              )}
+            </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold">Coming Soon</span>
-              <span className="text-sm">&nbsp;</span>
+              <span className="text-[22px] font-bold">Limitus</span>
+              <span className="text-sm">Medical Device Design</span>
             </div>
           </ExpandableCard>
         </div>

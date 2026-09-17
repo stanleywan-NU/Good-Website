@@ -28,8 +28,8 @@ const PASTEL_GREEN = "#a8e0b8";
 const PASTEL_GREEN_DARK = "#5fa878";
 const PASTEL_ORANGE = "#ffcfa0";
 const PASTEL_ORANGE_DARK = "#d99a4e";
-const PASTEL_MAGENTA = "#e8b0e8";
-const PASTEL_MAGENTA_DARK = "#b563b5";
+const PASTEL_PINK = "#eaa4c9";
+const PASTEL_PINK_DARK = "#c23d84";
 const PASTEL_OLIVE = "#cde29c";
 const PASTEL_OLIVE_DARK = "#8aac39";
 const PASTEL_PERIWINKLE = "#b7b0e8";
@@ -418,7 +418,7 @@ export default function Home() {
   const pastelRed = isDark ? PASTEL_RED_DARK : PASTEL_RED;
   const pastelGreen = isDark ? PASTEL_GREEN_DARK : PASTEL_GREEN;
   const pastelOrange = isDark ? PASTEL_ORANGE_DARK : PASTEL_ORANGE;
-  const pastelMagenta = isDark ? PASTEL_MAGENTA_DARK : PASTEL_MAGENTA;
+  const pastelPink = isDark ? PASTEL_PINK_DARK : PASTEL_PINK;
   const pastelYellow = isDark ? PASTEL_YELLOW_DARK : PASTEL_YELLOW;
   const pastelOlive = isDark ? PASTEL_OLIVE_DARK : PASTEL_OLIVE;
   const pastelPeriwinkle = isDark ? PASTEL_PERIWINKLE_DARK : PASTEL_PERIWINKLE;
@@ -1141,6 +1141,33 @@ export default function Home() {
     };
   };
 
+  // The scroll-shrink squash above is a non-uniform `scaleY` on a card's
+  // slot wrapper, which visibly warps any content inside it (text reads as
+  // flattened, images/logos as stretched) since a transform applies to
+  // every descendant regardless of what it's showing. Any piece of a
+  // card's own content that should stay visually crisp at every scroll
+  // position — not just the logos — carries this inverse scale to cancel
+  // it out exactly. No-op while *this* card is the expanded one, since its
+  // slot carries no such transform then (see slotStyle).
+  const unstretch = (index: number): React.CSSProperties => ({
+    transform: expandedIndex === index ? undefined : `scaleY(${1 / cardScale})`,
+  });
+
+  // The intro heading is the one piece of text that can actually overflow
+  // its box, rather than just look squashed: it's a fixed 76px regardless
+  // of the card's own (real, layout) width, so shrinking that width on
+  // scroll left it wrapping onto more lines than the box's fixed height
+  // has room for, clipped by the card's overflow-hidden. Shrinking the
+  // font-size by the same fraction as the card's width keeps it wrapping
+  // the same way it always did, at every scroll position — and since that
+  // shrinks both axes of each glyph equally while the ambient scaleY
+  // squash above only touches one, cancelling that squash the same way
+  // `unstretch` does nets out to the text simply being smaller, not warped.
+  const introHeadingStyle: React.CSSProperties =
+    expandedIndex === 0
+      ? {}
+      : { fontSize: 76 * cardScale, transform: `scaleY(${1 / cardScale})` };
+
   return (
     <div
       ref={rootRef}
@@ -1311,7 +1338,10 @@ export default function Home() {
             />
 
             <div className="relative z-10 flex flex-col gap-5">
-              <h1 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight">
+              <h1
+                className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight"
+                style={introHeadingStyle}
+              >
                 <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}
                 <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.
               </h1>
@@ -1335,7 +1365,10 @@ export default function Home() {
                 textShadow: coveredTextShadow,
               }}
             >
-              <h1 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight">
+              <h1
+                className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight"
+                style={introHeadingStyle}
+              >
                 <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}
                 <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.
               </h1>
@@ -1356,23 +1389,16 @@ export default function Home() {
                 width={144}
                 height={144}
                 className="h-[72px] w-[72px] object-contain"
-                style={{
-                  filter: pastelIconShadow,
-                  // The scroll-shrink squash below is a `scaleY` on this
-                  // card's own slot wrapper (see slotStyle) — real brand
-                  // marks read as visibly warped under a non-uniform
-                  // scale in a way the plain SVG icons on other cards
-                  // don't, so the logo counter-scales by the inverse on
-                  // the same axis, cancelling it out exactly. Skipped
-                  // while *this* card is the expanded one, since its slot
-                  // carries no such transform then (see slotStyle).
-                  transform: expandedIndex === 1 ? undefined : `scaleY(${1 / cardScale})`,
-                }}
+                style={{ filter: pastelIconShadow, ...unstretch(1) }}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold">Rising Team</span>
-              <span className="text-sm">Product Design</span>
+              <span className="text-[22px] font-bold" style={unstretch(1)}>
+                Rising Team
+              </span>
+              <span className="text-sm" style={unstretch(1)}>
+                Product Design
+              </span>
             </div>
           </ExpandableCard>
         </div>
@@ -1390,16 +1416,16 @@ export default function Home() {
                 width={144}
                 height={144}
                 className="h-[72px] w-[72px] object-contain"
-                style={{
-                  filter: pastelIconShadow,
-                  // See the matching comment on the Rising Team logo above.
-                  transform: expandedIndex === 2 ? undefined : `scaleY(${1 / cardScale})`,
-                }}
+                style={{ filter: pastelIconShadow, ...unstretch(2) }}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold">BorderX Lab — BeyondStyle</span>
-              <span className="text-sm">Content Strategy &amp; GEO</span>
+              <span className="text-[22px] font-bold" style={unstretch(2)}>
+                BorderX Lab — BeyondStyle
+              </span>
+              <span className="text-sm" style={unstretch(2)}>
+                Content Strategy &amp; GEO
+              </span>
             </div>
           </ExpandableCard>
         </div>
@@ -1421,12 +1447,18 @@ export default function Home() {
                   priority
                 />
               ) : (
-                <span className="text-[13px]">[ Wrist brace for TFCC tears ]</span>
+                <span className="text-[13px]" style={unstretch(3)}>
+                  [ Wrist brace for TFCC tears ]
+                </span>
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold">Limitus</span>
-              <span className="text-sm">Medical Device Design</span>
+              <span className="text-[22px] font-bold" style={unstretch(3)}>
+                Limitus
+              </span>
+              <span className="text-sm" style={unstretch(3)}>
+                Medical Device Design
+              </span>
             </div>
           </ExpandableCard>
         </div>
@@ -1448,12 +1480,18 @@ export default function Home() {
                   priority
                 />
               ) : (
-                <span className="text-[13px]">[ UCLA AUD summer pavilion ]</span>
+                <span className="text-[13px]" style={unstretch(4)}>
+                  [ UCLA AUD summer pavilion ]
+                </span>
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold">Solstice</span>
-              <span className="text-sm">Architecture</span>
+              <span className="text-[22px] font-bold" style={unstretch(4)}>
+                Solstice
+              </span>
+              <span className="text-sm" style={unstretch(4)}>
+                Architecture
+              </span>
             </div>
           </ExpandableCard>
         </div>
@@ -1475,12 +1513,18 @@ export default function Home() {
                   priority
                 />
               ) : (
-                <span className="text-[13px]">[ Adjustable smart desk concept ]</span>
+                <span className="text-[13px]" style={unstretch(5)}>
+                  [ Adjustable smart desk concept ]
+                </span>
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold">Glodesk</span>
-              <span className="text-sm">Product Design</span>
+              <span className="text-[22px] font-bold" style={unstretch(5)}>
+                Glodesk
+              </span>
+              <span className="text-sm" style={unstretch(5)}>
+                Product Design
+              </span>
             </div>
           </ExpandableCard>
         </div>
@@ -1491,11 +1535,15 @@ export default function Home() {
             className={`${cardBox} justify-center gap-4`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(6) }}
           >
-            <span className="text-[22px] font-bold">About</span>
-            <p className="m-0 text-[15px] leading-relaxed">
+            <span className="text-[22px] font-bold" style={unstretch(6)}>
+              About
+            </span>
+            <p className="m-0 text-[15px] leading-relaxed" style={unstretch(6)}>
               Product designer &amp; content strategist, currently splitting time between Rising Team and BorderX Lab&apos;s BeyondStyle.
             </p>
-            <span className="text-[13px]">[ Full bio coming soon ]</span>
+            <span className="text-[13px]" style={unstretch(6)}>
+              [ Full bio coming soon ]
+            </span>
           </ExpandableCard>
         </div>
 
@@ -1503,10 +1551,16 @@ export default function Home() {
           <ExpandableCard
             index={7}
             className={`${cardBox} justify-center gap-4`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(7) }}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelPink, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(7) }}
           >
-            <span className="text-[22px] font-bold">Let&apos;s Talk</span>
-            <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>
+            <span className="text-[22px] font-bold" style={unstretch(7)}>
+              Let&apos;s Talk
+            </span>
+            <a
+              href="#"
+              className="text-base font-medium underline underline-offset-4"
+              style={{ color: fg, ...unstretch(7) }}
+            >
               [ Your email ]
             </a>
           </ExpandableCard>

@@ -423,6 +423,10 @@ export default function Home() {
   const pastelOlive = isDark ? PASTEL_OLIVE_DARK : PASTEL_OLIVE;
   const pastelPeriwinkle = isDark ? PASTEL_PERIWINKLE_DARK : PASTEL_PERIWINKLE;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
+  // The live gap between cards in the row — same eased value driving the
+  // track's own `gap` below, reused wherever something else needs to match
+  // that exact spacing (see the BorderX card's two placeholder rectangles).
+  const trackGap = LARGE_GAP + shrinkT * (SMALL_GAP - LARGE_GAP);
 
   // The background dot grid reads color off a ref instead of the `fg`
   // prop directly so a theme toggle doesn't need to restart its rAF loop
@@ -1309,7 +1313,7 @@ export default function Home() {
         className="hscroll-track absolute inset-x-0 bottom-0 flex items-stretch overflow-x-auto overflow-y-hidden overscroll-x-none px-12 pb-14"
         style={{
           top: 100,
-          gap: LARGE_GAP + shrinkT * (SMALL_GAP - LARGE_GAP),
+          gap: trackGap,
           opacity: introPhase === "boxes" ? 1 : 0,
           transform: cardsSettled
             ? undefined
@@ -1410,14 +1414,42 @@ export default function Home() {
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
             <div className="flex flex-1 items-center justify-center">
-              <Image
-                src={isDark ? "/borderx-logo-white.png" : "/borderx-logo-black.png"}
-                alt="BorderX Lab logo"
-                width={144}
-                height={144}
-                className="h-[72px] w-[72px] object-contain"
-                style={{ filter: pastelIconShadow, ...unstretch(2) }}
-              />
+              {expandedIndex === 2 && expandSettled ? (
+                // Two equal placeholder panels, left and right — spaced
+                // apart by the same live gap the cards in the row use
+                // between each other (trackGap), and inset from the
+                // card's own true edge by that same distance. The
+                // negative horizontal margin cancels cardBox's own p-10
+                // (40px) so "distance from the edge" is measured from the
+                // card's actual border, not from this padded content
+                // slot — vertically this stays put, which is what keeps
+                // it clear of the top chrome, the same as every other
+                // card's hero content sitting in this same slot.
+                <div
+                  className="flex items-stretch"
+                  style={{
+                    height: "100%",
+                    marginLeft: -40,
+                    marginRight: -40,
+                    width: "calc(100% + 80px)",
+                    gap: trackGap,
+                    paddingLeft: trackGap,
+                    paddingRight: trackGap,
+                  }}
+                >
+                  <div className="flex-1 rounded-2xl" style={{ border: `3px solid ${borderOnBg}` }} />
+                  <div className="flex-1 rounded-2xl" style={{ border: `3px solid ${borderOnBg}` }} />
+                </div>
+              ) : (
+                <Image
+                  src={isDark ? "/borderx-logo-white.png" : "/borderx-logo-black.png"}
+                  alt="BorderX Lab logo"
+                  width={144}
+                  height={144}
+                  className="h-[72px] w-[72px] object-contain"
+                  style={{ filter: pastelIconShadow, ...unstretch(2) }}
+                />
+              )}
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold" style={unstretch(2)}>

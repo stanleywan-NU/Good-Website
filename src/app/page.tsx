@@ -30,6 +30,10 @@ const PASTEL_ORANGE = "#ffcfa0";
 const PASTEL_ORANGE_DARK = "#d99a4e";
 const PASTEL_MAGENTA = "#e8b0e8";
 const PASTEL_MAGENTA_DARK = "#b563b5";
+const PASTEL_TAN = "#e3c9a3";
+const PASTEL_TAN_DARK = "#a8824a";
+const PASTEL_TEAL = "#8fd9c4";
+const PASTEL_TEAL_DARK = "#4a9c87";
 // Decorative accent circle in the name box's bottom-right corner (not a
 // box fill, so it's on its own rather than in the per-box order above).
 const PASTEL_YELLOW = "#f5e6a3";
@@ -416,6 +420,8 @@ export default function Home() {
   const pastelOrange = isDark ? PASTEL_ORANGE_DARK : PASTEL_ORANGE;
   const pastelMagenta = isDark ? PASTEL_MAGENTA_DARK : PASTEL_MAGENTA;
   const pastelYellow = isDark ? PASTEL_YELLOW_DARK : PASTEL_YELLOW;
+  const pastelTan = isDark ? PASTEL_TAN_DARK : PASTEL_TAN;
+  const pastelTeal = isDark ? PASTEL_TEAL_DARK : PASTEL_TEAL;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The background dot grid reads color off a ref instead of the `fg`
@@ -1428,8 +1434,62 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(420, 4)}>
           <ExpandableCard
             index={4}
+            className={`${cardBox} justify-between gap-6`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelTan, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
+          >
+            <div className="flex flex-1 items-center justify-center overflow-hidden">
+              {expandedIndex === 4 && expandSettled ? (
+                <Image
+                  src="/pavilion-model.png"
+                  alt="Penumbra pavilion model — bent wood strips forming an arch over a courtyard"
+                  width={1280}
+                  height={962}
+                  className="max-h-full max-w-full object-contain"
+                  priority
+                />
+              ) : (
+                <span className="text-[13px]">[ UCLA AUD summer pavilion ]</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[22px] font-bold">Penumbra</span>
+              <span className="text-sm">Architecture</span>
+            </div>
+          </ExpandableCard>
+        </div>
+
+        <div className="my-4 shrink-0" style={slotStyle(420, 5)}>
+          <ExpandableCard
+            index={5}
+            className={`${cardBox} justify-between gap-6`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelTeal, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
+          >
+            <div className="flex flex-1 items-center justify-center overflow-hidden">
+              {expandedIndex === 5 && expandSettled ? (
+                <Image
+                  src="/glodesk-hero.png"
+                  alt="Glodesk adjustable smart desk rendered in a lecture hall"
+                  width={908}
+                  height={554}
+                  className="max-h-full max-w-full object-contain"
+                  priority
+                />
+              ) : (
+                <span className="text-[13px]">[ Adjustable smart desk concept ]</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[22px] font-bold">Glodesk</span>
+              <span className="text-sm">Product Design</span>
+            </div>
+          </ExpandableCard>
+        </div>
+
+        <div className="my-4 shrink-0" style={slotStyle(420, 6)}>
+          <ExpandableCard
+            index={6}
             className={`${cardBox} justify-center gap-4`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(6) }}
           >
             <span className="text-[22px] font-bold">About</span>
             <p className="m-0 text-[15px] leading-relaxed">
@@ -1439,11 +1499,11 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(380, 5)}>
+        <div className="my-4 shrink-0" style={slotStyle(380, 7)}>
           <ExpandableCard
-            index={5}
+            index={7}
             className={`${cardBox} justify-center gap-4`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelMagenta, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(7) }}
           >
             <span className="text-[22px] font-bold">Let&apos;s Talk</span>
             <a href="#" className="text-base font-medium underline underline-offset-4" style={{ color: fg }}>

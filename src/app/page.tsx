@@ -30,10 +30,10 @@ const PASTEL_ORANGE = "#ffcfa0";
 const PASTEL_ORANGE_DARK = "#d99a4e";
 const PASTEL_MAGENTA = "#e8b0e8";
 const PASTEL_MAGENTA_DARK = "#b563b5";
-const PASTEL_TAN = "#e3c9a3";
-const PASTEL_TAN_DARK = "#a8824a";
-const PASTEL_TEAL = "#8fd9c4";
-const PASTEL_TEAL_DARK = "#4a9c87";
+const PASTEL_OLIVE = "#cde29c";
+const PASTEL_OLIVE_DARK = "#8aac39";
+const PASTEL_PERIWINKLE = "#b7b0e8";
+const PASTEL_PERIWINKLE_DARK = "#5546b9";
 // Decorative accent circle in the name box's bottom-right corner (not a
 // box fill, so it's on its own rather than in the per-box order above).
 const PASTEL_YELLOW = "#f5e6a3";
@@ -420,8 +420,8 @@ export default function Home() {
   const pastelOrange = isDark ? PASTEL_ORANGE_DARK : PASTEL_ORANGE;
   const pastelMagenta = isDark ? PASTEL_MAGENTA_DARK : PASTEL_MAGENTA;
   const pastelYellow = isDark ? PASTEL_YELLOW_DARK : PASTEL_YELLOW;
-  const pastelTan = isDark ? PASTEL_TAN_DARK : PASTEL_TAN;
-  const pastelTeal = isDark ? PASTEL_TEAL_DARK : PASTEL_TEAL;
+  const pastelOlive = isDark ? PASTEL_OLIVE_DARK : PASTEL_OLIVE;
+  const pastelPeriwinkle = isDark ? PASTEL_PERIWINKLE_DARK : PASTEL_PERIWINKLE;
   const cardScale = 1 - shrinkT * (1 - MIN_CARD_SCALE);
 
   // The background dot grid reads color off a ref instead of the `fg`
@@ -1435,13 +1435,13 @@ export default function Home() {
           <ExpandableCard
             index={4}
             className={`${cardBox} justify-between gap-6`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelTan, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelOlive, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
           >
             <div className="flex flex-1 items-center justify-center overflow-hidden">
               {expandedIndex === 4 && expandSettled ? (
                 <Image
                   src="/pavilion-model.png"
-                  alt="Penumbra pavilion model — bent wood strips forming an arch over a courtyard"
+                  alt="Solstice pavilion model — bent wood strips forming an arch over a courtyard"
                   width={1280}
                   height={962}
                   className="max-h-full max-w-full object-contain"
@@ -1452,7 +1452,7 @@ export default function Home() {
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold">Penumbra</span>
+              <span className="text-[22px] font-bold">Solstice</span>
               <span className="text-sm">Architecture</span>
             </div>
           </ExpandableCard>
@@ -1462,7 +1462,7 @@ export default function Home() {
           <ExpandableCard
             index={5}
             className={`${cardBox} justify-between gap-6`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelTeal, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelPeriwinkle, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
           >
             <div className="flex flex-1 items-center justify-center overflow-hidden">
               {expandedIndex === 5 && expandSettled ? (

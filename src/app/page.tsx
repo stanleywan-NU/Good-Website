@@ -1344,9 +1344,14 @@ export default function Home() {
             style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
           >
             <div className="flex flex-1 items-center justify-center">
-              <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
-                <path d="M10 48V32M26 48V20M42 48V28M58 48V12" stroke={fg} strokeWidth="4" strokeLinecap="round" />
-              </svg>
+              <Image
+                src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
+                alt="Rising Team logo"
+                width={144}
+                height={144}
+                className="h-[72px] w-[72px] object-contain"
+                style={{ filter: pastelIconShadow }}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">Rising Team</span>
@@ -1362,10 +1367,14 @@ export default function Home() {
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
             <div className="flex flex-1 items-center justify-center">
-              <svg width="72" height="72" viewBox="0 0 64 64" fill="none" style={{ filter: pastelIconShadow }}>
-                <path d="M22 10h20l6 10-18 34-18-34z" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
-                <path d="M28 10l4 8 4-8" stroke={fg} strokeWidth="4" strokeLinejoin="round" />
-              </svg>
+              <Image
+                src={isDark ? "/borderx-logo-white.png" : "/borderx-logo-black.png"}
+                alt="BorderX Lab logo"
+                width={144}
+                height={144}
+                className="h-[72px] w-[72px] object-contain"
+                style={{ filter: pastelIconShadow }}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold">BorderX Lab — BeyondStyle</span>

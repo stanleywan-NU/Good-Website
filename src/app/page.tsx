@@ -1350,7 +1350,18 @@ export default function Home() {
                 width={144}
                 height={144}
                 className="h-[72px] w-[72px] object-contain"
-                style={{ filter: pastelIconShadow }}
+                style={{
+                  filter: pastelIconShadow,
+                  // The scroll-shrink squash below is a `scaleY` on this
+                  // card's own slot wrapper (see slotStyle) — real brand
+                  // marks read as visibly warped under a non-uniform
+                  // scale in a way the plain SVG icons on other cards
+                  // don't, so the logo counter-scales by the inverse on
+                  // the same axis, cancelling it out exactly. Skipped
+                  // while *this* card is the expanded one, since its slot
+                  // carries no such transform then (see slotStyle).
+                  transform: expandedIndex === 1 ? undefined : `scaleY(${1 / cardScale})`,
+                }}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -1373,7 +1384,11 @@ export default function Home() {
                 width={144}
                 height={144}
                 className="h-[72px] w-[72px] object-contain"
-                style={{ filter: pastelIconShadow }}
+                style={{
+                  filter: pastelIconShadow,
+                  // See the matching comment on the Rising Team logo above.
+                  transform: expandedIndex === 2 ? undefined : `scaleY(${1 / cardScale})`,
+                }}
               />
             </div>
             <div className="flex flex-col gap-1">

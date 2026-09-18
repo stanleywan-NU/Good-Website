@@ -1442,11 +1442,29 @@ export default function Home() {
                   }}
                 >
                   <div
-                    className="relative flex-1 overflow-hidden rounded-2xl p-4"
+                    className="relative flex-1 overflow-hidden rounded-2xl"
                     style={{ border: `3px solid ${borderOnBg}` }}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-5xl font-bold">Content</span>
+                    {/* Cover slide of one of the four carousels this panel
+                        will eventually rotate through — just the title
+                        image for now, standing in for the real gallery. */}
+                    <Image
+                      src="/sadie-sink-carousel-cover.jpg"
+                      alt="Sadie Sink's Outfit Rotation carousel cover"
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                    <div
+                      className="absolute inset-x-0 top-0 flex items-center gap-3 p-4"
+                      style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0))" }}
+                    >
+                      <span
+                        className="text-5xl font-bold text-white"
+                        style={{ textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}
+                      >
+                        Content
+                      </span>
                       {/* iOS-style app-icon shape (a "squircle" via a large
                           border-radius percentage) linking out to the
                           BeyondStyle TikTok — stopping propagation on

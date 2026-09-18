@@ -1441,8 +1441,18 @@ export default function Home() {
                     paddingRight: trackGap,
                   }}
                 >
-                  <div className="flex-1 rounded-2xl" style={{ border: `3px solid ${borderOnBg}` }} />
-                  <div className="flex-1 rounded-2xl" style={{ border: `3px solid ${borderOnBg}` }} />
+                  <div
+                    className="flex flex-1 items-center justify-center rounded-2xl text-[15px] font-bold"
+                    style={{ border: `3px solid ${borderOnBg}` }}
+                  >
+                    Content
+                  </div>
+                  <div
+                    className="flex flex-1 items-center justify-center rounded-2xl text-[15px] font-bold"
+                    style={{ border: `3px solid ${borderOnBg}` }}
+                  >
+                    GEO
+                  </div>
                 </div>
               ) : (
                 <Image

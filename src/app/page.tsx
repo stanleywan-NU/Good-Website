@@ -1413,7 +1413,7 @@ export default function Home() {
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
-            <div className="flex flex-1 items-center justify-center">
+            <div className="flex min-h-0 flex-1 items-center justify-center">
               {expandedIndex === 2 && expandSettled ? (
                 // Two equal placeholder panels, left and right — the gap
                 // between them, their distance from the top edge, and
@@ -1428,7 +1428,7 @@ export default function Home() {
                 // title block, left untouched since only the top and
                 // sides were asked to match.
                 <div
-                  className="flex items-stretch"
+                  className="flex min-h-0 items-stretch"
                   style={{
                     height: "calc(100% + 40px)",
                     marginTop: -40,
@@ -1442,7 +1442,7 @@ export default function Home() {
                   }}
                 >
                   <div
-                    className="relative flex-1 overflow-hidden rounded-2xl"
+                    className="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
                     style={{ border: `3px solid ${borderOnBg}` }}
                   >
                     <div className="flex h-full flex-col" style={{ padding: trackGap, gap: trackGap }}>
@@ -1498,13 +1498,27 @@ export default function Home() {
                         </svg>
                       </a>
                       </div>
-                      {/* Four carousel covers standing in for the real
-                          gallery this panel will eventually rotate
-                          through — object-contain so each one shows in
-                          full (never cropped), laid out on the same
-                          trackGap rhythm as everything else here. */}
-                      <div className="grid flex-1 grid-cols-2 grid-rows-2" style={{ gap: trackGap }}>
-                        <div className="relative overflow-hidden rounded-xl">
+                      {/* Carousel covers standing in for the real gallery
+                          this panel will eventually rotate through — a
+                          fixed 2-column grid that just keeps growing
+                          downward as more get added, rather than trying to
+                          force every row into the panel's own height;
+                          min-h-0 is what lets a flex child actually shrink
+                          enough for overflow-y-auto to kick in and scroll
+                          instead of overflowing the card. Each cell is
+                          pinned to the images' own 3:4 aspect ratio so
+                          object-contain fills it exactly — no leftover
+                          letterboxing for the rounded corners/outline to
+                          look odd around — which is also why nothing gets
+                          cropped: cell and image agree on their shape. */}
+                      <div
+                        className="grid min-h-0 flex-1 grid-cols-2 overflow-y-auto"
+                        style={{ gap: trackGap, alignContent: "start" }}
+                      >
+                        <div
+                          className="relative overflow-hidden rounded-xl"
+                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
+                        >
                           <Image
                             src="/sadie-sink-carousel-cover.jpg"
                             alt="Sadie Sink's Outfit Rotation carousel cover"
@@ -1513,7 +1527,10 @@ export default function Home() {
                             priority
                           />
                         </div>
-                        <div className="relative overflow-hidden rounded-xl">
+                        <div
+                          className="relative overflow-hidden rounded-xl"
+                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
+                        >
                           <Image
                             src="/caitlin-clark-carousel-cover.jpg"
                             alt="Caitlin Clark's Best Tunnel Fits carousel cover"
@@ -1521,7 +1538,10 @@ export default function Home() {
                             className="object-contain"
                           />
                         </div>
-                        <div className="relative overflow-hidden rounded-xl">
+                        <div
+                          className="relative overflow-hidden rounded-xl"
+                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
+                        >
                           <Image
                             src="/lebron-james-carousel-cover.jpg"
                             alt="LeBron James' Most Iconic Looks carousel cover"
@@ -1529,7 +1549,10 @@ export default function Home() {
                             className="object-contain"
                           />
                         </div>
-                        <div className="relative overflow-hidden rounded-xl">
+                        <div
+                          className="relative overflow-hidden rounded-xl"
+                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
+                        >
                           <Image
                             src="/inde-navarrette-carousel-cover.jpg"
                             alt="Inde Navarrette carousel cover"

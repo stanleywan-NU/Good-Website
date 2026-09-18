@@ -1445,27 +1445,10 @@ export default function Home() {
                     className="relative flex-1 overflow-hidden rounded-2xl"
                     style={{ border: `3px solid ${borderOnBg}` }}
                   >
-                    {/* Cover slide of one of the four carousels this panel
-                        will eventually rotate through — just the title
-                        image for now, standing in for the real gallery. */}
-                    <Image
-                      src="/sadie-sink-carousel-cover.jpg"
-                      alt="Sadie Sink's Outfit Rotation carousel cover"
-                      fill
-                      className="object-cover"
-                      priority
-                    />
-                    <div
-                      className="absolute inset-x-0 top-0 flex items-center gap-3 p-4"
-                      style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0))" }}
-                    >
-                      <span
-                        className="text-5xl font-bold text-white"
-                        style={{ textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}
-                      >
-                        Content
-                      </span>
-                      {/* iOS-style app-icon shape (a "squircle" via a large
+                    <div className="flex h-full flex-col" style={{ padding: trackGap, gap: trackGap }}>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="text-5xl font-bold">Content</span>
+                        {/* iOS-style app-icon shape (a "squircle" via a large
                           border-radius percentage) linking out to the
                           BeyondStyle TikTok — stopping propagation on
                           mousedown/up keeps this from also triggering the
@@ -1514,6 +1497,47 @@ export default function Home() {
                           />
                         </svg>
                       </a>
+                      </div>
+                      {/* Four carousel covers standing in for the real
+                          gallery this panel will eventually rotate
+                          through — object-contain so each one shows in
+                          full (never cropped), laid out on the same
+                          trackGap rhythm as everything else here. */}
+                      <div className="grid flex-1 grid-cols-2 grid-rows-2" style={{ gap: trackGap }}>
+                        <div className="relative overflow-hidden rounded-xl">
+                          <Image
+                            src="/sadie-sink-carousel-cover.jpg"
+                            alt="Sadie Sink's Outfit Rotation carousel cover"
+                            fill
+                            className="object-contain"
+                            priority
+                          />
+                        </div>
+                        <div className="relative overflow-hidden rounded-xl">
+                          <Image
+                            src="/caitlin-clark-carousel-cover.jpg"
+                            alt="Caitlin Clark's Best Tunnel Fits carousel cover"
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
+                        <div className="relative overflow-hidden rounded-xl">
+                          <Image
+                            src="/lebron-james-carousel-cover.jpg"
+                            alt="LeBron James' Most Iconic Looks carousel cover"
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
+                        <div className="relative overflow-hidden rounded-xl">
+                          <Image
+                            src="/inde-navarrette-carousel-cover.jpg"
+                            alt="Inde Navarrette carousel cover"
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div

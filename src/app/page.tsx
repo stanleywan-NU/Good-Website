@@ -1415,24 +1415,28 @@ export default function Home() {
           >
             <div className="flex flex-1 items-center justify-center">
               {expandedIndex === 2 && expandSettled ? (
-                // Two equal placeholder panels, left and right — spaced
-                // apart by the same live gap the cards in the row use
-                // between each other (trackGap), and inset from the
-                // card's own true edge by that same distance. The
-                // negative horizontal margin cancels cardBox's own p-10
-                // (40px) so "distance from the edge" is measured from the
+                // Two equal placeholder panels, left and right — the gap
+                // between them, their distance from the top edge, and
+                // their distance from each side are all the same live
+                // trackGap (the same gap the cards in the row use between
+                // each other). The negative margins cancel cardBox's own
+                // p-10 (40px) on the top/left/right — extending height by
+                // the same 40px keeps the bottom edge anchored where it
+                // was — so "distance from the edge" is measured from the
                 // card's actual border, not from this padded content
-                // slot — vertically this stays put, which is what keeps
-                // it clear of the top chrome, the same as every other
-                // card's hero content sitting in this same slot.
+                // slot. The bottom stays as the existing gap down to the
+                // title block, left untouched since only the top and
+                // sides were asked to match.
                 <div
                   className="flex items-stretch"
                   style={{
-                    height: "100%",
+                    height: "calc(100% + 40px)",
+                    marginTop: -40,
                     marginLeft: -40,
                     marginRight: -40,
                     width: "calc(100% + 80px)",
                     gap: trackGap,
+                    paddingTop: trackGap,
                     paddingLeft: trackGap,
                     paddingRight: trackGap,
                   }}

@@ -1500,23 +1500,26 @@ export default function Home() {
                       </div>
                       {/* Carousel covers standing in for the real gallery
                           this panel will eventually rotate through — a
-                          fixed 2-column grid that just keeps growing
-                          downward as more get added, rather than trying to
-                          force every row into the panel's own height;
-                          min-h-0 is what lets a flex child actually shrink
-                          enough for overflow-y-auto to kick in and scroll
-                          instead of overflowing the card. Each cell is
-                          pinned to the images' own 3:4 aspect ratio so
+                          single row, scrolling horizontally exactly like
+                          the colored boxes in the main track (same
+                          overflow-x-auto/overflow-y-hidden pattern), so it
+                          just keeps growing sideways as more get added
+                          rather than trying to force everything into the
+                          panel's own height. min-h-0 is what lets a flex
+                          child actually shrink to the space it's given
+                          instead of growing to fit its content. Each cell
+                          is pinned to the images' own 3:4 aspect ratio (via
+                          height, since width is now the free axis) so
                           object-contain fills it exactly — no leftover
                           letterboxing for the rounded corners/outline to
                           look odd around — which is also why nothing gets
                           cropped: cell and image agree on their shape. */}
                       <div
-                        className="grid min-h-0 flex-1 grid-cols-2 overflow-y-auto"
-                        style={{ gap: trackGap, alignContent: "start" }}
+                        className="flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
+                        style={{ gap: trackGap }}
                       >
                         <div
-                          className="relative overflow-hidden rounded-xl"
+                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
                           style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
                         >
                           <Image
@@ -1528,7 +1531,7 @@ export default function Home() {
                           />
                         </div>
                         <div
-                          className="relative overflow-hidden rounded-xl"
+                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
                           style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
                         >
                           <Image
@@ -1539,7 +1542,7 @@ export default function Home() {
                           />
                         </div>
                         <div
-                          className="relative overflow-hidden rounded-xl"
+                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
                           style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
                         >
                           <Image
@@ -1550,7 +1553,7 @@ export default function Home() {
                           />
                         </div>
                         <div
-                          className="relative overflow-hidden rounded-xl"
+                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
                           style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
                         >
                           <Image

@@ -1465,14 +1465,16 @@ export default function Home() {
                 />
               )}
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold" style={unstretch(2)}>
-                BorderX Lab — BeyondStyle
-              </span>
-              <span className="text-sm" style={unstretch(2)}>
-                Content Strategy &amp; GEO
-              </span>
-            </div>
+            {expandedIndex !== 2 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(2)}>
+                  BorderX Lab — BeyondStyle
+                </span>
+                <span className="text-sm" style={unstretch(2)}>
+                  Content Strategy &amp; GEO
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 

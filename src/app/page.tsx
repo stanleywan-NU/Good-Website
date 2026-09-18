@@ -1442,13 +1442,13 @@ export default function Home() {
                   }}
                 >
                   <div
-                    className="flex flex-1 items-center justify-center rounded-2xl text-[15px] font-bold"
+                    className="relative flex-1 overflow-hidden rounded-2xl p-4 text-2xl font-bold"
                     style={{ border: `3px solid ${borderOnBg}` }}
                   >
                     Content
                   </div>
                   <div
-                    className="flex flex-1 items-center justify-center rounded-2xl text-[15px] font-bold"
+                    className="relative flex-1 overflow-hidden rounded-2xl p-4 text-2xl font-bold"
                     style={{ border: `3px solid ${borderOnBg}` }}
                   >
                     GEO

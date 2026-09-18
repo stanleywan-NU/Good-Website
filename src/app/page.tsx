@@ -1442,10 +1442,61 @@ export default function Home() {
                   }}
                 >
                   <div
-                    className="relative flex-1 overflow-hidden rounded-2xl p-4 text-5xl font-bold"
+                    className="relative flex-1 overflow-hidden rounded-2xl p-4"
                     style={{ border: `3px solid ${borderOnBg}` }}
                   >
-                    Content
+                    <div className="flex items-center gap-3">
+                      <span className="text-5xl font-bold">Content</span>
+                      {/* iOS-style app-icon shape (a "squircle" via a large
+                          border-radius percentage) linking out to the
+                          BeyondStyle TikTok — stopping propagation on
+                          mousedown/up keeps this from also triggering the
+                          card's own click-to-collapse, which listens on
+                          window and would otherwise fire from the bubbled
+                          event. The three layered copies of the same glyph,
+                          offset and tinted cyan/pink under a plain white
+                          one, are the standard way to reproduce TikTok's
+                          own glitch-color logo treatment. */}
+                      <a
+                        href="https://www.tiktok.com/@beyondstyle.us"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        aria-label="BeyondStyle on TikTok"
+                        className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden"
+                        style={{ borderRadius: "22%", backgroundColor: "#000" }}
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="24"
+                          height="24"
+                          style={{ position: "absolute", transform: "translate(-1.2px, -1.2px)" }}
+                        >
+                          <path
+                            fill="#25F4EE"
+                            d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z"
+                          />
+                        </svg>
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="24"
+                          height="24"
+                          style={{ position: "absolute", transform: "translate(1.2px, 1.2px)" }}
+                        >
+                          <path
+                            fill="#FE2C55"
+                            d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z"
+                          />
+                        </svg>
+                        <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "relative" }}>
+                          <path
+                            fill="#fff"
+                            d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z"
+                          />
+                        </svg>
+                      </a>
+                    </div>
                   </div>
                   <div
                     className="relative flex-1 overflow-hidden rounded-2xl p-4 text-right text-5xl font-bold"

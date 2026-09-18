@@ -229,6 +229,121 @@ function ExpandableCard({
   );
 }
 
+// The six slides that make up each carousel — the cover plus the rest of
+// its outfits, in the order they actually run in.
+const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
+  {
+    name: "Sadie Sink",
+    images: [
+      "/sadie-sink-carousel-cover.jpg",
+      "/sadie-sink-carousel-2.jpg",
+      "/sadie-sink-carousel-3.jpg",
+      "/sadie-sink-carousel-4.jpg",
+      "/sadie-sink-carousel-5.jpg",
+      "/sadie-sink-carousel-6.jpg",
+    ],
+  },
+  {
+    name: "Caitlin Clark",
+    images: [
+      "/caitlin-clark-carousel-cover.jpg",
+      "/caitlin-clark-carousel-2.jpg",
+      "/caitlin-clark-carousel-3.jpg",
+      "/caitlin-clark-carousel-4.jpg",
+      "/caitlin-clark-carousel-5.jpg",
+      "/caitlin-clark-carousel-6.jpg",
+    ],
+  },
+  {
+    name: "LeBron James",
+    images: [
+      "/lebron-james-carousel-cover.jpg",
+      "/lebron-james-carousel-2.jpg",
+      "/lebron-james-carousel-3.jpg",
+      "/lebron-james-carousel-4.jpg",
+      "/lebron-james-carousel-5.jpg",
+      "/lebron-james-carousel-6.jpg",
+    ],
+  },
+  {
+    name: "Inde Navarrette",
+    images: [
+      "/inde-navarrette-carousel-cover.jpg",
+      "/inde-navarrette-carousel-2.jpg",
+      "/inde-navarrette-carousel-3.jpg",
+      "/inde-navarrette-carousel-4.jpg",
+      "/inde-navarrette-carousel-5.jpg",
+      "/inde-navarrette-carousel-6.jpg",
+    ],
+  },
+];
+
+// An iMessage-style photo stack: every slide is always mounted (never
+// swapped out), each one positioned purely as a function of its own cyclic
+// distance from `current` — so advancing is just one number changing, and
+// the CSS transition on every layer does the rest. The card at distance 0
+// sits flat on top; distances 1-2 fan out tilted and scaled slightly
+// smaller behind it, like a fanned hand of cards; anything further back is
+// parked invisibly at the same spot as distance 2, ready to fade back in
+// once the deck cycles around to it. The one card whose distance just
+// became "the maximum" (it was on top a moment ago) gets its own
+// exaggerated exit — flung off to the side and rotated — which, combined
+// with the next card sliding out of the fan into the flat top spot, is
+// what actually reads as "shuffling through the deck" rather than a
+// cross-fade. onAdvance stops propagation on mousedown/up the same way the
+// TikTok link does, so tapping a deck doesn't also collapse the card.
+function PhotoDeck({
+  images,
+  current,
+  onAdvance,
+  borderColor,
+}: {
+  images: string[];
+  current: number;
+  onAdvance: () => void;
+  borderColor: string;
+}) {
+  const total = images.length;
+  return (
+    <div
+      className="relative h-full shrink-0 cursor-pointer select-none"
+      style={{ aspectRatio: "3 / 4" }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onAdvance();
+      }}
+    >
+      {images.map((src, i) => {
+        const distance = (i - current + total) % total;
+        const justLeft = distance === total - 1;
+        const depth = Math.min(distance, 2);
+        const tilt = depth % 2 === 0 ? 1 : -1;
+        const transform = justLeft
+          ? "translate(72%, 6%) rotate(16deg) scale(0.94)"
+          : `translate(${depth === 0 ? 0 : tilt * 5}px, ${depth * 9}px) rotate(${depth === 0 ? 0 : tilt * 4}deg) scale(${1 - depth * 0.05})`;
+        const visible = justLeft ? false : distance <= 2;
+        return (
+          <div
+            key={src}
+            className="absolute inset-0 overflow-hidden rounded-xl"
+            style={{
+              transform,
+              opacity: visible ? 1 : 0,
+              zIndex: distance === 0 ? total + 1 : justLeft ? total : total - distance,
+              border: `3px solid ${borderColor}`,
+              transition: "transform 450ms cubic-bezier(0.22,0.68,0,1), opacity 300ms ease",
+            }}
+          >
+            <Image src={src} alt="" fill className="object-contain" priority={i === 0} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [progress, setProgress] = useState(0);
@@ -290,6 +405,10 @@ export default function Home() {
   // itself is mid-resize, which is what was reading as "content squishing
   // along with the box."
   const [expandSettled, setExpandSettled] = useState(false);
+  // Which slide is on top of each of the four BorderX photo decks.
+  const [deckIndex, setDeckIndex] = useState<number[]>(() => CAROUSEL_DECKS.map(() => 0));
+  const advanceDeck = (i: number) =>
+    setDeckIndex((prev) => prev.map((v, idx) => (idx === i ? (v + 1) % CAROUSEL_DECKS[idx].images.length : v)));
   // How far each *other* card needs to slide, computed once at the moment
   // a card expands (see the mousedown/mouseup effect below) as exactly the
   // distance the expanding card's own nearest edge travels — so whatever
@@ -1498,71 +1617,33 @@ export default function Home() {
                         </svg>
                       </a>
                       </div>
-                      {/* Carousel covers standing in for the real gallery
-                          this panel will eventually rotate through — a
-                          single row, scrolling horizontally exactly like
-                          the colored boxes in the main track (same
-                          overflow-x-auto/overflow-y-hidden pattern), so it
-                          just keeps growing sideways as more get added
-                          rather than trying to force everything into the
-                          panel's own height. min-h-0 is what lets a flex
-                          child actually shrink to the space it's given
-                          instead of growing to fit its content. Each cell
-                          is pinned to the images' own 3:4 aspect ratio (via
+                      {/* Four iMessage-style photo decks standing in for
+                          the real gallery this panel will eventually
+                          rotate through — a single row, scrolling
+                          horizontally exactly like the colored boxes in
+                          the main track (same overflow-x-auto/
+                          overflow-y-hidden pattern), so it just keeps
+                          growing sideways as more get added rather than
+                          trying to force everything into the panel's own
+                          height. min-h-0 is what lets a flex child
+                          actually shrink to the space it's given instead
+                          of growing to fit its content. Each deck is
+                          pinned to the images' own 3:4 aspect ratio (via
                           height, since width is now the free axis) so
-                          object-contain fills it exactly — no leftover
-                          letterboxing for the rounded corners/outline to
-                          look odd around — which is also why nothing gets
-                          cropped: cell and image agree on their shape. */}
+                          object-contain fills it exactly. */}
                       <div
                         className="flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
                         style={{ gap: trackGap }}
                       >
-                        <div
-                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
-                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
-                        >
-                          <Image
-                            src="/sadie-sink-carousel-cover.jpg"
-                            alt="Sadie Sink's Outfit Rotation carousel cover"
-                            fill
-                            className="object-contain"
-                            priority
+                        {CAROUSEL_DECKS.map((deck, i) => (
+                          <PhotoDeck
+                            key={deck.name}
+                            images={deck.images}
+                            current={deckIndex[i]}
+                            onAdvance={() => advanceDeck(i)}
+                            borderColor={borderOnBg}
                           />
-                        </div>
-                        <div
-                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
-                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
-                        >
-                          <Image
-                            src="/caitlin-clark-carousel-cover.jpg"
-                            alt="Caitlin Clark's Best Tunnel Fits carousel cover"
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
-                        <div
-                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
-                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
-                        >
-                          <Image
-                            src="/lebron-james-carousel-cover.jpg"
-                            alt="LeBron James' Most Iconic Looks carousel cover"
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
-                        <div
-                          className="relative h-full shrink-0 overflow-hidden rounded-xl"
-                          style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
-                        >
-                          <Image
-                            src="/inde-navarrette-carousel-cover.jpg"
-                            alt="Inde Navarrette carousel cover"
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>

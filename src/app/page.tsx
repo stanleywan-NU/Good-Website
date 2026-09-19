@@ -276,6 +276,20 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
       "/inde-navarrette-carousel-6.jpg",
     ],
   },
+  {
+    name: "Mbappe",
+    images: [
+      "/mbappe-carousel-cover.jpg",
+      "/mbappe-carousel-2.jpg",
+      "/mbappe-carousel-3.jpg",
+      "/mbappe-carousel-4.jpg",
+      "/mbappe-carousel-5.jpg",
+      "/mbappe-carousel-6.jpg",
+      "/mbappe-carousel-7.jpg",
+      "/mbappe-carousel-8.jpg",
+      "/mbappe-carousel-9.jpg",
+    ],
+  },
 ];
 
 // An iMessage-style photo stack: every slide is always mounted (never
@@ -336,7 +350,11 @@ function PhotoDeck({
               transition: "transform 450ms cubic-bezier(0.22,0.68,0,1), opacity 300ms ease",
             }}
           >
-            <Image src={src} alt="" fill className="object-contain" priority={i === 0} />
+            {/* object-cover, not contain: the 3px border makes the inner
+                box a hair off the images' 3:4, and contain left a sliver
+                of the panel color showing at the top/bottom. Cover fills
+                it flush and only trims ~1px off an edge. */}
+            <Image src={src} alt="" fill className="object-cover" priority={i === 0} />
           </div>
         );
       })}

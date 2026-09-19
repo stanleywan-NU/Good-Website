@@ -352,6 +352,11 @@ function PhotoDeck({
               zIndex: distance === 0 ? total + 1 : justLeft ? total : total - distance,
               border: `3px solid ${borderColor}`,
               transition: "transform 450ms cubic-bezier(0.22,0.68,0,1), opacity 300ms ease",
+              // Invisible (opacity 0) layers still catch clicks, and the
+              // parked swiped-away card sits 72% off to the left — right
+              // over the neighboring deck — so clicks on that deck were
+              // landing here instead. Only the wrapper should take clicks.
+              pointerEvents: "none",
             }}
           >
             {/* object-cover, not contain: the 3px border makes the inner

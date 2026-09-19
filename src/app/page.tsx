@@ -292,6 +292,51 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
   },
 ];
 
+// The Limitus process, oldest to newest — one slide per stage, each with a
+// short title and a one-line caption, flipped through as a stack.
+const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
+  {
+    src: "/limitus/01-concept-sketch.jpg",
+    title: "Concept sketch",
+    caption: "Stability where a Wrist Widget is too loose, freedom where a post-surgery brace is too stiff.",
+  },
+  {
+    src: "/limitus/02-measured-drawing.jpg",
+    title: "Measured drawing",
+    caption: "Dimensions and materials worked out: a neoprene body with velcro straps.",
+  },
+  {
+    src: "/limitus/03-first-build.jpg",
+    title: "First build",
+    caption: "Cut and assembled from the parts of braces we bought.",
+  },
+  {
+    src: "/limitus/04-prototype-1.jpg",
+    title: "Prototype 1",
+    caption: "Ulnar deviation support, compression, and slight resistance to supination.",
+  },
+  {
+    src: "/limitus/05-revised-sketch.jpg",
+    title: "Revised sketch",
+    caption: "Updated with mentor feedback: the thumb loop came out.",
+  },
+  {
+    src: "/limitus/06-prototype-2.jpg",
+    title: "Prototype 2",
+    caption: "Rebuilt from materials supplied by our mentor.",
+  },
+  {
+    src: "/limitus/07-prototype-3-4.jpg",
+    title: "Prototypes 3 & 4",
+    caption: "One piece instead of a base plus wings, wider straps, D-rings overlapping the fabric.",
+  },
+  {
+    src: "/limitus/08-final.jpg",
+    title: "The final brace",
+    caption: "Compresses the ulna and radius and limits supination.",
+  },
+];
+
 // The Closet articles shown in the GEO panel. Each is a self-contained page
 // served from /public/articles, so the links are ordinary public URLs.
 const GEO_ARTICLES: { title: string; href: string; cover: string }[] = [
@@ -332,12 +377,18 @@ function PhotoDeck({
   onAdvance,
   borderColor,
   layer,
+  aspect = "3 / 4",
+  fit = "cover",
+  background,
 }: {
   images: string[];
   current: number;
   onAdvance: () => void;
   borderColor: string;
   layer: number;
+  aspect?: string;
+  fit?: "cover" | "contain";
+  background?: string;
 }) {
   const total = images.length;
   return (
@@ -348,7 +399,7 @@ function PhotoDeck({
       // its neighbors'. `layer` then orders whole decks against each other:
       // earlier decks sit above later ones, so a swiped-away card — which
       // exits to the left — always slides *behind* the deck beside it.
-      style={{ aspectRatio: "3 / 4", zIndex: layer }}
+      style={{ aspectRatio: aspect, zIndex: layer }}
       onMouseDown={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
       onClick={(e) => {
@@ -378,6 +429,7 @@ function PhotoDeck({
               opacity: visible ? 1 : 0,
               zIndex: distance === 0 ? total + 1 : justLeft ? total : total - distance,
               border: `3px solid ${borderColor}`,
+              background,
               transition: "transform 450ms cubic-bezier(0.22,0.68,0,1), opacity 300ms ease",
               // Invisible (opacity 0) layers still catch clicks, and the
               // parked swiped-away card sits 72% off to the left — right
@@ -390,7 +442,7 @@ function PhotoDeck({
                 box a hair off the images' 3:4, and contain left a sliver
                 of the panel color showing at the top/bottom. Cover fills
                 it flush and only trims ~1px off an edge. */}
-            <Image src={src} alt="" fill className="object-cover" priority={i === 0} />
+            <Image src={src} alt="" fill className={fit === "contain" ? "object-contain" : "object-cover"} priority={i === 0} />
           </div>
         );
       })}
@@ -461,6 +513,7 @@ export default function Home() {
   const [expandSettled, setExpandSettled] = useState(false);
   // Which slide is on top of each of the four BorderX photo decks.
   const [deckIndex, setDeckIndex] = useState<number[]>(() => CAROUSEL_DECKS.map(() => 0));
+  const [limitusStep, setLimitusStep] = useState(0);
   const advanceDeck = (i: number) =>
     setDeckIndex((prev) => prev.map((v, idx) => (idx === i ? (v + 1) % CAROUSEL_DECKS[idx].images.length : v)));
   // How far each *other* card needs to slide, computed once at the moment
@@ -1794,30 +1847,73 @@ export default function Home() {
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
-            <div className="flex flex-1 items-center justify-center overflow-hidden">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
               {expandedIndex === 3 && expandSettled ? (
-                <Image
-                  src="/limitus-brace.png"
-                  alt="Limitus wrist brace prototype"
-                  width={1174}
-                  height={1134}
-                  className="max-h-full max-w-full object-contain"
-                  priority
-                />
+                // The process as a stack you flip through, with the current
+                // stage's title and caption beside it and a row of dots
+                // (also clickable) showing how far along it is.
+                <div className="flex h-full w-full items-stretch" style={{ gap: trackGap + 28, paddingTop: 32 }}>
+                  <PhotoDeck
+                    images={LIMITUS_STEPS.map((step) => step.src)}
+                    current={limitusStep}
+                    onAdvance={() => setLimitusStep((v) => (v + 1) % LIMITUS_STEPS.length)}
+                    borderColor={borderOnBg}
+                    layer={1}
+                    aspect="4 / 5"
+                    fit="contain"
+                    background="#ffffff"
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col justify-between py-2">
+                    <div className="flex flex-col gap-2">
+                      <span className="text-5xl font-bold">Limitus</span>
+                      <span className="text-base">A wrist brace for TFCC tears — five prototypes in five months.</span>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
+                        Step {limitusStep + 1} of {LIMITUS_STEPS.length}
+                      </span>
+                      <span className="text-3xl leading-tight font-bold">{LIMITUS_STEPS[limitusStep].title}</span>
+                      <span className="text-lg leading-snug">{LIMITUS_STEPS[limitusStep].caption}</span>
+                      <div className="mt-2 flex gap-2">
+                        {LIMITUS_STEPS.map((step, i) => (
+                          <button
+                            key={step.src}
+                            type="button"
+                            aria-label={`Go to step ${i + 1}: ${step.title}`}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLimitusStep(i);
+                            }}
+                            className="h-2.5 rounded-full transition-all duration-300"
+                            style={{
+                              width: i === limitusStep ? 28 : 10,
+                              backgroundColor: fg,
+                              opacity: i === limitusStep ? 1 : 0.3,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <span className="text-[13px]" style={unstretch(3)}>
                   [ Wrist brace for TFCC tears ]
                 </span>
               )}
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold" style={unstretch(3)}>
-                Limitus
-              </span>
-              <span className="text-sm" style={unstretch(3)}>
-                Medical Device Design
-              </span>
-            </div>
+            {expandedIndex !== 3 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(3)}>
+                  Limitus
+                </span>
+                <span className="text-sm" style={unstretch(3)}>
+                  Medical Device Design
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 

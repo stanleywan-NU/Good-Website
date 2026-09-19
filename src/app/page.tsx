@@ -292,6 +292,26 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
   },
 ];
 
+// The Closet articles shown in the GEO panel. Each is a self-contained page
+// served from /public/articles, so the links are ordinary public URLs.
+const GEO_ARTICLES: { title: string; href: string; cover: string }[] = [
+  {
+    title: "LeBron James Still Treats The Tunnel Like A Runway",
+    href: "/articles/lebron-james-tunnel-fits.html",
+    cover: "/articles/lebron-james-tunnel-fits-cover.jpg",
+  },
+  {
+    title: "Justin Bieber's Streetwear Rotation Has One Rule",
+    href: "/articles/justin-bieber-streetwear.html",
+    cover: "/articles/justin-bieber-streetwear-cover.jpg",
+  },
+  {
+    title: "Inside the Year's Best Celebrity Couple Style Moments",
+    href: "/articles/celebrity-couple-style-moments.html",
+    cover: "/articles/celebrity-couple-style-moments-cover.jpg",
+  },
+];
+
 // An iMessage-style photo stack: every slide is always mounted (never
 // swapped out), each one positioned purely as a function of its own cyclic
 // distance from `current` — so advancing is just one number changing, and
@@ -1695,10 +1715,53 @@ export default function Home() {
                     </div>
                   </div>
                   <div
-                    className="relative flex-1 overflow-hidden rounded-2xl p-4 text-right text-5xl font-bold"
+                    className="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
                     style={{ border: `3px solid ${borderOnBg}` }}
                   >
-                    GEO
+                    <div className="flex h-full flex-col" style={{ padding: trackGap, gap: trackGap }}>
+                      <div className="flex shrink-0 items-center justify-end">
+                        <span className="text-5xl font-bold">GEO</span>
+                      </div>
+                      {/* Article previews: a cover, the title and the
+                          publication label, opening the full piece in a new
+                          tab. Same single-row, hidden-scrollbar,
+                          clipped-at-the-border setup as the Content decks
+                          so the two halves read as one system. */}
+                      <div
+                        className="no-scrollbar flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
+                        style={{
+                          gap: trackGap + 12,
+                          marginLeft: -trackGap,
+                          marginRight: -trackGap,
+                          paddingLeft: trackGap,
+                          paddingRight: trackGap,
+                        }}
+                      >
+                        {GEO_ARTICLES.map((article) => (
+                          <a
+                            key={article.href}
+                            href={article.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            className="relative block h-full shrink-0 overflow-hidden rounded-xl text-white"
+                            style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
+                          >
+                            <Image src={article.cover} alt="" fill className="object-cover" />
+                            <div
+                              className="absolute inset-x-0 bottom-0 flex flex-col gap-1 px-4 pt-16 pb-4"
+                              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82), rgba(0,0,0,0))" }}
+                            >
+                              <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-80">
+                                The Closet
+                              </span>
+                              <span className="text-lg leading-snug font-bold">{article.title}</span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -1655,7 +1655,19 @@ export default function Home() {
                           object-contain fills it exactly. */}
                       <div
                         className="no-scrollbar flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
-                        style={{ gap: trackGap + 12 }}
+                        // The wrapper's padding insets this row from the
+                        // panel's border, and a scroll container clips at
+                        // its own edge — so scrolled decks were being cut
+                        // along that invisible inset line. Negative margins
+                        // stretch the row out to the border, and the same
+                        // amount of padding puts the resting position back.
+                        style={{
+                          gap: trackGap + 12,
+                          marginLeft: -trackGap,
+                          marginRight: -trackGap,
+                          paddingLeft: trackGap,
+                          paddingRight: trackGap,
+                        }}
                       >
                         {CAROUSEL_DECKS.map((deck, i) => (
                           <PhotoDeck

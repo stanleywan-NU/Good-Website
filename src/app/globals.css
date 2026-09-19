@@ -32,12 +32,14 @@ body {
   cursor: none !important;
 }
 
-.hscroll-track {
+.hscroll-track,
+.no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-.hscroll-track::-webkit-scrollbar {
+.hscroll-track::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 

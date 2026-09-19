@@ -334,8 +334,12 @@ function PhotoDeck({
         const justLeft = distance === total - 1;
         const depth = Math.min(distance, 2);
         const tilt = depth % 2 === 0 ? 1 : -1;
+        // Exits to the left, not the right: a transformed child still counts
+        // toward its scroll container's overflow, and a parked card sitting
+        // 72% off the right of the last deck was what left a blank stretch
+        // after the final deck. Overflow to the left isn't scrollable.
         const transform = justLeft
-          ? "translate(72%, 6%) rotate(16deg) scale(0.94)"
+          ? "translate(-72%, 6%) rotate(-16deg) scale(0.94)"
           : `translate(${depth === 0 ? 0 : tilt * 5}px, ${depth * 9}px) rotate(${depth === 0 ? 0 : tilt * 4}deg) scale(${1 - depth * 0.05})`;
         const visible = justLeft ? false : distance <= 2;
         return (
@@ -1650,8 +1654,8 @@ export default function Home() {
                           height, since width is now the free axis) so
                           object-contain fills it exactly. */}
                       <div
-                        className="flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
-                        style={{ gap: trackGap }}
+                        className="no-scrollbar flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
+                        style={{ gap: trackGap + 12 }}
                       >
                         {CAROUSEL_DECKS.map((deck, i) => (
                           <PhotoDeck

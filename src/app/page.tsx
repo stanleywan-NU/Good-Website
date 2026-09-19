@@ -311,17 +311,24 @@ function PhotoDeck({
   current,
   onAdvance,
   borderColor,
+  layer,
 }: {
   images: string[];
   current: number;
   onAdvance: () => void;
   borderColor: string;
+  layer: number;
 }) {
   const total = images.length;
   return (
     <div
-      className="relative h-full shrink-0 cursor-pointer select-none"
-      style={{ aspectRatio: "3 / 4" }}
+      className="relative isolate h-full shrink-0 cursor-pointer select-none"
+      // `isolate` makes each deck its own stacking context, so a deck's
+      // internal z-indexes (which scale with its slide count) can't fight
+      // its neighbors'. `layer` then orders whole decks against each other:
+      // earlier decks sit above later ones, so a swiped-away card — which
+      // exits to the left — always slides *behind* the deck beside it.
+      style={{ aspectRatio: "3 / 4", zIndex: layer }}
       onMouseDown={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
       onClick={(e) => {
@@ -1681,6 +1688,7 @@ export default function Home() {
                             current={deckIndex[i]}
                             onAdvance={() => advanceDeck(i)}
                             borderColor={borderOnBg}
+                            layer={CAROUSEL_DECKS.length - i}
                           />
                         ))}
                       </div>

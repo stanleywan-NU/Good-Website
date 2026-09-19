@@ -450,6 +450,210 @@ function PhotoDeck({
   );
 }
 
+// Solstice's interactive: drag the sun across an arc and the interior render
+// lights up on the side it's on and falls into shade on the other. It's an
+// illustration of the idea (a sunny "active" half and a shaded "inactive"
+// half), not a real shadow simulation.
+function SolsticeSun({ fg, borderColor, gap }: { fg: string; borderColor: string; gap: number }) {
+  const [t, setT] = useState(0.22);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragging = useRef(false);
+  const moveTo = (clientX: number) => {
+    const el = svgRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = ((clientX - r.left) / r.width) * 240;
+    setT(Math.min(1, Math.max(0, (x - 20) / 200)));
+  };
+  const angle = Math.PI * t;
+  const sunX = 120 - 100 * Math.cos(angle);
+  const sunY = 120 - 100 * Math.sin(angle);
+  const light = `radial-gradient(ellipse 75% 90% at ${t * 100}% -10%, rgba(255,208,110,0.7), rgba(255,208,110,0) 72%)`;
+  const shade = `linear-gradient(90deg, rgba(8,16,48,${0.62 * t}) 0%, rgba(8,16,48,0) 45%, rgba(8,16,48,0) 55%, rgba(8,16,48,${0.62 * (1 - t)}) 100%)`;
+  const status =
+    t < 0.35
+      ? "The sun is low on the left, so the right side of the courtyard sits in shade."
+      : t > 0.65
+        ? "The sun is low on the right, so the left side of the courtyard sits in shade."
+        : "The sun is overhead, so light drops straight through the open strips.";
+
+  return (
+    <div className="flex h-full w-full items-stretch" style={{ gap, paddingTop: 32 }}>
+      <div
+        className="relative min-w-0 flex-[3] self-center overflow-hidden rounded-xl"
+        style={{ aspectRatio: "932 / 600", border: `3px solid ${borderColor}` }}
+      >
+        <Image
+          src="/solstice/interior-render.jpg"
+          alt="Interior render of the Solstice pavilion: bent wooden strips under a mesh canopy above a brick seating mound"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="pointer-events-none absolute inset-0" style={{ background: shade }} />
+        <div className="pointer-events-none absolute inset-0" style={{ background: light }} />
+      </div>
+      <div className="flex min-w-0 flex-[2] flex-col justify-between self-stretch py-2">
+        <div className="flex flex-col gap-2">
+          <span className="text-5xl font-bold">Solstice</span>
+          <span className="text-base">A pavilion for the Perloff Hall courtyard, UCLA AUD summer program.</span>
+        </div>
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">Move the sun</span>
+          <div
+            role="slider"
+            tabIndex={0}
+            aria-label="Sun position"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(t * 100)}
+            className="w-full max-w-[280px] cursor-grab touch-none outline-none active:cursor-grabbing"
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              dragging.current = true;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              moveTo(e.clientX);
+            }}
+            onPointerMove={(e) => {
+              if (dragging.current) moveTo(e.clientX);
+            }}
+            onPointerUp={() => {
+              dragging.current = false;
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") setT((v) => Math.max(0, v - 0.05));
+              if (e.key === "ArrowRight") setT((v) => Math.min(1, v + 0.05));
+            }}
+          >
+            <svg ref={svgRef} viewBox="0 0 240 130" className="block w-full" fill="none">
+              <path d="M20 120A100 100 0 0 1 220 120" stroke={fg} strokeWidth="3" strokeDasharray="2 9" strokeLinecap="round" opacity="0.5" />
+              <line x1="8" y1="120" x2="232" y2="120" stroke={fg} strokeWidth="3" strokeLinecap="round" />
+              <g transform={`translate(${sunX} ${sunY})`}>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <line
+                    key={i}
+                    x1="0"
+                    y1="-17"
+                    x2="0"
+                    y2="-23"
+                    stroke={fg}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    transform={`rotate(${i * 45})`}
+                  />
+                ))}
+                <circle r="11" fill="#ffc83d" stroke={fg} strokeWidth="3" />
+              </g>
+            </svg>
+          </div>
+          <span className="text-lg leading-snug">{status}</span>
+          <span className="text-sm leading-snug opacity-80">
+            Only six of the original fourteen bent strips remain so sunlight can get through, and a mesh over half the
+            structure makes the shaded, quieter half.
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Glodesk's interactive: the desk render with numbered pins; picking a pin
+// (or its row) highlights it and shows what it is.
+const GLODESK_PINS: { x: number; y: number; title: string; text: string }[] = [
+  { x: 72.7, y: 35.6, title: "Control panel", text: "A control panel built right into the desk surface." },
+  { x: 74.6, y: 41.7, title: "Ports", text: "Two ports set in beside the control panel." },
+  { x: 89.2, y: 59.2, title: "Cup holder", text: "A cup holder on an arm at the desk's edge." },
+  { x: 42, y: 80, title: "Under-glow", text: "A warm light strip along the underside." },
+  { x: 71, y: 65.3, title: "Engraving", text: "A Northwestern N and an ornamental border engraved into the wood." },
+];
+
+function GlodeskTour({ fg, borderColor, gap }: { fg: string; borderColor: string; gap: number }) {
+  const [active, setActive] = useState(0);
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  return (
+    <div className="flex h-full w-full items-stretch" style={{ gap, paddingTop: 32 }}>
+      <div
+        className="relative min-w-0 flex-[3] self-center overflow-hidden rounded-xl"
+        style={{ aspectRatio: "908 / 554", border: `3px solid ${borderColor}` }}
+      >
+        <Image
+          src="/glodesk-hero.png"
+          alt="Glodesk adjustable smart desk rendered in a lecture hall"
+          fill
+          className="object-cover"
+          priority
+        />
+        {GLODESK_PINS.map((pin, i) => (
+          <button
+            key={pin.title}
+            type="button"
+            aria-label={`${i + 1}. ${pin.title}`}
+            onMouseDown={stop}
+            onMouseUp={stop}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActive(i);
+            }}
+            className="absolute flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-sm font-bold"
+            style={{
+              left: `${pin.x}%`,
+              top: `${pin.y}%`,
+              border: "3px solid #111",
+              backgroundColor: i === active ? "#111" : "#fff",
+              color: i === active ? "#fff" : "#111",
+              transition: "background-color 200ms, color 200ms",
+            }}
+          >
+            {i === active && (
+              <span className="absolute inset-0 animate-ping rounded-full" style={{ border: "3px solid #fff" }} />
+            )}
+            {i + 1}
+          </button>
+        ))}
+      </div>
+      <div className="flex min-w-0 flex-[2] flex-col justify-between self-stretch py-2">
+        <div className="flex flex-col gap-2">
+          <span className="text-5xl font-bold">Glodesk</span>
+          <span className="text-base">Reimagining workspaces across Northwestern.</span>
+        </div>
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">Tap a pin</span>
+          <div className="flex flex-col gap-1.5">
+            {GLODESK_PINS.map((pin, i) => (
+              <button
+                key={pin.title}
+                type="button"
+                onMouseDown={stop}
+                onMouseUp={stop}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActive(i);
+                }}
+                className="flex items-center gap-3 text-left text-lg font-bold"
+                style={{ opacity: i === active ? 1 : 0.45, transition: "opacity 200ms", color: fg }}
+              >
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs"
+                  style={{
+                    border: `2px solid ${fg}`,
+                    backgroundColor: i === active ? fg : "transparent",
+                    color: i === active ? "var(--background)" : fg,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                {pin.title}
+              </button>
+            ))}
+          </div>
+          <span className="text-lg leading-snug">{GLODESK_PINS[active].text}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [progress, setProgress] = useState(0);
@@ -1929,30 +2133,25 @@ export default function Home() {
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOlive, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
           >
-            <div className="flex flex-1 items-center justify-center overflow-hidden">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
               {expandedIndex === 4 && expandSettled ? (
-                <Image
-                  src="/pavilion-model.png"
-                  alt="Solstice pavilion model — bent wood strips forming an arch over a courtyard"
-                  width={1280}
-                  height={962}
-                  className="max-h-full max-w-full object-contain"
-                  priority
-                />
+                <SolsticeSun fg={fg} borderColor={borderOnBg} gap={trackGap + 28} />
               ) : (
                 <span className="text-[13px]" style={unstretch(4)}>
                   [ UCLA AUD summer pavilion ]
                 </span>
               )}
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold" style={unstretch(4)}>
-                Solstice
-              </span>
-              <span className="text-sm" style={unstretch(4)}>
-                Architecture
-              </span>
-            </div>
+            {expandedIndex !== 4 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(4)}>
+                  Solstice
+                </span>
+                <span className="text-sm" style={unstretch(4)}>
+                  Architecture
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 
@@ -1962,30 +2161,25 @@ export default function Home() {
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelPeriwinkle, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
           >
-            <div className="flex flex-1 items-center justify-center overflow-hidden">
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
               {expandedIndex === 5 && expandSettled ? (
-                <Image
-                  src="/glodesk-hero.png"
-                  alt="Glodesk adjustable smart desk rendered in a lecture hall"
-                  width={908}
-                  height={554}
-                  className="max-h-full max-w-full object-contain"
-                  priority
-                />
+                <GlodeskTour fg={fg} borderColor={borderOnBg} gap={trackGap + 28} />
               ) : (
                 <span className="text-[13px]" style={unstretch(5)}>
                   [ Adjustable smart desk concept ]
                 </span>
               )}
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold" style={unstretch(5)}>
-                Glodesk
-              </span>
-              <span className="text-sm" style={unstretch(5)}>
-                Product Design
-              </span>
-            </div>
+            {expandedIndex !== 5 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(5)}>
+                  Glodesk
+                </span>
+                <span className="text-sm" style={unstretch(5)}>
+                  Product Design
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 

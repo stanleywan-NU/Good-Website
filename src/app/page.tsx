@@ -1899,9 +1899,15 @@ export default function Home() {
                   </div>
                 </div>
               ) : (
-                <span className="text-[13px]" style={unstretch(3)}>
-                  [ Wrist brace for TFCC tears ]
-                </span>
+                <Image
+                  src={isDark ? "/limitus/logo-white.svg" : "/limitus/logo-black.svg"}
+                  alt="Limitus logo"
+                  width={144}
+                  height={144}
+                  unoptimized
+                  className="h-[72px] w-[72px] object-contain"
+                  style={{ filter: pastelIconShadow, ...unstretch(3) }}
+                />
               )}
             </div>
             {expandedIndex !== 3 && (

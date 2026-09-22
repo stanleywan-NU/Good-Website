@@ -1900,7 +1900,10 @@ export default function Home() {
                 </div>
               )}
               {introExpanding && expandSettled && (
-                <span className="intro-subtitle-fade-in mt-14 w-full text-center text-[42px] leading-snug font-normal">
+                <span
+                  className="intro-subtitle-fade-in mt-14 ml-[140px] block text-left leading-[0.95] tracking-tight font-normal"
+                  style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
+                >
                   I am studying Cognitive + Computer Science at Northwestern University
                 </span>
               )}
@@ -1949,7 +1952,10 @@ export default function Home() {
                   </div>
                 )}
                 {introExpanding && expandSettled && (
-                  <span className="intro-subtitle-fade-in mt-14 w-full text-center text-[42px] leading-snug font-normal">
+                  <span
+                  className="intro-subtitle-fade-in mt-14 ml-[140px] block text-left leading-[0.95] tracking-tight font-normal"
+                  style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
+                >
                     I am studying Cognitive + Computer Science at Northwestern University
                   </span>
                 )}

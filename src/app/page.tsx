@@ -1775,7 +1775,7 @@ export default function Home() {
 
             <div className="relative z-10 flex flex-col gap-3" style={introGroupStyle}>
               <span
-                className="text-[34px] leading-none font-normal tracking-tight opacity-70"
+                className="text-[34px] leading-none font-normal tracking-tight"
                 style={introLeadStyle}
               >
                 Hello, my name is
@@ -1808,7 +1808,7 @@ export default function Home() {
             >
               <div className="flex flex-col gap-3" style={introGroupStyle}>
                 <span
-                  className="text-[34px] leading-none font-normal tracking-tight opacity-70"
+                  className="text-[34px] leading-none font-normal tracking-tight"
                   style={introLeadStyle}
                 >
                   Hello, my name is

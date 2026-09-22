@@ -1904,7 +1904,16 @@ export default function Home() {
                   className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
                   style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                 >
-                  I am studying Cognitive + Computer Science at Northwestern University
+                  I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                  <Image
+                    src="/northwestern-thumb.jpg"
+                    alt="N"
+                    width={200}
+                    height={200}
+                    className="inline-block align-baseline rounded-[0.12em]"
+                    style={{ width: "0.82em", height: "0.82em", transform: "translateY(0.06em)" }}
+                  />
+                  orthwestern University
                 </span>
               )}
             </div>
@@ -1953,10 +1962,19 @@ export default function Home() {
                 )}
                 {introExpanding && expandSettled && (
                   <span
-                  className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
-                  style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
-                >
-                    I am studying Cognitive + Computer Science at Northwestern University
+                    className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
+                    style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
+                  >
+                    I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                    <Image
+                      src="/northwestern-thumb.jpg"
+                      alt="N"
+                      width={200}
+                      height={200}
+                      className="inline-block align-baseline rounded-[0.12em]"
+                      style={{ width: "0.82em", height: "0.82em", transform: "translateY(0.06em)" }}
+                    />
+                    orthwestern University
                   </span>
                 )}
               </div>

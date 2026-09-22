@@ -1860,20 +1860,24 @@ export default function Home() {
                 regardless of size. Diameter is 170cqw (cqw, not a plain %,
                 specifically so it shares the same reference box as the
                 clip-path below — see the clipped layer's own comment).
-                Once expanded and settled, `right` goes negative to nudge
-                the whole circle a bit further right than its resting
-                corner anchor — animated on the same clock as the box's
-                own grow/shrink so it lands there right as the box does,
-                rather than jumping. The clip-path's own center below has
-                to be pushed the matching amount or the two-tone split
-                would drift out of registration with the visible circle. */}
+                Once expanded, `right` goes negative to nudge the whole
+                circle a bit further right than its resting corner anchor —
+                deliberately with NO transition of its own. `right`'s value
+                is in cqw, which the browser already recomputes every paint
+                frame as the box's own width transition runs, so it tracks
+                that resize live and lands exactly when the resize does; an
+                explicit `transition: right` here would race that live
+                cqw recompute with its own separately-timed interpolation
+                of the same property, which is what caused the earlier lag
+                and the circle visibly still settling after the box had
+                already stopped. The clip-path's own center below has to
+                move the same way, for the same reason — see its comment. */}
             <div
               aria-hidden
               className="pointer-events-none absolute bottom-0 aspect-square w-[170cqw] translate-x-1/2 translate-y-1/2 rounded-full"
               style={{
                 backgroundColor: pastelYellow,
                 right: introShiftUp ? "-8cqw" : 0,
-                transition: expandTransitionReady ? `right ${EXPAND_DURATION}ms ${EXPAND_EASING}` : "none",
               }}
             />
 
@@ -1907,7 +1911,7 @@ export default function Home() {
                     >
                       <IntroLinkIcon name={link.key} />
                       {link.key === "resume" && (
-                        <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-center text-xs leading-tight font-semibold whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                        <span className="pointer-events-none absolute top-full left-1/2 mt-2 -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-center text-xs leading-tight font-semibold whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                           Download Resume
                         </span>
                       )}
@@ -1921,14 +1925,27 @@ export default function Home() {
                   style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                 >
                   I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                  {/* data-cursor-melt (not onMouseDown/up stopPropagation,
+                      like the other icon links use) is what gives this the
+                      exact same hover-grow/press-shrink the cards get —
+                      the global mousedown/mouseup listeners key off the
+                      *closest* [data-cursor-melt] ancestor, and this anchor
+                      is nested inside the card's own one, so as the closest
+                      match it shadows the card for this element specifically:
+                      no data-card-index on it means neither the expand-
+                      candidate nor the collapse-on-release branch ever
+                      fires from a click here, while the press/release scale
+                      animation still runs. Stopping propagation would have
+                      blocked that animation from ever reaching the listener
+                      at all, which is why this one doesn't do that. */}
                   <a
                     href="https://www.northwestern.edu/"
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Northwestern University"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    className="inline-block align-baseline no-underline"
+                    data-cursor-melt
+                    className="inline-block align-baseline no-underline transition-transform duration-200 ease-out hover:scale-[1.035]"
+                    style={{ textDecoration: "none" }}
                   >
                     <Image
                       src="/northwestern-thumb.jpg"
@@ -1950,10 +1967,10 @@ export default function Home() {
                 of the circle's own 170cqw diameter, centered at the same
                 corner the circle div is, so it tracks the visible circle
                 exactly regardless of the box's actual rendered size — its
-                center-x has to shift in step with that div's own `right`
-                nudge once expanded, on the same transition, or the
-                two-tone split drifts out of registration with the circle
-                mid-animation. Percentages in clip-path's circle() resolve
+                center-x shifts the same amount that div's own `right`
+                does once expanded, deliberately with no transition of its
+                own, for the same reason that div has none — see its
+                comment. Percentages in clip-path's circle() resolve
                 against the box's *diagonal*, not its width, which is why
                 this needs cqw at all rather than a plain percentage
                 matching the circle above. */}
@@ -1962,7 +1979,6 @@ export default function Home() {
               className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center p-10"
               style={{
                 clipPath: `circle(85cqw at ${introShiftUp ? "108%" : "100%"} 100%)`,
-                transition: expandTransitionReady ? `clip-path ${EXPAND_DURATION}ms ${EXPAND_EASING}` : "none",
                 color: coveredColor,
                 textShadow: coveredTextShadow,
               }}

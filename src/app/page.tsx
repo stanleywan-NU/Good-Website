@@ -347,8 +347,8 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
 // done for free with vector icons.
 const INTRO_LINKS: { key: string; label: string; href: string; external: boolean }[] = [
   { key: "email", label: "Email", href: "mailto:stanleywan2007@gmail.com", external: false },
-  { key: "github", label: "GitHub", href: "https://github.com/", external: true },
-  { key: "linkedin", label: "LinkedIn", href: "https://linkedin.com/", external: true },
+  { key: "github", label: "GitHub", href: "https://github.com/stanleywan-NU", external: true },
+  { key: "linkedin", label: "LinkedIn", href: "https://www.linkedin.com/in/stanleywan2007", external: true },
   { key: "resume", label: "Resume", href: "/resume.pdf", external: true },
 ];
 

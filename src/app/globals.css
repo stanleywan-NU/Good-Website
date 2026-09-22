@@ -136,3 +136,22 @@ body {
 .intro-square-pop {
   animation: intro-square-pop 300ms both;
 }
+
+/* The intro card's "I am studying..." line only ever mounts once
+   (conditionally rendered on expandSettled, see page.tsx), so a plain
+   animation-on-mount is enough here — no JS-driven opacity state needed,
+   unlike the reveal above which has to track a live pointer position. */
+@keyframes intro-subtitle-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.intro-subtitle-fade-in {
+  animation: intro-subtitle-fade-in 500ms ease-out both;
+}

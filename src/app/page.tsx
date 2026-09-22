@@ -1597,12 +1597,50 @@ export default function Home() {
   // shrinks both axes of each glyph equally while the ambient scaleY
   // squash above only touches one, cancelling that squash the same way
   // `unstretch` does nets out to the text simply being smaller, not warped.
-  const introGroupStyle: React.CSSProperties =
-    expandedIndex === 0 ? {} : { transform: `scaleY(${1 / cardScale})` };
+  //
+  // Expanding card 0 retires that squash-cancelling job and gives the
+  // group a second one: sliding from dead-center (its normal resting spot)
+  // up to a fixed perch near the top of the box, on release sliding back
+  // down. It's absolutely positioned (not just left as a centered flex
+  // child) specifically so `top`/`transform` are things a CSS transition
+  // can actually animate — `justify-content` can't be. `expandGrown`, not
+  // `expandedIndex`, gates the "up" position so the slide rides the same
+  // 1500ms as the box's own grow/shrink, in step with it rather than
+  // ahead of or behind it; `expandTransitionReady` gates the transition
+  // itself for the same phantom-transition reason documented above
+  // `expandTransitionReady`'s own declaration.
+  const introExpanding = expandedIndex === 0;
+  const introShiftUp = introExpanding && expandGrown;
+  const introGroupStyle: React.CSSProperties = {
+    // 40, matching p-10 — both ancestors (the card itself, and the z-20
+    // overlay's own wrapper) carry p-10, but an absolutely positioned
+    // child is positioned against its containing block's *padding box*,
+    // whose edges sit right at the border, padding included in the box
+    // but not offset from — so left/right/top: 0 here would land flush
+    // with the border, skipping the padding it looks like it should
+    // already account for. Repeating the 40 is what actually reproduces
+    // it. The shifted-up top gets a further 44 (84 total) to clear the
+    // chrome pill straddling the box's top border — more than the plain
+    // 32 other cards' own (normal-flow, correctly-padded) expanded
+    // content adds on top of *their* padding, since 40+32 alone still
+    // landed the name half a line under the pill.
+    position: "absolute",
+    left: 40,
+    right: 40,
+    top: introShiftUp ? 84 : "50%",
+    transform: introShiftUp
+      ? "translateY(0)"
+      : introExpanding
+        ? "translateY(-50%)"
+        : `translateY(-50%) scaleY(${1 / cardScale})`,
+    transition: expandTransitionReady
+      ? `top ${EXPAND_DURATION}ms ${EXPAND_EASING}, transform ${EXPAND_DURATION}ms ${EXPAND_EASING}`
+      : "none",
+  };
   const introLeadStyle: React.CSSProperties =
-    expandedIndex === 0 ? {} : { fontSize: 34 * cardScale };
+    introExpanding ? {} : { fontSize: 34 * cardScale };
   const introNameStyle: React.CSSProperties =
-    expandedIndex === 0 ? {} : { fontSize: 124 * cardScale };
+    introExpanding ? {} : { fontSize: 124 * cardScale };
 
   return (
     <div
@@ -1773,19 +1811,26 @@ export default function Home() {
               style={{ backgroundColor: pastelYellow }}
             />
 
-            <div className="relative z-10 flex flex-col gap-3" style={introGroupStyle}>
-              <span
-                className="text-[34px] leading-none font-normal tracking-tight"
-                style={introLeadStyle}
-              >
-                Hello, my name is
-              </span>
+            <div className="z-10 flex flex-col gap-3" style={introGroupStyle}>
+              {!introExpanding && (
+                <span
+                  className="text-[34px] leading-none font-normal tracking-tight"
+                  style={introLeadStyle}
+                >
+                  Hello, my name is
+                </span>
+              )}
               <h1
                 className="m-0 text-[124px] leading-[0.88] font-bold tracking-tighter"
                 style={introNameStyle}
               >
                 Stanley Wan.
               </h1>
+              {introExpanding && expandSettled && (
+                <span className="intro-subtitle-fade-in text-[30px] leading-snug font-normal">
+                  I am studying Cognitive + Computer Science at Northwestern University
+                </span>
+              )}
             </div>
 
             {/* An exact duplicate of the text above, recolored (white in
@@ -1807,18 +1852,25 @@ export default function Home() {
               }}
             >
               <div className="flex flex-col gap-3" style={introGroupStyle}>
-                <span
-                  className="text-[34px] leading-none font-normal tracking-tight"
-                  style={introLeadStyle}
-                >
-                  Hello, my name is
-                </span>
+                {!introExpanding && (
+                  <span
+                    className="text-[34px] leading-none font-normal tracking-tight"
+                    style={introLeadStyle}
+                  >
+                    Hello, my name is
+                  </span>
+                )}
                 <h1
                   className="m-0 text-[124px] leading-[0.88] font-bold tracking-tighter"
                   style={introNameStyle}
                 >
                   Stanley Wan.
                 </h1>
+                {introExpanding && expandSettled && (
+                  <span className="intro-subtitle-fade-in text-[30px] leading-snug font-normal">
+                    I am studying Cognitive + Computer Science at Northwestern University
+                  </span>
+                )}
               </div>
             </div>
           </ExpandableCard>

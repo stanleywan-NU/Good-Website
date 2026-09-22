@@ -1597,10 +1597,12 @@ export default function Home() {
   // shrinks both axes of each glyph equally while the ambient scaleY
   // squash above only touches one, cancelling that squash the same way
   // `unstretch` does nets out to the text simply being smaller, not warped.
-  const introHeadingStyle: React.CSSProperties =
-    expandedIndex === 0
-      ? {}
-      : { fontSize: 76 * cardScale, transform: `scaleY(${1 / cardScale})` };
+  const introGroupStyle: React.CSSProperties =
+    expandedIndex === 0 ? {} : { transform: `scaleY(${1 / cardScale})` };
+  const introLeadStyle: React.CSSProperties =
+    expandedIndex === 0 ? {} : { fontSize: 34 * cardScale };
+  const introNameStyle: React.CSSProperties =
+    expandedIndex === 0 ? {} : { fontSize: 124 * cardScale };
 
   return (
     <div
@@ -1771,12 +1773,18 @@ export default function Home() {
               style={{ backgroundColor: pastelYellow }}
             />
 
-            <div className="relative z-10 flex flex-col gap-5">
-              <h1
-                className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight"
-                style={introHeadingStyle}
+            <div className="relative z-10 flex flex-col gap-3" style={introGroupStyle}>
+              <span
+                className="text-[34px] leading-none font-normal tracking-tight opacity-70"
+                style={introLeadStyle}
               >
-                Hello, my name is <span className="font-bold">Stanley Wan</span>.
+                Hello, my name is
+              </span>
+              <h1
+                className="m-0 text-[124px] leading-[0.88] font-bold tracking-tighter"
+                style={introNameStyle}
+              >
+                Stanley Wan.
               </h1>
             </div>
 
@@ -1791,19 +1799,27 @@ export default function Home() {
                 than a plain percentage matching the circle above. */}
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center gap-5 p-10"
+              className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center p-10"
               style={{
                 clipPath: "circle(85cqw at 100% 100%)",
                 color: coveredColor,
                 textShadow: coveredTextShadow,
               }}
             >
-              <h1
-                className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight"
-                style={introHeadingStyle}
-              >
-                Hello, my name is <span className="font-bold">Stanley Wan</span>.
-              </h1>
+              <div className="flex flex-col gap-3" style={introGroupStyle}>
+                <span
+                  className="text-[34px] leading-none font-normal tracking-tight opacity-70"
+                  style={introLeadStyle}
+                >
+                  Hello, my name is
+                </span>
+                <h1
+                  className="m-0 text-[124px] leading-[0.88] font-bold tracking-tighter"
+                  style={introNameStyle}
+                >
+                  Stanley Wan.
+                </h1>
+              </div>
             </div>
           </ExpandableCard>
         </div>

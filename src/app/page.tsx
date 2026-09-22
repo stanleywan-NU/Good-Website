@@ -2013,12 +2013,22 @@ export default function Home() {
                     style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                   >
                     I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                    {/* invisible, not omitted — this logo is a fixed-color
+                        badge, not text, so it never needed the two-tone
+                        recolor this duplicate exists to give everything
+                        else; painting a second copy of it here just sat on
+                        top of the real, interactive one (z-20 over z-10)
+                        wherever the circle mask reached it, which is what
+                        looked like a stray duplicate logo. `invisible`
+                        keeps its footprint so "orthwestern University"
+                        still lines up with the real copy, without
+                        painting a static double over the real button. */}
                     <Image
                       src="/northwestern-thumb.jpg"
-                      alt="N"
+                      alt=""
                       width={200}
                       height={200}
-                      className="inline-block align-baseline rounded-[0.12em]"
+                      className="invisible inline-block align-baseline rounded-[0.12em]"
                       style={{ width: "0.82em", height: "0.82em", transform: "translateY(0.06em)" }}
                     />
                     orthwestern University

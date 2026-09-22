@@ -2013,23 +2013,21 @@ export default function Home() {
                     style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                   >
                     I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
-                    {/* invisible, not omitted — this logo is a fixed-color
-                        badge, not text, so it never needed the two-tone
-                        recolor this duplicate exists to give everything
-                        else; painting a second copy of it here just sat on
-                        top of the real, interactive one (z-20 over z-10)
-                        wherever the circle mask reached it, which is what
-                        looked like a stray duplicate logo. `invisible`
-                        keeps its footprint so "orthwestern University"
-                        still lines up with the real copy, without
-                        painting a static double over the real button. */}
-                    <Image
-                      src="/northwestern-thumb.jpg"
-                      alt=""
-                      width={200}
-                      height={200}
-                      className="invisible inline-block align-baseline rounded-[0.12em]"
-                      style={{ width: "0.82em", height: "0.82em", transform: "translateY(0.06em)" }}
+                    {/* A plain spacer, not the logo — this logo is a
+                        fixed-color badge, not text, so it never needed the
+                        two-tone recolor this duplicate layer exists to give
+                        everything else; an actual second <img> here, even
+                        made invisible, was still a real image element
+                        sitting on top of the real, interactive one (z-20
+                        over z-10) wherever the circle mask reached it. A
+                        bare sized span can't do that — it's not an image at
+                        all — while still holding the same width/height so
+                        "orthwestern University" lines up with the real
+                        copy. */}
+                    <span
+                      aria-hidden
+                      className="inline-block align-baseline"
+                      style={{ width: "0.82em", height: "0.82em" }}
                     />
                     orthwestern University
                   </span>

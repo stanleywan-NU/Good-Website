@@ -1901,7 +1901,7 @@ export default function Home() {
               )}
               {introExpanding && expandSettled && (
                 <span
-                  className="intro-subtitle-fade-in mt-14 ml-[140px] block text-left leading-[0.95] tracking-tight font-normal"
+                  className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
                   style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                 >
                   I am studying Cognitive + Computer Science at Northwestern University
@@ -1953,7 +1953,7 @@ export default function Home() {
                 )}
                 {introExpanding && expandSettled && (
                   <span
-                  className="intro-subtitle-fade-in mt-14 ml-[140px] block text-left leading-[0.95] tracking-tight font-normal"
+                  className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
                   style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                 >
                     I am studying Cognitive + Computer Science at Northwestern University

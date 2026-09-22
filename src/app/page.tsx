@@ -1969,6 +1969,63 @@ export default function Home() {
               )}
             </div>
 
+            {/* Scroll cue for the work-experience section below, scoped to
+                this card specifically (not the whole hero) — only while
+                it's the one expanded. A click, not a wheel-scroll
+                invitation the page could actually honor natively: the
+                hero's own wheel handler (see the [data-cursor-melt]-scoped
+                effect above) captures every wheel event over the hero and
+                redirects it to the horizontal card track, so an ordinary
+                scroll gesture never reaches the section beneath. z-30, not
+                z-10 like the content group above it, so it stays clickable
+                and visible above the z-20 circle overlay regardless of
+                where in the card it happens to land. No onMouseDown/up
+                stopPropagation, same reasoning as the Northwestern link
+                above: data-cursor-melt's own closest-match scoping already
+                keeps this click from also collapsing the card, and
+                stopping propagation here would have blocked the press
+                animation from ever reaching the listener that drives it.
+                The click handler collapses the card *before* scrolling,
+                on a timer matching EXPAND_DURATION — an expanded card is
+                `position: fixed` (see getExpandStyle), which stays glued
+                to the viewport regardless of document scroll, so scrolling
+                straight to the section while still expanded would move
+                the page with no visible effect: the fixed card, still
+                covering the whole view, would hide it just the same. */}
+            {introExpanding && expandSettled && (
+              <button
+                type="button"
+                aria-label="Scroll to work experience"
+                onClick={() => {
+                  collapseExpanded();
+                  window.setTimeout(() => {
+                    workExperienceRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }, EXPAND_DURATION);
+                }}
+                data-cursor-melt
+                className="intro-subtitle-fade-in absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center p-2"
+                style={{ color: fg }}
+              >
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="animate-bounce -mt-3"
+                  style={{ animationDelay: "150ms" }}
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            )}
+
             {/* An exact duplicate of the text above, recolored (white in
                 light mode, black in dark — the opposite of fg, not a shade
                 of it) and clipped to the same circle geometry: 85cqw = half
@@ -2455,46 +2512,6 @@ export default function Home() {
           </ExpandableCard>
         </div>
       </div>
-
-      {/* Scroll cue for the work-experience section below — a click, not a
-          wheel-scroll invitation the page could actually honor natively:
-          the hero's own wheel handler (see the [data-cursor-melt]-scoped
-          effect above) captures every wheel event over the hero and
-          redirects it to the horizontal card track, so an ordinary scroll
-          gesture never reaches the section beneath. Hidden once a card is
-          expanded (nothing to scroll to from there) or before the intro
-          chrome has appeared (matches the toggle pill's own gating). */}
-      <button
-        type="button"
-        aria-label="Scroll to work experience"
-        onClick={() => workExperienceRef.current?.scrollIntoView({ behavior: "smooth" })}
-        data-cursor-melt
-        className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center p-2"
-        style={{
-          opacity: chromeVisible && expandedIndex === null ? 0.7 : 0,
-          pointerEvents: chromeVisible && expandedIndex === null ? "auto" : "none",
-          transition: "opacity 300ms ease-out",
-          color: fg,
-        }}
-      >
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-        <svg
-          viewBox="0 0 24 24"
-          width="22"
-          height="22"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="animate-bounce -mt-3"
-          style={{ animationDelay: "150ms" }}
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
 
       {/* Invisible click-catcher covering everything else while a card is
           expanded — sits above the toggle chrome and the (now-gapped)

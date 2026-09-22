@@ -1855,15 +1855,26 @@ export default function Home() {
             className={`${cardBox} relative justify-center overflow-hidden @container`}
             style={{ borderColor: borderOnBg, backgroundColor: bg, ...getExpandStyle(0) }}
           >
-            {/* Decorative only — centered exactly on the box's corner via
-                right/bottom 0 plus a self-translate, so it stays anchored
-                there regardless of size. Diameter is 170cqw (cqw, not a
-                plain %, specifically so it shares the same reference box as
-                the clip-path below — see the clipped layer's own comment). */}
+            {/* Decorative only — centered on the box's corner via right/
+                bottom 0 plus a self-translate, so it stays anchored there
+                regardless of size. Diameter is 170cqw (cqw, not a plain %,
+                specifically so it shares the same reference box as the
+                clip-path below — see the clipped layer's own comment).
+                Once expanded and settled, `right` goes negative to nudge
+                the whole circle a bit further right than its resting
+                corner anchor — animated on the same clock as the box's
+                own grow/shrink so it lands there right as the box does,
+                rather than jumping. The clip-path's own center below has
+                to be pushed the matching amount or the two-tone split
+                would drift out of registration with the visible circle. */}
             <div
               aria-hidden
-              className="pointer-events-none absolute right-0 bottom-0 aspect-square w-[170cqw] translate-x-1/2 translate-y-1/2 rounded-full"
-              style={{ backgroundColor: pastelYellow }}
+              className="pointer-events-none absolute bottom-0 aspect-square w-[170cqw] translate-x-1/2 translate-y-1/2 rounded-full"
+              style={{
+                backgroundColor: pastelYellow,
+                right: introShiftUp ? "-8cqw" : 0,
+                transition: expandTransitionReady ? `right ${EXPAND_DURATION}ms ${EXPAND_EASING}` : "none",
+              }}
             />
 
             <div className="z-10 flex flex-col gap-3" style={introGroupStyle}>
@@ -1881,8 +1892,8 @@ export default function Home() {
               >
                 Stanley Wan.
               </h1>
-              {introExpanding && (
-                <div className="mt-1 flex items-center gap-6">
+              {introExpanding && expandSettled && (
+                <div className="intro-subtitle-fade-in mt-1 flex items-center gap-6">
                   {INTRO_LINKS.map((link) => (
                     <a
                       key={link.key}
@@ -1917,7 +1928,7 @@ export default function Home() {
                     aria-label="Northwestern University"
                     onMouseDown={(e) => e.stopPropagation()}
                     onMouseUp={(e) => e.stopPropagation()}
-                    className="inline-block align-baseline"
+                    className="inline-block align-baseline no-underline"
                   >
                     <Image
                       src="/northwestern-thumb.jpg"
@@ -1937,16 +1948,21 @@ export default function Home() {
                 light mode, black in dark — the opposite of fg, not a shade
                 of it) and clipped to the same circle geometry: 85cqw = half
                 of the circle's own 170cqw diameter, centered at the same
-                100% 100% corner, so it tracks the visible circle exactly
-                regardless of the box's actual rendered size. Percentages in
-                clip-path's circle() resolve against the box's *diagonal*,
-                not its width, which is why this needs cqw at all rather
-                than a plain percentage matching the circle above. */}
+                corner the circle div is, so it tracks the visible circle
+                exactly regardless of the box's actual rendered size — its
+                center-x has to shift in step with that div's own `right`
+                nudge once expanded, on the same transition, or the
+                two-tone split drifts out of registration with the circle
+                mid-animation. Percentages in clip-path's circle() resolve
+                against the box's *diagonal*, not its width, which is why
+                this needs cqw at all rather than a plain percentage
+                matching the circle above. */}
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-center p-10"
               style={{
-                clipPath: "circle(85cqw at 100% 100%)",
+                clipPath: `circle(85cqw at ${introShiftUp ? "108%" : "100%"} 100%)`,
+                transition: expandTransitionReady ? `clip-path ${EXPAND_DURATION}ms ${EXPAND_EASING}` : "none",
                 color: coveredColor,
                 textShadow: coveredTextShadow,
               }}
@@ -1966,8 +1982,8 @@ export default function Home() {
                 >
                   Stanley Wan.
                 </h1>
-                {introExpanding && (
-                  <div className="mt-1 flex items-center gap-6">
+                {introExpanding && expandSettled && (
+                  <div className="intro-subtitle-fade-in mt-1 flex items-center gap-6">
                     {INTRO_LINKS.map((link) => (
                       <span key={link.key} className="block h-8 w-8 opacity-80">
                         <IntroLinkIcon name={link.key} />

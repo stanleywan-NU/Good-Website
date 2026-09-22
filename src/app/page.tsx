@@ -1892,9 +1892,14 @@ export default function Home() {
                       rel={link.external ? "noopener noreferrer" : undefined}
                       onMouseDown={(e) => e.stopPropagation()}
                       onMouseUp={(e) => e.stopPropagation()}
-                      className="block h-8 w-8 opacity-80 transition-opacity hover:opacity-100"
+                      className="group relative block h-8 w-8 opacity-80 transition-opacity hover:opacity-100"
                     >
                       <IntroLinkIcon name={link.key} />
+                      {link.key === "resume" && (
+                        <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-center text-xs leading-tight font-semibold whitespace-nowrap text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                          Download Resume
+                        </span>
+                      )}
                     </a>
                   ))}
                 </div>
@@ -1905,14 +1910,24 @@ export default function Home() {
                   style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                 >
                   I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
-                  <Image
-                    src="/northwestern-thumb.jpg"
-                    alt="N"
-                    width={200}
-                    height={200}
-                    className="inline-block align-baseline rounded-[0.12em]"
-                    style={{ width: "0.82em", height: "0.82em", transform: "translateY(0.06em)" }}
-                  />
+                  <a
+                    href="https://www.northwestern.edu/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Northwestern University"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    className="inline-block align-baseline"
+                  >
+                    <Image
+                      src="/northwestern-thumb.jpg"
+                      alt="N"
+                      width={200}
+                      height={200}
+                      className="inline-block rounded-[0.12em]"
+                      style={{ width: "0.82em", height: "0.82em", transform: "translateY(0.06em)" }}
+                    />
+                  </a>
                   orthwestern University
                 </span>
               )}

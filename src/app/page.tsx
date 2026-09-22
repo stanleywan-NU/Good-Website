@@ -791,6 +791,13 @@ export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
+  // The placeholder section below the hero — the bouncing down-arrows
+  // scroll to it directly rather than relying on wheel input reaching it
+  // natively, since the hero's own wheel handler (see the [data-cursor-
+  // melt]-scoped one further down) captures and redirects wheel events to
+  // the horizontal card track for anywhere over the hero, leaving no path
+  // for an ordinary scroll gesture to ever reach whatever's below it.
+  const workExperienceRef = useRef<HTMLDivElement>(null);
   // The currently in-flight theme reveal, if any — lets a new click skip it
   // early (see toggleTheme) instead of being blocked until it finishes on
   // its own, which read as a cooldown on rapid successive clicks.
@@ -1698,6 +1705,7 @@ export default function Home() {
     introExpanding ? {} : { fontSize: 124 * cardScale };
 
   return (
+    <>
     <div
       ref={rootRef}
       className="relative h-screen w-full overflow-hidden font-sans"
@@ -2448,6 +2456,46 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Scroll cue for the work-experience section below — a click, not a
+          wheel-scroll invitation the page could actually honor natively:
+          the hero's own wheel handler (see the [data-cursor-melt]-scoped
+          effect above) captures every wheel event over the hero and
+          redirects it to the horizontal card track, so an ordinary scroll
+          gesture never reaches the section beneath. Hidden once a card is
+          expanded (nothing to scroll to from there) or before the intro
+          chrome has appeared (matches the toggle pill's own gating). */}
+      <button
+        type="button"
+        aria-label="Scroll to work experience"
+        onClick={() => workExperienceRef.current?.scrollIntoView({ behavior: "smooth" })}
+        data-cursor-melt
+        className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center p-2"
+        style={{
+          opacity: chromeVisible && expandedIndex === null ? 0.7 : 0,
+          pointerEvents: chromeVisible && expandedIndex === null ? "auto" : "none",
+          transition: "opacity 300ms ease-out",
+          color: fg,
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+        <svg
+          viewBox="0 0 24 24"
+          width="22"
+          height="22"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="animate-bounce -mt-3"
+          style={{ animationDelay: "150ms" }}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
       {/* Invisible click-catcher covering everything else while a card is
           expanded — sits above the toggle chrome and the (now-gapped)
           track, below the expanded card itself. Clicking it collapses, same
@@ -2474,5 +2522,16 @@ export default function Home() {
         }}
       />
     </div>
+
+    {/* Placeholder for a work-experience summary — deliberately blank for
+        now. min-h-screen (not h-screen) so it can grow taller than one
+        viewport once it has real content, without needing to come back
+        and change this. The hero above is a fixed h-screen with its own
+        overflow-hidden, so this being an ordinary sibling in normal flow
+        is what gives the page as a whole any scrollable height at all —
+        nothing needed on html/body for that, they're unconstrained by
+        default. */}
+    <section ref={workExperienceRef} className="min-h-screen w-full" style={{ backgroundColor: bg }} />
+    </>
   );
 }

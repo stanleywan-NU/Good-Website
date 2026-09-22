@@ -339,6 +339,19 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
 
 // The Closet articles shown in the GEO panel. Each is a self-contained page
 // served from /public/articles, so the links are ordinary public URLs.
+// The intro card's expanded-only row of contact links. Each icon ships as
+// a pre-cropped black and white PNG (see public/icons/) rather than an
+// inline SVG using `currentColor`, since they started life as flat raster
+// crops off the user's own icon sheet — picking the light/dark variant by
+// `isDark` at render time is what a `color: currentColor` swap would have
+// done for free with vector icons.
+const INTRO_LINKS: { key: string; label: string; href: string; external: boolean }[] = [
+  { key: "email", label: "Email", href: "mailto:stanleywan2007@gmail.com", external: false },
+  { key: "github", label: "GitHub", href: "https://github.com/", external: true },
+  { key: "linkedin", label: "LinkedIn", href: "https://linkedin.com/", external: true },
+  { key: "resume", label: "Resume", href: "/resume.pdf", external: true },
+];
+
 const GEO_ARTICLES: { title: string; href: string; cover: string }[] = [
   {
     title: "LeBron James Still Treats The Tunnel Like A Runway",
@@ -1826,8 +1839,33 @@ export default function Home() {
               >
                 Stanley Wan.
               </h1>
+              {introExpanding && (
+                <div className="mt-1 flex items-center gap-6">
+                  {INTRO_LINKS.map((link) => (
+                    <a
+                      key={link.key}
+                      href={link.href}
+                      aria-label={link.label}
+                      target={link.external ? "_blank" : undefined}
+                      rel={link.external ? "noopener noreferrer" : undefined}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseUp={(e) => e.stopPropagation()}
+                      className="block h-10 w-10 opacity-80 transition-opacity hover:opacity-100"
+                    >
+                      <Image
+                        src={`/icons/${link.key}-${isDark ? "white" : "black"}.png`}
+                        alt={link.label}
+                        width={64}
+                        height={64}
+                        unoptimized
+                        className="h-full w-full object-contain"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
               {introExpanding && expandSettled && (
-                <span className="intro-subtitle-fade-in text-[30px] leading-snug font-normal">
+                <span className="intro-subtitle-fade-in mt-14 w-full text-center text-[42px] leading-snug font-normal">
                   I am studying Cognitive + Computer Science at Northwestern University
                 </span>
               )}
@@ -1866,8 +1904,24 @@ export default function Home() {
                 >
                   Stanley Wan.
                 </h1>
+                {introExpanding && (
+                  <div className="mt-1 flex items-center gap-6">
+                    {INTRO_LINKS.map((link) => (
+                      <span key={link.key} className="block h-10 w-10 opacity-80">
+                        <Image
+                          src={`/icons/${link.key}-${isDark ? "black" : "white"}.png`}
+                          alt=""
+                          width={64}
+                          height={64}
+                          unoptimized
+                          className="h-full w-full object-contain"
+                        />
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {introExpanding && expandSettled && (
-                  <span className="intro-subtitle-fade-in text-[30px] leading-snug font-normal">
+                  <span className="intro-subtitle-fade-in mt-14 w-full text-center text-[42px] leading-snug font-normal">
                     I am studying Cognitive + Computer Science at Northwestern University
                   </span>
                 )}

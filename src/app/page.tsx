@@ -1776,8 +1776,7 @@ export default function Home() {
                 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight"
                 style={introHeadingStyle}
               >
-                <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}
-                <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.
+                Hello, my name is <span className="font-bold">Stanley Wan</span>.
               </h1>
             </div>
 
@@ -1803,8 +1802,7 @@ export default function Home() {
                 className="m-0 text-[76px] leading-[0.98] font-normal tracking-tight"
                 style={introHeadingStyle}
               >
-                <span className="font-bold">Stanley Wan</span> is an interdisciplinary{" "}
-                <span className="font-bold">designer</span> studying cognitive and computer science at Northwestern.
+                Hello, my name is <span className="font-bold">Stanley Wan</span>.
               </h1>
             </div>
           </ExpandableCard>

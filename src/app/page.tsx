@@ -1953,7 +1953,7 @@ export default function Home() {
                       width={200}
                       height={200}
                       className="inline-block rounded-[0.12em]"
-                      style={{ width: "0.82em", height: "0.82em", transform: "translateY(0.06em)" }}
+                      style={{ width: "0.82em", height: "0.82em", transform: "translateY(-0.02em)" }}
                     />
                   </a>
                   orthwestern University

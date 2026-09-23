@@ -1895,7 +1895,7 @@ export default function Home() {
                   className="text-[34px] leading-none font-normal tracking-tight"
                   style={introLeadStyle}
                 >
-                  Hello, my name is
+                  Hi, my name is
                 </span>
               )}
               <h1
@@ -1932,7 +1932,7 @@ export default function Home() {
                   className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
                   style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                 >
-                  I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                  I&apos;m studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
                   {/* data-cursor-melt (not onMouseDown/up stopPropagation,
                       like the other icon links use) is what gives this the
                       exact same hover-grow/press-shrink the cards get —
@@ -2054,7 +2054,7 @@ export default function Home() {
                     className="text-[34px] leading-none font-normal tracking-tight"
                     style={introLeadStyle}
                   >
-                    Hello, my name is
+                    Hi, my name is
                   </span>
                 )}
                 <h1
@@ -2077,7 +2077,7 @@ export default function Home() {
                     className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
                     style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                   >
-                    I am studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                    I&apos;m studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
                     {/* A plain spacer, not the logo — this logo is a
                         fixed-color badge, not text, so it never needed the
                         two-tone recolor this duplicate layer exists to give

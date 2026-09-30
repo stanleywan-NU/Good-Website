@@ -28,8 +28,6 @@ const PASTEL_GREEN = "#a8e0b8";
 const PASTEL_GREEN_DARK = "#5fa878";
 const PASTEL_ORANGE = "#ffcfa0";
 const PASTEL_ORANGE_DARK = "#d99a4e";
-const PASTEL_PINK = "#eaa4c9";
-const PASTEL_PINK_DARK = "#c23d84";
 const PASTEL_OLIVE = "#cde29c";
 const PASTEL_OLIVE_DARK = "#8aac39";
 const PASTEL_PERIWINKLE = "#b7b0e8";
@@ -910,7 +908,6 @@ export default function Home() {
   const pastelRed = isDark ? PASTEL_RED_DARK : PASTEL_RED;
   const pastelGreen = isDark ? PASTEL_GREEN_DARK : PASTEL_GREEN;
   const pastelOrange = isDark ? PASTEL_ORANGE_DARK : PASTEL_ORANGE;
-  const pastelPink = isDark ? PASTEL_PINK_DARK : PASTEL_PINK;
   const pastelYellow = isDark ? PASTEL_YELLOW_DARK : PASTEL_YELLOW;
   const pastelOlive = isDark ? PASTEL_OLIVE_DARK : PASTEL_OLIVE;
   const pastelPeriwinkle = isDark ? PASTEL_PERIWINKLE_DARK : PASTEL_PERIWINKLE;
@@ -2109,14 +2106,20 @@ export default function Home() {
             style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
           >
             <div className="flex flex-1 items-center justify-center">
-              <Image
-                src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
-                alt="Rising Team logo"
-                width={144}
-                height={144}
-                className="h-[72px] w-[72px] object-contain"
-                style={{ filter: pastelIconShadow, ...unstretch(1) }}
-              />
+              {expandedIndex === 1 && expandSettled ? (
+                <span className="text-[13px]" style={unstretch(1)}>
+                  [ Coming soon ]
+                </span>
+              ) : (
+                <Image
+                  src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
+                  alt="Rising Team logo"
+                  width={144}
+                  height={144}
+                  className="h-[72px] w-[72px] object-contain"
+                  style={{ filter: pastelIconShadow, ...unstretch(1) }}
+                />
+              )}
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[22px] font-bold" style={unstretch(1)}>
@@ -2429,9 +2432,15 @@ export default function Home() {
               {expandedIndex === 4 && expandSettled ? (
                 <SolsticeSun fg={fg} borderColor={borderOnBg} gap={trackGap + 28} />
               ) : (
-                <span className="text-[13px]" style={unstretch(4)}>
-                  [ UCLA AUD summer pavilion ]
-                </span>
+                <Image
+                  src={isDark ? "/solstice/logo-white.svg" : "/solstice/logo-black.svg"}
+                  alt="Solstice logo"
+                  width={144}
+                  height={144}
+                  unoptimized
+                  className="h-[72px] w-[72px] object-contain"
+                  style={{ filter: pastelIconShadow, ...unstretch(4) }}
+                />
               )}
             </div>
             {expandedIndex !== 4 && (
@@ -2457,9 +2466,15 @@ export default function Home() {
               {expandedIndex === 5 && expandSettled ? (
                 <GlodeskTour fg={fg} borderColor={borderOnBg} gap={trackGap + 28} />
               ) : (
-                <span className="text-[13px]" style={unstretch(5)}>
-                  [ Adjustable smart desk concept ]
-                </span>
+                <Image
+                  src={isDark ? "/glodesk/logo-white.svg" : "/glodesk/logo-black.svg"}
+                  alt="Glodesk logo"
+                  width={144}
+                  height={144}
+                  unoptimized
+                  className="h-[72px] w-[72px] object-contain"
+                  style={{ filter: pastelIconShadow, ...unstretch(5) }}
+                />
               )}
             </div>
             {expandedIndex !== 5 && (
@@ -2490,25 +2505,6 @@ export default function Home() {
             <span className="text-[13px]" style={unstretch(6)}>
               [ Full bio coming soon ]
             </span>
-          </ExpandableCard>
-        </div>
-
-        <div className="my-4 shrink-0" style={slotStyle(380, 7)}>
-          <ExpandableCard
-            index={7}
-            className={`${cardBox} justify-center gap-4`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelPink, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(7) }}
-          >
-            <span className="text-[22px] font-bold" style={unstretch(7)}>
-              Let&apos;s Talk
-            </span>
-            <a
-              href="#"
-              className="text-base font-medium underline underline-offset-4"
-              style={{ color: fg, ...unstretch(7) }}
-            >
-              [ Your email ]
-            </a>
           </ExpandableCard>
         </div>
       </div>

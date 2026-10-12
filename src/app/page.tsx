@@ -1359,7 +1359,10 @@ export default function Home() {
         document.querySelectorAll("[data-card-index]").forEach((otherEl) => {
           const otherIndex = Number((otherEl as HTMLElement).dataset.cardIndex);
           if (otherIndex === index) return;
-          offsets[otherIndex] = otherIndex < index ? leftPush : rightPush;
+          // Left/right by actual on-screen position, not card index — the
+          // two stopped matching once Rising Team moved down the row.
+          offsets[otherIndex] =
+            otherEl.getBoundingClientRect().left < rect.left ? leftPush : rightPush;
         });
         setPushOffsets(offsets);
 
@@ -2099,39 +2102,6 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(520, 1)}>
-          <ExpandableCard
-            index={1}
-            className={`${cardBox} justify-between gap-6`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
-          >
-            <div className="flex flex-1 items-center justify-center">
-              {expandedIndex === 1 && expandSettled ? (
-                <span className="text-[13px]" style={unstretch(1)}>
-                  [ Coming soon ]
-                </span>
-              ) : (
-                <Image
-                  src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
-                  alt="Rising Team logo"
-                  width={144}
-                  height={144}
-                  className="h-[72px] w-[72px] object-contain"
-                  style={{ filter: pastelIconShadow, ...unstretch(1) }}
-                />
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold" style={unstretch(1)}>
-                Rising Team
-              </span>
-              <span className="text-sm" style={unstretch(1)}>
-                Product Design
-              </span>
-            </div>
-          </ExpandableCard>
-        </div>
-
         <div className="my-4 shrink-0" style={slotStyle(520, 2)}>
           <ExpandableCard
             index={2}
@@ -2487,6 +2457,39 @@ export default function Home() {
                 </span>
               </div>
             )}
+          </ExpandableCard>
+        </div>
+
+        <div className="my-4 shrink-0" style={slotStyle(520, 1)}>
+          <ExpandableCard
+            index={1}
+            className={`${cardBox} justify-between gap-6`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
+          >
+            <div className="flex flex-1 items-center justify-center">
+              {expandedIndex === 1 && expandSettled ? (
+                <span className="text-[13px]" style={unstretch(1)}>
+                  [ Coming soon ]
+                </span>
+              ) : (
+                <Image
+                  src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
+                  alt="Rising Team logo"
+                  width={144}
+                  height={144}
+                  className="h-[72px] w-[72px] object-contain"
+                  style={{ filter: pastelIconShadow, ...unstretch(1) }}
+                />
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[22px] font-bold" style={unstretch(1)}>
+                Rising Team
+              </span>
+              <span className="text-sm" style={unstretch(1)}>
+                Product Design
+              </span>
+            </div>
           </ExpandableCard>
         </div>
 

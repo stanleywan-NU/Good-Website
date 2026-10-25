@@ -95,11 +95,13 @@ const INTRO_CARDS_POP_DURATION = 300;
 const INTRO_REPEL_RADIUS = 160;
 const INTRO_REPEL_FORCE = 34;
 
+// Every card slot shares this width, so the row reads as a uniform set.
+const CARD_WIDTH = 520;
+
 // Card hover grows each box by this factor (see `cardBox`'s hover:scale-*
-// class below — keep the two in sync). The widest card is 720px, so at a
-// 1.035 scale it grows ~12.6px on each side; the gap has to clear that or
-// the widest card touches its neighbor on hover while narrower ones don't
-// (an inconsistency, not a design choice). 20px/18px below are chosen with
+// class below — keep the two in sync). Every card is CARD_WIDTH (520px), so at
+// a 1.035 scale each grows ~9px on each side; the gap has to clear that or
+// cards touch their neighbors on hover. 20px/18px below are chosen with
 // that headroom in mind, not just "a bit more."
 const CARD_HOVER_SCALE = 1.035;
 // The toggle button's own hover:scale-[1.12] class — kept in sync by hand,
@@ -1857,7 +1859,7 @@ export default function Home() {
           pointerEvents: introPhase === "boxes" ? "auto" : "none",
         }}
       >
-        <div className="my-4 shrink-0" style={slotStyle(720, 0)}>
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 0)}>
           <ExpandableCard
             index={0}
             className={`${cardBox} relative justify-center overflow-hidden @container`}
@@ -2102,7 +2104,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(520, 2)}>
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 2)}>
           <ExpandableCard
             index={2}
             className={`${cardBox} justify-between gap-6`}
@@ -2310,7 +2312,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(420, 3)}>
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 3)}>
           <ExpandableCard
             index={3}
             className={`${cardBox} justify-between gap-6`}
@@ -2392,7 +2394,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(420, 4)}>
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 4)}>
           <ExpandableCard
             index={4}
             className={`${cardBox} justify-between gap-6`}
@@ -2426,7 +2428,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(420, 5)}>
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 5)}>
           <ExpandableCard
             index={5}
             className={`${cardBox} justify-between gap-6`}
@@ -2460,7 +2462,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(520, 1)}>
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 1)}>
           <ExpandableCard
             index={1}
             className={`${cardBox} justify-between gap-6`}
@@ -2493,7 +2495,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(420, 6)}>
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 6)}>
           <ExpandableCard
             index={6}
             className={`${cardBox} justify-center gap-4`}

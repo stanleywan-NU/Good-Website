@@ -337,10 +337,22 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
   },
 ];
 
-// Expanded Limitus view: a timeline spanning the whole box with one node per
-// stage, and the selected stage's photo and write-up below it. Every button
-// stops mousedown/mouseup so picking a stage never counts as a click on the
-// card (which would collapse it).
+// Expanded Limitus view: the process timeline is the centerpiece, one photo
+// node per stage strung along a line through the middle of the box. Picking
+// a stage opens a popup (photo + write-up) anchored to its node — above the
+// line for the right half, below it for the left, so it never runs into the
+// title block in the top-left. Every button stops mousedown/mouseup so
+// working the timeline never counts as a click on the card (which would
+// collapse it). `current` is -1 when no popup is open.
+const LIMITUS_NODE = 80;
+const LIMITUS_POPUP_W = 540;
+// Half the strip's height (node + gap + label) — the popup's anchor offset.
+const LIMITUS_STRIP_HALF = 70;
+const LIMITUS_POPUP_GAP = 18;
+// The strip sits a touch below the box's middle so an upward popup clears
+// the chrome pill straddling the top border.
+const LIMITUS_SHIFT = 20;
+
 function LimitusTimeline({
   steps,
   current,
@@ -348,6 +360,7 @@ function LimitusTimeline({
   fg,
   borderColor,
   cardBg,
+  popupBg,
 }: {
   steps: { src: string; title: string; caption: string }[];
   current: number;
@@ -355,64 +368,88 @@ function LimitusTimeline({
   fg: string;
   borderColor: string;
   cardBg: string;
+  popupBg: string;
 }) {
   const n = steps.length;
-  const step = steps[current];
+  const step = current >= 0 ? steps[current] : null;
+  const above = current >= Math.ceil(n / 2) + 1;
+  const nodeX = `${((current + 0.5) / n) * 100}%`;
   const swallow = {
     onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
     onMouseUp: (e: React.MouseEvent) => e.stopPropagation(),
   };
   const navButton =
-    "rounded-full border-2 px-5 py-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-70 disabled:opacity-30 disabled:hover:opacity-30";
+    "rounded-full border-2 px-4 py-1.5 text-sm font-semibold transition-opacity duration-200 hover:opacity-70 disabled:opacity-30 disabled:hover:opacity-30";
+  const popupOffset = above
+    ? `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP - LIMITUS_SHIFT}px)`
+    : `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP + LIMITUS_SHIFT}px)`;
   return (
-    <div className="intro-subtitle-fade-in flex h-full w-full flex-col gap-6" style={{ paddingTop: 32 }}>
-      <div className="flex flex-col gap-1">
+    <div className="intro-subtitle-fade-in relative h-full w-full" style={{ paddingTop: 32 }}>
+      <div className="absolute top-8 left-0 flex max-w-[230px] flex-col gap-1">
         <span className="text-5xl leading-none font-bold">Limitus</span>
-        <span className="text-base">A wrist brace for TFCC tears — five prototypes in five months.</span>
+        <span className="text-sm leading-snug">A wrist brace for TFCC tears — five prototypes in five months.</span>
       </div>
 
-      <ol className="relative grid shrink-0" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+      <ol
+        className="absolute right-0 left-0 grid"
+        style={{
+          gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
+          top: `calc(50% + ${LIMITUS_SHIFT}px)`,
+          height: LIMITUS_STRIP_HALF * 2,
+          transform: "translateY(-50%)",
+        }}
+      >
         <div
           aria-hidden
           className="absolute"
-          style={{ left: `${50 / n}%`, right: `${50 / n}%`, top: 15, height: 3 }}
+          style={{ left: `${50 / n}%`, right: `${50 / n}%`, top: LIMITUS_NODE / 2 - 2, height: 4 }}
         >
           <div className="absolute inset-0 rounded-full" style={{ backgroundColor: fg, opacity: 0.2 }} />
           <div
             className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
-            style={{ backgroundColor: fg, width: `${(current / (n - 1)) * 100}%` }}
+            style={{ backgroundColor: fg, width: `${(Math.max(current, 0) / (n - 1)) * 100}%` }}
           />
         </div>
         {steps.map((s, i) => {
-          const reached = i <= current;
+          const active = i === current;
           return (
             <li key={s.src} className="relative flex justify-center">
               <button
                 type="button"
                 aria-label={`Step ${i + 1}: ${s.title}`}
-                aria-current={i === current ? "step" : undefined}
+                aria-expanded={active}
                 {...swallow}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSelect(i);
+                  onSelect(active ? -1 : i);
                 }}
                 className="group flex w-full flex-col items-center gap-2 px-1"
               >
                 <span
-                  className="flex h-8 w-8 items-center justify-center rounded-full border-[3px] text-sm font-bold transition-all duration-300 group-hover:scale-110"
+                  className="relative block shrink-0 rounded-full transition-transform duration-300 group-hover:scale-110"
                   style={{
-                    borderColor: fg,
-                    backgroundColor: reached ? fg : cardBg,
-                    color: reached ? cardBg : fg,
-                    transform: i === current ? "scale(1.18)" : undefined,
-                    boxShadow: i === current ? `0 0 0 5px ${cardBg}, 0 0 0 7px ${fg}` : undefined,
+                    width: LIMITUS_NODE,
+                    height: LIMITUS_NODE,
+                    transform: active ? "scale(1.15)" : undefined,
+                    boxShadow: active ? `0 0 0 4px ${cardBg}, 0 0 0 7px ${fg}` : undefined,
                   }}
                 >
-                  {i + 1}
+                  <span
+                    className="absolute inset-0 overflow-hidden rounded-full border-[3px] bg-white"
+                    style={{ borderColor: fg }}
+                  >
+                    <Image src={s.src} alt="" fill sizes="80px" className="object-cover" />
+                  </span>
+                  <span
+                    className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+                    style={{ backgroundColor: fg, color: cardBg }}
+                  >
+                    {i + 1}
+                  </span>
                 </span>
                 <span
-                  className="text-center text-xs leading-tight font-semibold transition-opacity duration-300 lg:text-sm"
-                  style={{ opacity: i === current ? 1 : 0.55 }}
+                  className="text-center text-sm leading-tight font-semibold transition-opacity duration-300 lg:text-base"
+                  style={{ opacity: active ? 1 : 0.6 }}
                 >
                   {s.title}
                 </span>
@@ -422,55 +459,87 @@ function LimitusTimeline({
         })}
       </ol>
 
-      <div key={current} className="intro-subtitle-fade-in flex min-h-0 flex-1 items-stretch gap-10">
-        <div
-          className="relative aspect-[4/5] h-full shrink-0 overflow-hidden rounded-2xl border-[3px] bg-white"
-          style={{ borderColor }}
-        >
-          <Image
-            src={step.src}
-            alt={step.title}
-            fill
-            sizes="(min-width: 1024px) 480px, 60vw"
-            className="object-contain"
-          />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-4">
-          <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
-            Step {current + 1} of {n}
-          </span>
-          <span className="text-4xl leading-tight font-bold">{step.title}</span>
-          <span className="max-w-xl text-xl leading-snug">{step.caption}</span>
-          <div className="mt-2 flex gap-3">
-            <button
-              type="button"
-              disabled={current === 0}
-              {...swallow}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(current - 1);
-              }}
-              className={navButton}
-              style={{ borderColor: fg }}
+      {step && (
+        <>
+          <div
+            className="absolute z-10 rounded-2xl border-[3px] p-4"
+            style={{
+              width: `min(${LIMITUS_POPUP_W}px, 100%)`,
+              height: above ? "min(280px, calc(50% - 126px))" : "min(280px, calc(50% - 116px))",
+              minHeight: 160,
+              left: `clamp(min(${LIMITUS_POPUP_W}px, 100%) / 2, ${nodeX}, calc(100% - min(${LIMITUS_POPUP_W}px, 100%) / 2))`,
+              transform: "translateX(-50%)",
+              ...(above ? { bottom: popupOffset } : { top: popupOffset }),
+              borderColor: fg,
+              backgroundColor: popupBg,
+              color: fg,
+            }}
+          >
+            <div key={`popup-${current}`} className="intro-subtitle-fade-in flex h-full gap-5">
+            <div
+              className="relative aspect-[4/5] h-full shrink-0 overflow-hidden rounded-xl border-2 bg-white"
+              style={{ borderColor }}
             >
-              ← Back
-            </button>
-            <button
-              type="button"
-              disabled={current === n - 1}
-              {...swallow}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelect(current + 1);
-              }}
-              className={navButton}
-              style={{ borderColor: fg, backgroundColor: fg, color: cardBg }}
-            >
-              Next →
-            </button>
+              <Image src={step.src} alt={step.title} fill sizes="240px" className="object-contain" />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+              <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-70">
+                Step {current + 1} of {n}
+              </span>
+              <span className="text-2xl leading-tight font-bold">{step.title}</span>
+              <span className="text-base leading-snug">{step.caption}</span>
+              <div className="mt-1 flex gap-2">
+                <button
+                  type="button"
+                  disabled={current === 0}
+                  {...swallow}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(current - 1);
+                  }}
+                  className={navButton}
+                  style={{ borderColor: fg }}
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  disabled={current === n - 1}
+                  {...swallow}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(current + 1);
+                  }}
+                  className={navButton}
+                  style={{ borderColor: fg, backgroundColor: fg, color: popupBg }}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+            </div>
           </div>
-        </div>
-      </div>
+          {/* Pointer from the popup to its node: a rotated square on the
+              popup's near edge, borders only on the two sides that show. */}
+          <span
+            aria-hidden
+            className="absolute z-20 h-4 w-4 -translate-x-1/2 rotate-45"
+            style={{
+              left: nodeX,
+              backgroundColor: popupBg,
+              borderColor: fg,
+              borderStyle: "solid",
+              borderTopWidth: above ? 0 : 3,
+              borderLeftWidth: above ? 0 : 3,
+              borderRightWidth: above ? 3 : 0,
+              borderBottomWidth: above ? 3 : 0,
+              ...(above
+                ? { bottom: `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP - LIMITUS_SHIFT - 8}px)` }
+                : { top: `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP + LIMITUS_SHIFT - 8}px)` }),
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -2465,6 +2534,7 @@ export default function Home() {
                   fg={fg}
                   borderColor={borderOnBg}
                   cardBg={pastelGreen}
+                  popupBg={bg}
                 />
               ) : (
                 <Image

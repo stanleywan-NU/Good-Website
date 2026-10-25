@@ -337,6 +337,144 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
   },
 ];
 
+// Expanded Limitus view: a timeline spanning the whole box with one node per
+// stage, and the selected stage's photo and write-up below it. Every button
+// stops mousedown/mouseup so picking a stage never counts as a click on the
+// card (which would collapse it).
+function LimitusTimeline({
+  steps,
+  current,
+  onSelect,
+  fg,
+  borderColor,
+  cardBg,
+}: {
+  steps: { src: string; title: string; caption: string }[];
+  current: number;
+  onSelect: (i: number) => void;
+  fg: string;
+  borderColor: string;
+  cardBg: string;
+}) {
+  const n = steps.length;
+  const step = steps[current];
+  const swallow = {
+    onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
+    onMouseUp: (e: React.MouseEvent) => e.stopPropagation(),
+  };
+  const navButton =
+    "rounded-full border-2 px-5 py-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-70 disabled:opacity-30 disabled:hover:opacity-30";
+  return (
+    <div className="intro-subtitle-fade-in flex h-full w-full flex-col gap-6" style={{ paddingTop: 32 }}>
+      <div className="flex flex-col gap-1">
+        <span className="text-5xl leading-none font-bold">Limitus</span>
+        <span className="text-base">A wrist brace for TFCC tears — five prototypes in five months.</span>
+      </div>
+
+      <ol className="relative grid shrink-0" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
+        <div
+          aria-hidden
+          className="absolute"
+          style={{ left: `${50 / n}%`, right: `${50 / n}%`, top: 15, height: 3 }}
+        >
+          <div className="absolute inset-0 rounded-full" style={{ backgroundColor: fg, opacity: 0.2 }} />
+          <div
+            className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
+            style={{ backgroundColor: fg, width: `${(current / (n - 1)) * 100}%` }}
+          />
+        </div>
+        {steps.map((s, i) => {
+          const reached = i <= current;
+          return (
+            <li key={s.src} className="relative flex justify-center">
+              <button
+                type="button"
+                aria-label={`Step ${i + 1}: ${s.title}`}
+                aria-current={i === current ? "step" : undefined}
+                {...swallow}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(i);
+                }}
+                className="group flex w-full flex-col items-center gap-2 px-1"
+              >
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-full border-[3px] text-sm font-bold transition-all duration-300 group-hover:scale-110"
+                  style={{
+                    borderColor: fg,
+                    backgroundColor: reached ? fg : cardBg,
+                    color: reached ? cardBg : fg,
+                    transform: i === current ? "scale(1.18)" : undefined,
+                    boxShadow: i === current ? `0 0 0 5px ${cardBg}, 0 0 0 7px ${fg}` : undefined,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span
+                  className="text-center text-xs leading-tight font-semibold transition-opacity duration-300 lg:text-sm"
+                  style={{ opacity: i === current ? 1 : 0.55 }}
+                >
+                  {s.title}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div key={current} className="intro-subtitle-fade-in flex min-h-0 flex-1 items-stretch gap-10">
+        <div
+          className="relative aspect-[4/5] h-full shrink-0 overflow-hidden rounded-2xl border-[3px] bg-white"
+          style={{ borderColor }}
+        >
+          <Image
+            src={step.src}
+            alt={step.title}
+            fill
+            sizes="(min-width: 1024px) 480px, 60vw"
+            className="object-contain"
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-4">
+          <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
+            Step {current + 1} of {n}
+          </span>
+          <span className="text-4xl leading-tight font-bold">{step.title}</span>
+          <span className="max-w-xl text-xl leading-snug">{step.caption}</span>
+          <div className="mt-2 flex gap-3">
+            <button
+              type="button"
+              disabled={current === 0}
+              {...swallow}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(current - 1);
+              }}
+              className={navButton}
+              style={{ borderColor: fg }}
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              disabled={current === n - 1}
+              {...swallow}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(current + 1);
+              }}
+              className={navButton}
+              style={{ borderColor: fg, backgroundColor: fg, color: cardBg }}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // The Closet articles shown in the GEO panel. Each is a self-contained page
 // served from /public/articles, so the links are ordinary public URLs.
 // The intro card's expanded-only row of contact links. These started out
@@ -2320,55 +2458,14 @@ export default function Home() {
           >
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
               {expandedIndex === 3 && expandSettled ? (
-                // The process as a stack you flip through, with the current
-                // stage's title and caption beside it and a row of dots
-                // (also clickable) showing how far along it is.
-                <div className="flex h-full w-full items-stretch" style={{ gap: trackGap + 28, paddingTop: 32 }}>
-                  <PhotoDeck
-                    images={LIMITUS_STEPS.map((step) => step.src)}
-                    current={limitusStep}
-                    onAdvance={() => setLimitusStep((v) => (v + 1) % LIMITUS_STEPS.length)}
-                    borderColor={borderOnBg}
-                    layer={1}
-                    aspect="4 / 5"
-                    fit="contain"
-                    background="#ffffff"
-                  />
-                  <div className="flex min-w-0 flex-1 flex-col justify-between py-2">
-                    <div className="flex flex-col gap-2">
-                      <span className="text-5xl font-bold">Limitus</span>
-                      <span className="text-base">A wrist brace for TFCC tears — five prototypes in five months.</span>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
-                        Step {limitusStep + 1} of {LIMITUS_STEPS.length}
-                      </span>
-                      <span className="text-3xl leading-tight font-bold">{LIMITUS_STEPS[limitusStep].title}</span>
-                      <span className="text-lg leading-snug">{LIMITUS_STEPS[limitusStep].caption}</span>
-                      <div className="mt-2 flex gap-2">
-                        {LIMITUS_STEPS.map((step, i) => (
-                          <button
-                            key={step.src}
-                            type="button"
-                            aria-label={`Go to step ${i + 1}: ${step.title}`}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={(e) => e.stopPropagation()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setLimitusStep(i);
-                            }}
-                            className="h-2.5 rounded-full transition-all duration-300"
-                            style={{
-                              width: i === limitusStep ? 28 : 10,
-                              backgroundColor: fg,
-                              opacity: i === limitusStep ? 1 : 0.3,
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <LimitusTimeline
+                  steps={LIMITUS_STEPS}
+                  current={limitusStep}
+                  onSelect={setLimitusStep}
+                  fg={fg}
+                  borderColor={borderOnBg}
+                  cardBg={pastelGreen}
+                />
               ) : (
                 <Image
                   src={isDark ? "/limitus/logo-white.svg" : "/limitus/logo-black.svg"}

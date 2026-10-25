@@ -337,21 +337,18 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
   },
 ];
 
-// Expanded Limitus view: the process timeline is the centerpiece, one photo
-// node per stage strung along a line through the middle of the box. Picking
-// a stage opens a popup (photo + write-up) anchored to its node — above the
-// line for the right half, below it for the left, so it never runs into the
-// title block in the top-left. Every button stops mousedown/mouseup so
-// working the timeline never counts as a click on the card (which would
-// collapse it). `current` is -1 when no popup is open.
-const LIMITUS_NODE = 80;
-const LIMITUS_POPUP_W = 540;
-// Half the strip's height (node + gap + label) — the popup's anchor offset.
-const LIMITUS_STRIP_HALF = 70;
-const LIMITUS_POPUP_GAP = 18;
-// The strip sits a touch below the box's middle so an upward popup clears
-// the chrome pill straddling the top border.
-const LIMITUS_SHIFT = 20;
+// Expanded Limitus view: the process timeline arches over the top of the
+// box, one photo node per stage, leaving the open space underneath for the
+// selected stage's popup. Nodes rest small and swell to full size on hover
+// (and stay full while selected). Picking one draws a stem from it to the
+// popup in the middle. `current` is -1 when no popup is open.
+//
+// The nodes are `data-cursor-melt` buttons, so they get the same press
+// shrink as the cards, with no stopPropagation (that would block it). They
+// have no `data-card-index`, so pressing one never expands or collapses
+// the card. The popup body is marked `data-no-card-press` so clicks on its
+// text don't collapse the card either.
+const LIMITUS_NODE_FULL = 80; // hover/selected size; 44px at rest (classes below)
 
 function LimitusTimeline({
   steps,
@@ -370,133 +367,166 @@ function LimitusTimeline({
   cardBg: string;
   popupBg: string;
 }) {
-  const n = steps.length;
-  const step = current >= 0 ? steps[current] : null;
-  const above = current >= Math.ceil(n / 2) + 1;
-  const nodeX = `${((current + 0.5) / n) * 100}%`;
-  const swallow = {
-    onMouseDown: (e: React.MouseEvent) => e.stopPropagation(),
-    onMouseUp: (e: React.MouseEvent) => e.stopPropagation(),
-  };
-  const navButton =
-    "rounded-full border-2 px-4 py-1.5 text-sm font-semibold transition-opacity duration-200 hover:opacity-70 disabled:opacity-30 disabled:hover:opacity-30";
-  const popupOffset = above
-    ? `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP - LIMITUS_SHIFT}px)`
-    : `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP + LIMITUS_SHIFT}px)`;
-  return (
-    <div className="intro-subtitle-fade-in relative h-full w-full" style={{ paddingTop: 32 }}>
-      <div className="absolute top-8 left-0 flex max-w-[230px] flex-col gap-1">
-        <span className="text-5xl leading-none font-bold">Limitus</span>
-        <span className="text-sm leading-snug">A wrist brace for TFCC tears — five prototypes in five months.</span>
-      </div>
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-      <ol
-        className="absolute right-0 left-0 grid"
-        style={{
-          gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
-          top: `calc(50% + ${LIMITUS_SHIFT}px)`,
-          height: LIMITUS_STRIP_HALF * 2,
-          transform: "translateY(-50%)",
-        }}
-      >
-        <div
-          aria-hidden
-          className="absolute"
-          style={{ left: `${50 / n}%`, right: `${50 / n}%`, top: LIMITUS_NODE / 2 - 2, height: 4 }}
-        >
-          <div className="absolute inset-0 rounded-full" style={{ backgroundColor: fg, opacity: 0.2 }} />
-          <div
-            className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ease-out"
-            style={{ backgroundColor: fg, width: `${(Math.max(current, 0) / (n - 1)) * 100}%` }}
-          />
-        </div>
+  const n = steps.length;
+  const pressable =
+    "transition-[scale,opacity] duration-200 ease-out hover:scale-[1.035] disabled:opacity-30 disabled:hover:scale-100";
+  const navButton = `rounded-full border-2 px-5 py-2 text-sm font-semibold ${pressable}`;
+
+  let geometry: React.ReactNode = null;
+  if (size && size.w > 0) {
+    const { w, h } = size;
+    // The arch: part of an ellipse, apex at the top-middle, ends sweeping
+    // down and out toward the box's lower sides.
+    const cx = w / 2;
+    const apexY = 108;
+    const cy = h * 0.86;
+    const rx = w / 2 - 54;
+    const ry = cy - apexY;
+    const start = 192;
+    const span = 156;
+    const pts = steps.map((_, i) => {
+      const t = ((start + (span * i) / (n - 1)) * Math.PI) / 180;
+      return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
+    });
+    const arc = (to: { x: number; y: number }) =>
+      `M ${pts[0].x} ${pts[0].y} A ${rx} ${ry} 0 0 1 ${to.x} ${to.y}`;
+
+    const popupW = Math.min(580, w * 0.6);
+    // Just below the third node (and its mirror), so the inner nodes sit
+    // clear above the popup's top edge with a visible stem down to it.
+    const popupTop = pts[2].y + 78;
+    const popupH = Math.max(220, Math.min(340, h - popupTop - 14));
+    const popupLeft = cx - popupW / 2;
+    const active = current >= 0 ? pts[current] : null;
+
+    let stem = "";
+    if (active) {
+      if (active.y < popupTop - 12) {
+        const tx = Math.min(Math.max(active.x, popupLeft + 44), popupLeft + popupW - 44);
+        const d = (popupTop - active.y) / 2;
+        stem = `M ${active.x} ${active.y} C ${active.x} ${active.y + d} ${tx} ${popupTop - d} ${tx} ${popupTop}`;
+      } else {
+        const left = active.x < cx;
+        const tx = left ? popupLeft : popupLeft + popupW;
+        const ty = Math.min(Math.max(active.y, popupTop + 44), popupTop + popupH - 44);
+        const d = Math.abs(tx - active.x) / 2;
+        stem = `M ${active.x} ${active.y} C ${active.x + (left ? d : -d)} ${active.y} ${tx + (left ? -d : d)} ${ty} ${tx} ${ty}`;
+      }
+    }
+
+    geometry = (
+      <>
+        <svg className="pointer-events-none absolute inset-0 z-0" width={w} height={h} fill="none" aria-hidden>
+          <path d={arc(pts[n - 1])} stroke={fg} strokeWidth={4} strokeLinecap="round" opacity={0.2} />
+          {active && <path d={arc(active)} stroke={fg} strokeWidth={4} strokeLinecap="round" />}
+          {active && (
+            <path
+              key={`stem-${current}`}
+              d={stem}
+              pathLength={1}
+              stroke={fg}
+              strokeWidth={4}
+              strokeLinecap="round"
+              className="limitus-stem-draw"
+            />
+          )}
+        </svg>
+
         {steps.map((s, i) => {
-          const active = i === current;
+          const isActive = i === current;
           return (
-            <li key={s.src} className="relative flex justify-center">
+            <div
+              key={s.src}
+              className="group absolute z-20 hover:z-30"
+              style={{ left: pts[i].x, top: pts[i].y, width: 0, height: 0 }}
+            >
               <button
                 type="button"
+                data-cursor-melt
                 aria-label={`Step ${i + 1}: ${s.title}`}
-                aria-expanded={active}
-                {...swallow}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect(active ? -1 : i);
+                aria-expanded={isActive}
+                onClick={() => onSelect(isActive ? -1 : i)}
+                className={`absolute top-0 left-0 block -translate-x-1/2 -translate-y-1/2 rounded-full transition-[width,height,scale,box-shadow] duration-200 ease-out hover:h-[80px] hover:w-[80px] hover:scale-[1.035] ${
+                  isActive ? "h-[80px] w-[80px]" : "h-[44px] w-[44px]"
+                }`}
+                style={{
+                  boxShadow: isActive ? `0 0 0 4px ${cardBg}, 0 0 0 7px ${fg}` : undefined,
                 }}
-                className="group flex w-full flex-col items-center gap-2 px-1"
               >
                 <span
-                  className="relative block shrink-0 rounded-full transition-transform duration-300 group-hover:scale-110"
-                  style={{
-                    width: LIMITUS_NODE,
-                    height: LIMITUS_NODE,
-                    transform: active ? "scale(1.15)" : undefined,
-                    boxShadow: active ? `0 0 0 4px ${cardBg}, 0 0 0 7px ${fg}` : undefined,
-                  }}
+                  className="absolute inset-0 overflow-hidden rounded-full border-[3px] bg-white"
+                  style={{ borderColor: fg }}
                 >
-                  <span
-                    className="absolute inset-0 overflow-hidden rounded-full border-[3px] bg-white"
-                    style={{ borderColor: fg }}
-                  >
-                    <Image src={s.src} alt="" fill sizes="80px" className="object-cover" />
-                  </span>
-                  <span
-                    className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                    style={{ backgroundColor: fg, color: cardBg }}
-                  >
-                    {i + 1}
-                  </span>
+                  <Image src={s.src} alt="" fill sizes="80px" className="object-cover" />
                 </span>
                 <span
-                  className="text-center text-sm leading-tight font-semibold transition-opacity duration-300 lg:text-base"
-                  style={{ opacity: active ? 1 : 0.6 }}
+                  className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
+                  style={{ backgroundColor: fg, color: cardBg }}
                 >
-                  {s.title}
+                  {i + 1}
                 </span>
               </button>
-            </li>
+              <span
+                className="pointer-events-none absolute left-0 rounded-md px-2 py-1 text-xs font-semibold whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                style={{
+                  top: -(LIMITUS_NODE_FULL / 2 + 10),
+                  transform: "translate(-50%, -100%)",
+                  backgroundColor: fg,
+                  color: cardBg,
+                }}
+              >
+                {s.title}
+              </span>
+            </div>
           );
         })}
-      </ol>
 
-      {step && (
-        <>
+        {current >= 0 && (
           <div
-            className="absolute z-10 rounded-2xl border-[3px] p-4"
+            key={`popup-${current}`}
+            data-no-card-press
+            className="limitus-popup-in absolute z-10 flex gap-6 rounded-3xl border-[3px] p-5"
             style={{
-              width: `min(${LIMITUS_POPUP_W}px, 100%)`,
-              height: above ? "min(280px, calc(50% - 126px))" : "min(280px, calc(50% - 116px))",
-              minHeight: 160,
-              left: `clamp(min(${LIMITUS_POPUP_W}px, 100%) / 2, ${nodeX}, calc(100% - min(${LIMITUS_POPUP_W}px, 100%) / 2))`,
-              transform: "translateX(-50%)",
-              ...(above ? { bottom: popupOffset } : { top: popupOffset }),
+              left: popupLeft,
+              top: popupTop,
+              width: popupW,
+              height: popupH,
               borderColor: fg,
               backgroundColor: popupBg,
               color: fg,
+              transformOrigin: `${active ? active.x - popupLeft : popupW / 2}px ${active ? active.y - popupTop : 0}px`,
             }}
           >
-            <div key={`popup-${current}`} className="intro-subtitle-fade-in flex h-full gap-5">
             <div
-              className="relative aspect-[4/5] h-full shrink-0 overflow-hidden rounded-xl border-2 bg-white"
+              className="relative aspect-[4/5] h-full shrink-0 overflow-hidden rounded-2xl border-2 bg-white"
               style={{ borderColor }}
             >
-              <Image src={step.src} alt={step.title} fill sizes="240px" className="object-contain" />
+              <Image src={steps[current].src} alt={steps[current].title} fill sizes="260px" className="object-contain" />
             </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-              <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-70">
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
+              <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
                 Step {current + 1} of {n}
               </span>
-              <span className="text-2xl leading-tight font-bold">{step.title}</span>
-              <span className="text-base leading-snug">{step.caption}</span>
-              <div className="mt-1 flex gap-2">
+              <span className="text-3xl leading-tight font-bold">{steps[current].title}</span>
+              <span className="text-lg leading-snug">{steps[current].caption}</span>
+              <div className="mt-2 flex gap-3">
                 <button
                   type="button"
+                  data-cursor-melt
                   disabled={current === 0}
-                  {...swallow}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect(current - 1);
-                  }}
+                  onClick={() => onSelect(current - 1)}
                   className={navButton}
                   style={{ borderColor: fg }}
                 >
@@ -504,12 +534,9 @@ function LimitusTimeline({
                 </button>
                 <button
                   type="button"
+                  data-cursor-melt
                   disabled={current === n - 1}
-                  {...swallow}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect(current + 1);
-                  }}
+                  onClick={() => onSelect(current + 1)}
                   className={navButton}
                   style={{ borderColor: fg, backgroundColor: fg, color: popupBg }}
                 >
@@ -517,29 +544,19 @@ function LimitusTimeline({
                 </button>
               </div>
             </div>
-            </div>
           </div>
-          {/* Pointer from the popup to its node: a rotated square on the
-              popup's near edge, borders only on the two sides that show. */}
-          <span
-            aria-hidden
-            className="absolute z-20 h-4 w-4 -translate-x-1/2 rotate-45"
-            style={{
-              left: nodeX,
-              backgroundColor: popupBg,
-              borderColor: fg,
-              borderStyle: "solid",
-              borderTopWidth: above ? 0 : 3,
-              borderLeftWidth: above ? 0 : 3,
-              borderRightWidth: above ? 3 : 0,
-              borderBottomWidth: above ? 3 : 0,
-              ...(above
-                ? { bottom: `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP - LIMITUS_SHIFT - 8}px)` }
-                : { top: `calc(50% + ${LIMITUS_STRIP_HALF + LIMITUS_POPUP_GAP + LIMITUS_SHIFT - 8}px)` }),
-            }}
-          />
-        </>
-      )}
+        )}
+      </>
+    );
+  }
+
+  return (
+    <div ref={rootRef} className="intro-subtitle-fade-in relative h-full w-full">
+      <div className="absolute top-8 left-0 z-0 flex max-w-[210px] flex-col gap-1">
+        <span className="text-5xl leading-none font-bold">Limitus</span>
+        <span className="text-sm leading-snug">A wrist brace for TFCC tears — five prototypes in five months.</span>
+      </div>
+      {geometry}
     </div>
   );
 }
@@ -1507,6 +1524,11 @@ export default function Home() {
           ? { el, index: Number(cardIndexAttr), rect: el.getBoundingClientRect() }
           : null;
 
+      // Clicks on an inert zone (e.g. the Limitus popup's text) shouldn't
+      // press or collapse the card they sit inside; buttons inside one
+      // match their own closer [data-cursor-melt] and still work normally.
+      if (el.dataset.cardIndex !== undefined && e.target.closest("[data-no-card-press]")) return;
+
       animateScaleTo(el, PRESS_SCALE);
       pressed = { el };
     };
@@ -1523,7 +1545,12 @@ export default function Home() {
       const upEl = e.target instanceof Element ? e.target.closest("[data-cursor-melt]") : null;
       const upIndexAttr = upEl instanceof HTMLElement ? upEl.dataset.cardIndex : undefined;
 
-      if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
+      const upInInertZone =
+        upIndexAttr !== undefined && e.target instanceof Element && e.target.closest("[data-no-card-press]") !== null;
+
+      if (upInInertZone) {
+        // Released on inert content inside a card — nothing to expand or collapse.
+      } else if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
         // Released on the card that's already expanded — collapse it.
         // expandSettled drops immediately (same tick) so any expanded-only
         // content disappears before the box starts shrinking, instead of

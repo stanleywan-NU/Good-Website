@@ -457,33 +457,31 @@ function LimitusTimeline({
       const dx = active.x - ocx;
       const dy = active.y - ocy;
       const k = Math.sqrt((dx / (popupW / 2)) ** 2 + (dy / (popupH / 2)) ** 2) || 1;
-      // Ends a few px inside the oval so it tucks under the oval's border.
-      const ex = ocx + dx / k;
-      const ey = ocy + dy / k;
-      const len0 = Math.hypot(ex - active.x, ey - active.y) || 1;
-      const bx = ex + ((ex - active.x) / len0) * 4;
-      const by = ey + ((ey - active.y) / len0) * 4;
+      const bx = ocx + dx / k;
+      const by = ocy + dy / k;
       const len = Math.hypot(bx - active.x, by - active.y) || 1;
       const ux = (bx - active.x) / len;
       const uy = (by - active.y) / len;
       // A prolate cycloid riding the straight line: it starts and ends
-      // exactly on the line but curls into a couple of loops in the first
-      // stretch (the radius is kept above len / (2π·loops), which is what
-      // makes the curve double back on itself instead of just wiggling),
-      // then runs straight into the oval so no loop ever ends up beside it.
-      const loopSpan = 0.72;
+      // exactly on the line but curls into a couple of loops between
+      // (the radius is kept above len / (2π·loops), which is what makes
+      // the curve double back on itself instead of just wiggling). It's
+      // cut off at the first sample that reaches the oval, so the line
+      // stops the moment it touches the popup — a loop never carries on
+      // past the point of contact.
       const loops = len > 110 ? 2 : 1;
-      const radius = Math.min(30, Math.max(14, ((len * loopSpan) / (2 * Math.PI * loops)) * 1.9));
+      const radius = Math.min(30, Math.max(14, (len / (2 * Math.PI * loops)) * 1.9));
       const side = active.x < ocx ? 1 : -1;
-      const samples = 120;
+      const samples = 160;
       for (let i = 0; i <= samples; i++) {
         const t = i / samples;
-        const th = 2 * Math.PI * loops * Math.min(t / loopSpan, 1);
+        const th = 2 * Math.PI * loops * t;
         const along = len * t - radius * Math.sin(th);
         const across = side * radius * (1 - Math.cos(th));
         const px = active.x + ux * along - uy * across;
         const py = active.y + uy * along + ux * across;
         stem += `${i === 0 ? "M" : "L"} ${px.toFixed(1)} ${py.toFixed(1)} `;
+        if (((px - ocx) / (popupW / 2)) ** 2 + ((py - ocy) / (popupH / 2)) ** 2 <= 1) break;
       }
     }
     // Inscribed content box (an ellipse holds ~0.72 of its width/height as

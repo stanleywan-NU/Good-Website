@@ -355,7 +355,6 @@ function LimitusTimeline({
   current,
   onSelect,
   fg,
-  borderColor,
   cardBg,
   popupBg,
 }: {
@@ -363,7 +362,6 @@ function LimitusTimeline({
   current: number;
   onSelect: (i: number) => void;
   fg: string;
-  borderColor: string;
   cardBg: string;
   popupBg: string;
 }) {
@@ -380,9 +378,6 @@ function LimitusTimeline({
   }, []);
 
   const n = steps.length;
-  const pressable =
-    "transition-[scale,opacity] duration-200 ease-out hover:scale-[1.035] disabled:opacity-30 disabled:hover:scale-100";
-  const navButton = `rounded-full border-2 px-5 py-2 text-sm font-semibold ${pressable}`;
 
   let geometry: React.ReactNode = null;
   if (size && size.w > 0) {
@@ -403,28 +398,31 @@ function LimitusTimeline({
     const arc = (to: { x: number; y: number }) =>
       `M ${pts[0].x} ${pts[0].y} A ${rx} ${ry} 0 0 1 ${to.x} ${to.y}`;
 
-    const popupW = Math.min(580, w * 0.6);
-    // Just below the third node (and its mirror), so the inner nodes sit
-    // clear above the popup's top edge with a visible stem down to it.
-    const popupTop = pts[2].y + 78;
-    const popupH = Math.max(220, Math.min(340, h - popupTop - 14));
+    // The popup is an oval, concentric with the arch's own ellipse, so it
+    // reads as sitting inside the curve. Its top edge tapers away from the
+    // inner nodes, which lets it ride higher than a rectangle could.
+    const popupW = Math.min(640, w * 0.62);
+    const popupTop = pts[2].y + 30;
+    const popupH = Math.max(240, Math.min(340, h - popupTop - 14));
     const popupLeft = cx - popupW / 2;
+    const ocx = cx;
+    const ocy = popupTop + popupH / 2;
     const active = current >= 0 ? pts[current] : null;
 
+    // Stem: from the active node to the point where the line toward the
+    // oval's center crosses the oval's edge.
     let stem = "";
     if (active) {
-      if (active.y < popupTop - 12) {
-        const tx = Math.min(Math.max(active.x, popupLeft + 44), popupLeft + popupW - 44);
-        const d = (popupTop - active.y) / 2;
-        stem = `M ${active.x} ${active.y} C ${active.x} ${active.y + d} ${tx} ${popupTop - d} ${tx} ${popupTop}`;
-      } else {
-        const left = active.x < cx;
-        const tx = left ? popupLeft : popupLeft + popupW;
-        const ty = Math.min(Math.max(active.y, popupTop + 44), popupTop + popupH - 44);
-        const d = Math.abs(tx - active.x) / 2;
-        stem = `M ${active.x} ${active.y} C ${active.x + (left ? d : -d)} ${active.y} ${tx + (left ? -d : d)} ${ty} ${tx} ${ty}`;
-      }
+      const dx = active.x - ocx;
+      const dy = active.y - ocy;
+      const k = Math.sqrt((dx / (popupW / 2)) ** 2 + (dy / (popupH / 2)) ** 2) || 1;
+      stem = `M ${active.x} ${active.y} L ${ocx + dx / k} ${ocy + dy / k}`;
     }
+    // Inscribed content box (an ellipse holds ~0.72 of its width/height as
+    // a rectangle) and the round photo that fills its left side.
+    const padX = popupW * 0.14;
+    const padY = popupH * 0.14;
+    const photo = Math.min(popupH - padY * 2, (popupW - padX * 2) * 0.4);
 
     geometry = (
       <>
@@ -466,7 +464,7 @@ function LimitusTimeline({
                 }}
               >
                 <span
-                  className="absolute inset-0 overflow-hidden rounded-full border-[3px] bg-white"
+                  className="absolute inset-0 overflow-hidden rounded-full border-[3px]"
                   style={{ borderColor: fg }}
                 >
                   <Image src={s.src} alt="" fill sizes="80px" className="object-cover" />
@@ -497,12 +495,14 @@ function LimitusTimeline({
           <div
             key={`popup-${current}`}
             data-no-card-press
-            className="limitus-popup-in absolute z-10 flex gap-6 rounded-3xl border-[3px] p-5"
+            className="limitus-popup-in absolute z-10 flex items-center gap-6 rounded-[50%] border-[3px]"
             style={{
               left: popupLeft,
               top: popupTop,
               width: popupW,
               height: popupH,
+              paddingInline: padX,
+              paddingBlock: padY,
               borderColor: fg,
               backgroundColor: popupBg,
               color: fg,
@@ -510,39 +510,17 @@ function LimitusTimeline({
             }}
           >
             <div
-              className="relative aspect-[4/5] h-full shrink-0 overflow-hidden rounded-2xl border-2 bg-white"
-              style={{ borderColor }}
+              className="relative shrink-0 overflow-hidden rounded-full border-[3px]"
+              style={{ width: photo, height: photo, borderColor: fg }}
             >
-              <Image src={steps[current].src} alt={steps[current].title} fill sizes="260px" className="object-contain" />
+              <Image src={steps[current].src} alt={steps[current].title} fill sizes="260px" className="object-cover" />
             </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
               <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
                 Step {current + 1} of {n}
               </span>
               <span className="text-3xl leading-tight font-bold">{steps[current].title}</span>
               <span className="text-lg leading-snug">{steps[current].caption}</span>
-              <div className="mt-2 flex gap-3">
-                <button
-                  type="button"
-                  data-cursor-melt
-                  disabled={current === 0}
-                  onClick={() => onSelect(current - 1)}
-                  className={navButton}
-                  style={{ borderColor: fg }}
-                >
-                  ← Back
-                </button>
-                <button
-                  type="button"
-                  data-cursor-melt
-                  disabled={current === n - 1}
-                  onClick={() => onSelect(current + 1)}
-                  className={navButton}
-                  style={{ borderColor: fg, backgroundColor: fg, color: popupBg }}
-                >
-                  Next →
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -2559,7 +2537,6 @@ export default function Home() {
                   current={limitusStep}
                   onSelect={setLimitusStep}
                   fg={fg}
-                  borderColor={borderOnBg}
                   cardBg={pastelGreen}
                   popupBg={bg}
                 />

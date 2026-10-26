@@ -216,15 +216,38 @@ function ExpandableCard({
   className,
   style,
   children,
+  showClose = false,
+  onClose,
 }: {
   index: number;
   className: string;
   style: React.CSSProperties;
   children: React.ReactNode;
+  showClose?: boolean;
+  onClose?: () => void;
 }) {
   return (
     <div data-cursor-melt data-card-index={index} className={className} style={style}>
       {children}
+      {showClose && (
+        // The only in-card way to close an expanded box (clicking outside
+        // it and Escape still work too). Its top-right corner sits exactly
+        // on the box's own top-right corner — 21px is the box's 24px
+        // radius minus its 3px border, so the two curves line up. Its own
+        // data-cursor-melt gives it the same press/hover feel as the cards
+        // while keeping presses from counting as presses on the card.
+        <button
+          type="button"
+          data-cursor-melt
+          aria-label="Close"
+          onClick={onClose}
+          className="intro-subtitle-fade-in absolute top-0 right-0 z-50 flex h-11 w-16 items-center justify-center rounded-tl-xl rounded-tr-[21px] rounded-br-xl rounded-bl-2xl bg-black text-white transition-transform duration-200 ease-out hover:scale-[1.06]"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+            <path d="M3 3 L15 15 M15 3 L3 15" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -346,8 +369,7 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
 // The nodes are `data-cursor-melt` buttons, so they get the same press
 // shrink as the cards, with no stopPropagation (that would block it). They
 // have no `data-card-index`, so pressing one never expands or collapses
-// the card. The popup body is marked `data-no-card-press` so clicks on its
-// text don't collapse the card either.
+// the card.
 const LIMITUS_NODE_FULL = 80; // hover/selected size; 44px at rest (classes below)
 
 function LimitusTimeline({
@@ -399,11 +421,11 @@ function LimitusTimeline({
       `M ${pts[0].x} ${pts[0].y} A ${rx} ${ry} 0 0 1 ${to.x} ${to.y}`;
 
     // The popup is an oval, concentric with the arch's own ellipse, so it
-    // reads as sitting inside the curve. Its top edge tapers away from the
-    // inner nodes, which lets it ride higher than a rectangle could.
-    const popupW = Math.min(640, w * 0.62);
-    const popupTop = pts[2].y + 30;
-    const popupH = Math.max(240, Math.min(340, h - popupTop - 14));
+    // reads as sitting inside the curve. It sits low enough that the stem
+    // has room to loop on its way down from the top nodes.
+    const popupW = Math.min(780, w * 0.74);
+    const popupTop = pts[2].y + 74;
+    const popupH = Math.max(260, Math.min(360, h - popupTop - 10));
     const popupLeft = cx - popupW / 2;
     const ocx = cx;
     const ocy = popupTop + popupH / 2;
@@ -416,13 +438,34 @@ function LimitusTimeline({
       const dx = active.x - ocx;
       const dy = active.y - ocy;
       const k = Math.sqrt((dx / (popupW / 2)) ** 2 + (dy / (popupH / 2)) ** 2) || 1;
-      stem = `M ${active.x} ${active.y} L ${ocx + dx / k} ${ocy + dy / k}`;
+      const bx = ocx + dx / k;
+      const by = ocy + dy / k;
+      const len = Math.hypot(bx - active.x, by - active.y) || 1;
+      const ux = (bx - active.x) / len;
+      const uy = (by - active.y) / len;
+      // A prolate cycloid riding the straight line: it starts and ends
+      // exactly on the line but curls into a couple of loops between
+      // (the radius is kept above len / (2π·loops), which is what makes
+      // the curve double back on itself instead of just wiggling).
+      const loops = len > 110 ? 2 : 1;
+      const radius = Math.min(30, Math.max(14, (len / (2 * Math.PI * loops)) * 1.9));
+      const side = active.x < ocx ? 1 : -1;
+      const samples = 120;
+      for (let i = 0; i <= samples; i++) {
+        const t = i / samples;
+        const th = 2 * Math.PI * loops * t;
+        const along = len * t - radius * Math.sin(th);
+        const across = side * radius * (1 - Math.cos(th));
+        const px = active.x + ux * along - uy * across;
+        const py = active.y + uy * along + ux * across;
+        stem += `${i === 0 ? "M" : "L"} ${px.toFixed(1)} ${py.toFixed(1)} `;
+      }
     }
     // Inscribed content box (an ellipse holds ~0.72 of its width/height as
     // a rectangle) and the round photo that fills its left side.
     const padX = popupW * 0.14;
     const padY = popupH * 0.14;
-    const photo = Math.min(popupH - padY * 2, (popupW - padX * 2) * 0.4);
+    const photo = Math.min(popupH - padY * 2, (popupW - padX * 2) * 0.42);
 
     geometry = (
       <>
@@ -494,7 +537,6 @@ function LimitusTimeline({
         {current >= 0 && (
           <div
             key={`popup-${current}`}
-            data-no-card-press
             className="limitus-popup-in absolute z-10 flex items-center gap-6 rounded-[50%] border-[3px]"
             style={{
               left: popupLeft,
@@ -519,8 +561,8 @@ function LimitusTimeline({
               <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
                 Step {current + 1} of {n}
               </span>
-              <span className="text-3xl leading-tight font-bold">{steps[current].title}</span>
-              <span className="text-lg leading-snug">{steps[current].caption}</span>
+              <span className="text-4xl leading-tight font-bold">{steps[current].title}</span>
+              <span className="text-xl leading-snug">{steps[current].caption}</span>
             </div>
           </div>
         )}
@@ -1502,10 +1544,10 @@ export default function Home() {
           ? { el, index: Number(cardIndexAttr), rect: el.getBoundingClientRect() }
           : null;
 
-      // Clicks on an inert zone (e.g. the Limitus popup's text) shouldn't
-      // press or collapse the card they sit inside; buttons inside one
-      // match their own closer [data-cursor-melt] and still work normally.
-      if (el.dataset.cardIndex !== undefined && e.target.closest("[data-no-card-press]")) return;
+      // An expanded card is just a page now: pressing inside it does
+      // nothing (it closes via its X button, a click outside, or Escape).
+      // Buttons inside match their own closer [data-cursor-melt].
+      if (cardIndexAttr !== undefined && Number(cardIndexAttr) === expandedIndexRef.current) return;
 
       animateScaleTo(el, PRESS_SCALE);
       pressed = { el };
@@ -1523,24 +1565,9 @@ export default function Home() {
       const upEl = e.target instanceof Element ? e.target.closest("[data-cursor-melt]") : null;
       const upIndexAttr = upEl instanceof HTMLElement ? upEl.dataset.cardIndex : undefined;
 
-      const upInInertZone =
-        upIndexAttr !== undefined && e.target instanceof Element && e.target.closest("[data-no-card-press]") !== null;
-
-      if (upInInertZone) {
-        // Released on inert content inside a card — nothing to expand or collapse.
-      } else if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
-        // Released on the card that's already expanded — collapse it.
-        // expandSettled drops immediately (same tick) so any expanded-only
-        // content disappears before the box starts shrinking, instead of
-        // riding the shrink down with it.
-        setExpandSettled(false);
-        setExpandGrown(false);
-        setPushOffsets({});
-        window.setTimeout(() => {
-          setExpandedIndex(null);
-          setExpandRect(null);
-          setExpandTransitionReady(false);
-        }, EXPAND_DURATION);
+      if (upIndexAttr !== undefined && Number(upIndexAttr) === expandedIndexRef.current) {
+        // Released inside the already-expanded card — closing is the X
+        // button's (or the backdrop's) job, not the card body's.
       } else if (expandCandidate && upEl === expandCandidate.el) {
         const { el, index, rect } = expandCandidate;
         // The release animation just kicked off above (if this card was the
@@ -2074,6 +2101,8 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 0)}>
           <ExpandableCard
             index={0}
+            showClose={expandedIndex === 0 && expandSettled}
+            onClose={collapseExpanded}
             className={`${cardBox} relative justify-center overflow-hidden @container`}
             style={{ borderColor: borderOnBg, backgroundColor: bg, ...getExpandStyle(0) }}
           >
@@ -2319,6 +2348,8 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 2)}>
           <ExpandableCard
             index={2}
+            showClose={expandedIndex === 2 && expandSettled}
+            onClose={collapseExpanded}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
@@ -2527,6 +2558,8 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 3)}>
           <ExpandableCard
             index={3}
+            showClose={expandedIndex === 3 && expandSettled}
+            onClose={collapseExpanded}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
@@ -2568,6 +2601,8 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 4)}>
           <ExpandableCard
             index={4}
+            showClose={expandedIndex === 4 && expandSettled}
+            onClose={collapseExpanded}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOlive, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
           >
@@ -2602,6 +2637,8 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 5)}>
           <ExpandableCard
             index={5}
+            showClose={expandedIndex === 5 && expandSettled}
+            onClose={collapseExpanded}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelPeriwinkle, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
           >
@@ -2636,6 +2673,8 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 1)}>
           <ExpandableCard
             index={1}
+            showClose={expandedIndex === 1 && expandSettled}
+            onClose={collapseExpanded}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
           >
@@ -2669,6 +2708,8 @@ export default function Home() {
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 6)}>
           <ExpandableCard
             index={6}
+            showClose={expandedIndex === 6 && expandSettled}
+            onClose={collapseExpanded}
             className={`${cardBox} justify-center gap-4`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(6) }}
           >

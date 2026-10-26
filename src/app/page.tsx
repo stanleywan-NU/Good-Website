@@ -231,9 +231,11 @@ function ExpandableCard({
       {children}
       {showClose && (
         // The only in-card way to close an expanded box (clicking outside
-        // it and Escape still work too). Its top-right corner sits exactly
-        // on the box's own top-right corner — 21px is the box's 24px
-        // radius minus its 3px border, so the two curves line up. Its own
+        // it and Escape still work too). It's pulled out over the box's 3px
+        // border so its top-right corner sits exactly on the box's outer
+        // corner (same 24px radius), flush with both edges. That only works
+        // because no card clips its own overflow (the intro card clips on
+        // an inner wrapper instead). Its own
         // data-cursor-melt gives it the same press/hover feel as the cards
         // while keeping presses from counting as presses on the card.
         <button
@@ -241,7 +243,7 @@ function ExpandableCard({
           data-cursor-melt
           aria-label="Close"
           onClick={onClose}
-          className="intro-subtitle-fade-in absolute top-0 right-0 z-50 flex h-11 w-16 items-center justify-center rounded-tl-xl rounded-tr-[21px] rounded-br-xl rounded-bl-2xl bg-black text-white transition-transform duration-200 ease-out hover:scale-[1.06]"
+          className="intro-subtitle-fade-in absolute -top-[3px] -right-[3px] z-50 flex h-12 w-12 items-center justify-center rounded-tl-xl rounded-tr-3xl rounded-br-xl rounded-bl-2xl bg-black text-white transition-transform duration-200 ease-out hover:scale-[1.06]"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
             <path d="M3 3 L15 15 M15 3 L3 15" />
@@ -317,44 +319,61 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
 
 // The Limitus process, oldest to newest — one slide per stage, each with a
 // short title and a one-line caption, flipped through as a stack.
-const LIMITUS_STEPS: { src: string; title: string; caption: string }[] = [
+// `w`/`h` are the photo's pixel size, so the popup can show each one whole.
+const LIMITUS_STEPS: { src: string; title: string; caption: string; w: number; h: number }[] = [
   {
     src: "/limitus/01-concept-sketch.jpg",
+    w: 1100,
+    h: 870,
     title: "Concept sketch",
     caption: "Stability where a Wrist Widget is too loose, freedom where a post-surgery brace is too stiff.",
   },
   {
     src: "/limitus/02-measured-drawing.jpg",
+    w: 1100,
+    h: 892,
     title: "Measured drawing",
     caption: "Dimensions and materials worked out: a neoprene body with velcro straps.",
   },
   {
     src: "/limitus/03-first-build.jpg",
+    w: 1079,
+    h: 1100,
     title: "First build",
     caption: "Cut and assembled from the parts of braces we bought.",
   },
   {
     src: "/limitus/04-prototype-1.jpg",
+    w: 825,
+    h: 1100,
     title: "Prototype 1",
     caption: "Ulnar deviation support, compression, and slight resistance to supination.",
   },
   {
     src: "/limitus/05-revised-sketch.jpg",
+    w: 809,
+    h: 1100,
     title: "Revised sketch",
     caption: "Updated with mentor feedback: the thumb loop came out.",
   },
   {
     src: "/limitus/06-prototype-2.jpg",
+    w: 777,
+    h: 1100,
     title: "Prototype 2",
     caption: "Rebuilt from materials supplied by our mentor.",
   },
   {
     src: "/limitus/07-prototype-3-4.jpg",
+    w: 730,
+    h: 1100,
     title: "Prototypes 3 & 4",
     caption: "One piece instead of a base plus wings, wider straps, D-rings overlapping the fabric.",
   },
   {
     src: "/limitus/08-final.jpg",
+    w: 960,
+    h: 1100,
     title: "The final brace",
     caption: "Compresses the ulna and radius and limits supination.",
   },
@@ -380,7 +399,7 @@ function LimitusTimeline({
   cardBg,
   popupBg,
 }: {
-  steps: { src: string; title: string; caption: string }[];
+  steps: { src: string; title: string; caption: string; w: number; h: number }[];
   current: number;
   onSelect: (i: number) => void;
   fg: string;
@@ -423,9 +442,9 @@ function LimitusTimeline({
     // The popup is an oval, concentric with the arch's own ellipse, so it
     // reads as sitting inside the curve. It sits low enough that the stem
     // has room to loop on its way down from the top nodes.
-    const popupW = Math.min(780, w * 0.74);
-    const popupTop = pts[2].y + 74;
-    const popupH = Math.max(260, Math.min(360, h - popupTop - 10));
+    const popupW = Math.min(740, w * 0.7);
+    const popupTop = pts[2].y + 44;
+    const popupH = Math.max(260, Math.min(380, h - popupTop - 8));
     const popupLeft = cx - popupW / 2;
     const ocx = cx;
     const ocy = popupTop + popupH / 2;
@@ -438,22 +457,28 @@ function LimitusTimeline({
       const dx = active.x - ocx;
       const dy = active.y - ocy;
       const k = Math.sqrt((dx / (popupW / 2)) ** 2 + (dy / (popupH / 2)) ** 2) || 1;
-      const bx = ocx + dx / k;
-      const by = ocy + dy / k;
+      // Ends a few px inside the oval so it tucks under the oval's border.
+      const ex = ocx + dx / k;
+      const ey = ocy + dy / k;
+      const len0 = Math.hypot(ex - active.x, ey - active.y) || 1;
+      const bx = ex + ((ex - active.x) / len0) * 4;
+      const by = ey + ((ey - active.y) / len0) * 4;
       const len = Math.hypot(bx - active.x, by - active.y) || 1;
       const ux = (bx - active.x) / len;
       const uy = (by - active.y) / len;
       // A prolate cycloid riding the straight line: it starts and ends
-      // exactly on the line but curls into a couple of loops between
-      // (the radius is kept above len / (2π·loops), which is what makes
-      // the curve double back on itself instead of just wiggling).
+      // exactly on the line but curls into a couple of loops in the first
+      // stretch (the radius is kept above len / (2π·loops), which is what
+      // makes the curve double back on itself instead of just wiggling),
+      // then runs straight into the oval so no loop ever ends up beside it.
+      const loopSpan = 0.72;
       const loops = len > 110 ? 2 : 1;
-      const radius = Math.min(30, Math.max(14, (len / (2 * Math.PI * loops)) * 1.9));
+      const radius = Math.min(30, Math.max(14, ((len * loopSpan) / (2 * Math.PI * loops)) * 1.9));
       const side = active.x < ocx ? 1 : -1;
       const samples = 120;
       for (let i = 0; i <= samples; i++) {
         const t = i / samples;
-        const th = 2 * Math.PI * loops * t;
+        const th = 2 * Math.PI * loops * Math.min(t / loopSpan, 1);
         const along = len * t - radius * Math.sin(th);
         const across = side * radius * (1 - Math.cos(th));
         const px = active.x + ux * along - uy * across;
@@ -462,10 +487,16 @@ function LimitusTimeline({
       }
     }
     // Inscribed content box (an ellipse holds ~0.72 of its width/height as
-    // a rectangle) and the round photo that fills its left side.
+    // a rectangle). The photo gets as much of it as fits at its own aspect
+    // ratio, so nothing is cropped.
     const padX = popupW * 0.14;
     const padY = popupH * 0.14;
-    const photo = Math.min(popupH - padY * 2, (popupW - padX * 2) * 0.42);
+    const availW = popupW - padX * 2;
+    const availH = popupH - padY * 2;
+    const shown = current >= 0 ? steps[current] : null;
+    const fit = shown ? Math.min((availW * 0.46) / shown.w, (availH * 0.9) / shown.h) : 1;
+    const photoW = shown ? shown.w * fit : 0;
+    const photoH = shown ? shown.h * fit : 0;
 
     geometry = (
       <>
@@ -552,8 +583,8 @@ function LimitusTimeline({
             }}
           >
             <div
-              className="relative shrink-0 overflow-hidden rounded-full border-[3px]"
-              style={{ width: photo, height: photo, borderColor: fg }}
+              className="relative shrink-0 overflow-hidden rounded-2xl border-[3px]"
+              style={{ width: photoW, height: photoH, borderColor: fg }}
             >
               <Image src={steps[current].src} alt={steps[current].title} fill sizes="260px" className="object-cover" />
             </div>
@@ -2103,9 +2134,15 @@ export default function Home() {
             index={0}
             showClose={expandedIndex === 0 && expandSettled}
             onClose={collapseExpanded}
-            className={`${cardBox} relative justify-center overflow-hidden @container`}
+            className={`${cardBox} relative justify-center @container`}
             style={{ borderColor: borderOnBg, backgroundColor: bg, ...getExpandStyle(0) }}
           >
+            {/* The clip lives on this wrapper, not the card, so the card itself
+                doesn't clip — that lets the close button sit flush on the
+                card's outer corner like every other box's. The wrapper
+                covers exactly the card's padding box, so the children's
+                absolute offsets resolve exactly as they did before. */}
+            <div className="absolute inset-0 overflow-hidden rounded-[21px]">
             {/* Decorative only — centered on the box's corner via right/
                 bottom 0 plus a self-translate, so it stays anchored there
                 regardless of size. Diameter is 170cqw (cqw, not a plain %,
@@ -2341,6 +2378,7 @@ export default function Home() {
                   </span>
                 )}
               </div>
+            </div>
             </div>
           </ExpandableCard>
         </div>

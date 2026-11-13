@@ -611,8 +611,9 @@ type ProjectBlock =
   | { kind: "heading"; text: string }
   | { kind: "text"; text: string };
 
-const RISING_TEAM_PAGE: { title: string; year?: string; blocks: ProjectBlock[] } = {
+const RISING_TEAM_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
   title: "Rising Team",
+  date: "July 2026 – September 2026",
   blocks: [
     { kind: "image", src: "/rising-team/02-ai-transformation.png", alt: "Slide on expanding into AI transformation budgets", w: 1393, h: 702 },
     { kind: "image", src: "/rising-team/04-figma-kits.webp", alt: "Kit pages laid out in Figma", w: 2000, h: 1127 },
@@ -625,7 +626,7 @@ function ProjectPage({
   page,
   fg,
 }: {
-  page: { title: string; year?: string; blocks: ProjectBlock[] };
+  page: { title: string; date?: string; blocks: ProjectBlock[] };
   fg: string;
 }) {
   return (
@@ -640,7 +641,7 @@ function ProjectPage({
           <h1 className="text-5xl leading-tight font-bold sm:text-6xl">
             {page.title}
           </h1>
-          {page.year && <span className="text-xl opacity-60">{page.year}</span>}
+          {page.date && <span className="shrink-0 text-xl whitespace-nowrap opacity-60">{page.date}</span>}
         </header>
         {page.blocks.map((block, i) => {
           if (block.kind === "image") {

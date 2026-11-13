@@ -309,7 +309,7 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
 ];
 
 // The Limitus process, oldest to newest — one slide per stage, each with a
-// short title and a one-line caption, flipped through as a stack.
+// short title and a one-line caption, shown one after another on its page.
 // `w`/`h` are the photo's pixel size, so the popup can show each one whole.
 const LIMITUS_STEPS: { src: string; title: string; caption: string; w: number; h: number }[] = [
   {
@@ -369,237 +369,6 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string; w: number; h
     caption: "Compresses the ulna and radius and limits supination.",
   },
 ];
-
-// Expanded Limitus view: the process timeline arches over the top of the
-// box, one photo node per stage, leaving the open space underneath for the
-// selected stage's popup. Nodes rest small and swell to full size on hover
-// (and stay full while selected). Picking one draws a stem from it to the
-// popup in the middle. `current` is -1 when no popup is open.
-//
-// The nodes are `data-cursor-melt` buttons, so they get the same press
-// shrink as the cards, with no stopPropagation (that would block it). They
-// have no `data-card-index`, so pressing one never expands or collapses
-// the card.
-const LIMITUS_NODE_FULL = 80; // hover/selected size; 44px at rest (classes below)
-
-function LimitusTimeline({
-  steps,
-  current,
-  onSelect,
-  fg,
-  cardBg,
-  popupBg,
-}: {
-  steps: { src: string; title: string; caption: string; w: number; h: number }[];
-  current: number;
-  onSelect: (i: number) => void;
-  fg: string;
-  cardBg: string;
-  popupBg: string;
-}) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const n = steps.length;
-
-  let geometry: React.ReactNode = null;
-  if (size && size.w > 0) {
-    const { w, h } = size;
-    // The arch: part of an ellipse, apex at the top-middle, ends sweeping
-    // down and out toward the box's lower sides.
-    const cx = w / 2;
-    const apexY = 108;
-    const cy = h * 0.86;
-    const rx = w / 2 - 54;
-    const ry = cy - apexY;
-    const start = 192;
-    const span = 156;
-    const pts = steps.map((_, i) => {
-      const t = ((start + (span * i) / (n - 1)) * Math.PI) / 180;
-      return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
-    });
-    const arc = (to: { x: number; y: number }) =>
-      `M ${pts[0].x} ${pts[0].y} A ${rx} ${ry} 0 0 1 ${to.x} ${to.y}`;
-
-    // The popup is an oval, concentric with the arch's own ellipse, so it
-    // reads as sitting inside the curve. It sits low enough that the stem
-    // has room to loop on its way down from the top nodes.
-    const popupW = Math.min(740, w * 0.7);
-    const popupTop = pts[2].y + 44;
-    const popupH = Math.max(260, Math.min(380, h - popupTop - 8));
-    const popupLeft = cx - popupW / 2;
-    const ocx = cx;
-    const ocy = popupTop + popupH / 2;
-    const active = current >= 0 ? pts[current] : null;
-
-    // Stem: from the active node to the point where the line toward the
-    // oval's center crosses the oval's edge.
-    let stem = "";
-    if (active) {
-      const dx = active.x - ocx;
-      const dy = active.y - ocy;
-      const k = Math.sqrt((dx / (popupW / 2)) ** 2 + (dy / (popupH / 2)) ** 2) || 1;
-      const bx = ocx + dx / k;
-      const by = ocy + dy / k;
-      const len = Math.hypot(bx - active.x, by - active.y) || 1;
-      const ux = (bx - active.x) / len;
-      const uy = (by - active.y) / len;
-      // A prolate cycloid riding the straight line: it starts and ends
-      // exactly on the line but curls into a couple of loops between
-      // (the radius is kept above len / (2π·loops), which is what makes
-      // the curve double back on itself instead of just wiggling). It's
-      // cut off at the first sample that reaches the oval, so the line
-      // stops the moment it touches the popup — a loop never carries on
-      // past the point of contact.
-      const loops = len > 110 ? 2 : 1;
-      const radius = Math.min(30, Math.max(14, (len / (2 * Math.PI * loops)) * 1.9));
-      const side = active.x < ocx ? 1 : -1;
-      const samples = 160;
-      for (let i = 0; i <= samples; i++) {
-        const t = i / samples;
-        const th = 2 * Math.PI * loops * t;
-        const along = len * t - radius * Math.sin(th);
-        const across = side * radius * (1 - Math.cos(th));
-        const px = active.x + ux * along - uy * across;
-        const py = active.y + uy * along + ux * across;
-        stem += `${i === 0 ? "M" : "L"} ${px.toFixed(1)} ${py.toFixed(1)} `;
-        if (((px - ocx) / (popupW / 2)) ** 2 + ((py - ocy) / (popupH / 2)) ** 2 <= 1) break;
-      }
-    }
-    // Inscribed content box (an ellipse holds ~0.72 of its width/height as
-    // a rectangle). The photo gets as much of it as fits at its own aspect
-    // ratio, so nothing is cropped.
-    const padX = popupW * 0.14;
-    const padY = popupH * 0.14;
-    const availW = popupW - padX * 2;
-    const availH = popupH - padY * 2;
-    const shown = current >= 0 ? steps[current] : null;
-    const fit = shown ? Math.min((availW * 0.46) / shown.w, (availH * 0.9) / shown.h) : 1;
-    const photoW = shown ? shown.w * fit : 0;
-    const photoH = shown ? shown.h * fit : 0;
-
-    geometry = (
-      <>
-        <svg className="pointer-events-none absolute inset-0 z-0" width={w} height={h} fill="none" aria-hidden>
-          <path d={arc(pts[n - 1])} stroke={fg} strokeWidth={4} strokeLinecap="round" opacity={0.2} />
-          {active && <path d={arc(active)} stroke={fg} strokeWidth={4} strokeLinecap="round" />}
-          {active && (
-            <path
-              key={`stem-${current}`}
-              d={stem}
-              pathLength={1}
-              stroke={fg}
-              strokeWidth={4}
-              strokeLinecap="round"
-              className="limitus-stem-draw"
-            />
-          )}
-        </svg>
-
-        {steps.map((s, i) => {
-          const isActive = i === current;
-          return (
-            <div
-              key={s.src}
-              className="group absolute z-20 hover:z-30"
-              style={{ left: pts[i].x, top: pts[i].y, width: 0, height: 0 }}
-            >
-              <button
-                type="button"
-                data-cursor-melt
-                aria-label={`Step ${i + 1}: ${s.title}`}
-                aria-expanded={isActive}
-                onClick={() => onSelect(isActive ? -1 : i)}
-                className={`absolute top-0 left-0 block -translate-x-1/2 -translate-y-1/2 rounded-full transition-[width,height,scale,box-shadow] duration-200 ease-out hover:h-[80px] hover:w-[80px] hover:scale-[1.035] ${
-                  isActive ? "h-[80px] w-[80px]" : "h-[44px] w-[44px]"
-                }`}
-                style={{
-                  boxShadow: isActive ? `0 0 0 4px ${cardBg}, 0 0 0 7px ${fg}` : undefined,
-                }}
-              >
-                <span
-                  className="absolute inset-0 overflow-hidden rounded-full border-[3px]"
-                  style={{ borderColor: fg }}
-                >
-                  <Image src={s.src} alt="" fill sizes="80px" className="object-cover" />
-                </span>
-                <span
-                  className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
-                  style={{ backgroundColor: fg, color: cardBg }}
-                >
-                  {i + 1}
-                </span>
-              </button>
-              <span
-                className="pointer-events-none absolute left-0 rounded-md px-2 py-1 text-xs font-semibold whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                style={{
-                  top: -(LIMITUS_NODE_FULL / 2 + 10),
-                  transform: "translate(-50%, -100%)",
-                  backgroundColor: fg,
-                  color: cardBg,
-                }}
-              >
-                {s.title}
-              </span>
-            </div>
-          );
-        })}
-
-        {current >= 0 && (
-          <div
-            key={`popup-${current}`}
-            className="limitus-popup-in absolute z-10 flex items-center gap-6 rounded-[50%] border-[3px]"
-            style={{
-              left: popupLeft,
-              top: popupTop,
-              width: popupW,
-              height: popupH,
-              paddingInline: padX,
-              paddingBlock: padY,
-              borderColor: fg,
-              backgroundColor: popupBg,
-              color: fg,
-              transformOrigin: `${active ? active.x - popupLeft : popupW / 2}px ${active ? active.y - popupTop : 0}px`,
-            }}
-          >
-            <div
-              className="relative shrink-0 overflow-hidden rounded-2xl border-[3px]"
-              style={{ width: photoW, height: photoH, borderColor: fg }}
-            >
-              <Image src={steps[current].src} alt={steps[current].title} fill sizes="260px" className="object-cover" />
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-              <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
-                Step {current + 1} of {n}
-              </span>
-              <span className="text-4xl leading-tight font-bold">{steps[current].title}</span>
-              <span className="text-xl leading-snug">{steps[current].caption}</span>
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }
-
-  return (
-    <div ref={rootRef} className="intro-subtitle-fade-in relative h-full w-full">
-      <div className="absolute top-8 left-0 z-0 flex max-w-[210px] flex-col gap-1">
-        <span className="text-5xl leading-none font-bold">Limitus</span>
-        <span className="text-sm leading-snug">A wrist brace for TFCC tears — five prototypes in five months.</span>
-      </div>
-      {geometry}
-    </div>
-  );
-}
 
 // An expanded box's content is one long scrolling page — a title, then
 // a plain column of images and text — rather than a bespoke layout per box.
@@ -724,7 +493,15 @@ function TikTokBadge() {
 
 const BORDERX_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
   title: "BorderX Lab",
+  date: "2026",
   blocks: [],
+};
+
+const LIMITUS_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
+  title: "Limitus",
+  blocks: [
+    { kind: "text", text: "A wrist brace for TFCC tears — five prototypes in five months." },
+  ],
 };
 
 // The Closet articles shown in the GEO panel. Each is a self-contained page
@@ -1073,7 +850,6 @@ export default function Home() {
   // itself is mid-resize, which is what was reading as "content squishing
   // along with the box."
   const [expandSettled, setExpandSettled] = useState(false);
-  const [limitusStep, setLimitusStep] = useState(0);
   // True from the moment a box is clicked until it's most of the way back
   // home: everything that isn't the expanded box is faded out meanwhile.
   const [fadeOthers, setFadeOthers] = useState(false);
@@ -2504,17 +2280,38 @@ export default function Home() {
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
-            <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-              {expandedIndex === 3 && expandSettled ? (
-                <LimitusTimeline
-                  steps={LIMITUS_STEPS}
-                  current={limitusStep}
-                  onSelect={setLimitusStep}
-                  fg={fg}
-                  cardBg={pastelGreen}
-                  popupBg={bg}
-                />
-              ) : (
+            {expandedIndex === 3 && expandSettled ? (
+              <ProjectPage page={LIMITUS_PAGE} fg={fg}>
+                {/* The process, oldest to newest, one step after another:
+                    a heading, the photo whole at its own proportions, and
+                    the caption. Tall photos are capped in height (so one
+                    doesn't fill several screens) and keep their shape by
+                    narrowing, rather than cropping. */}
+                {LIMITUS_STEPS.map((step, i) => (
+                  <section key={step.src} className="flex flex-col gap-4">
+                    <h3 className="mt-4 text-2xl font-bold">
+                      <span className="mr-3 opacity-50">{i + 1}</span>
+                      {step.title}
+                    </h3>
+                    <div
+                      className="rounded-[20px] border p-2"
+                      style={{ ...projectFrameStyle(fg), maxWidth: Math.min(704, Math.round((640 * step.w) / step.h) + 18) }}
+                    >
+                      <Image
+                        src={step.src}
+                        alt={step.title}
+                        width={step.w}
+                        height={step.h}
+                        sizes="(min-width: 768px) 704px, 100vw"
+                        className="block h-auto w-full rounded-xl"
+                      />
+                    </div>
+                    <p className="text-xl leading-snug">{step.caption}</p>
+                  </section>
+                ))}
+              </ProjectPage>
+            ) : (
+              <div className="flex min-h-0 flex-1 items-center justify-center">
                 <Image
                   src={isDark ? "/limitus/logo-white.svg" : "/limitus/logo-black.svg"}
                   alt="Limitus logo"
@@ -2524,8 +2321,8 @@ export default function Home() {
                   className="h-[72px] w-[72px] object-contain"
                   style={{ filter: pastelIconShadow, ...unstretch(3) }}
                 />
-              )}
-            </div>
+              </div>
+            )}
             {expandedIndex !== 3 && (
               <div className="flex flex-col gap-1">
                 <span className="text-[22px] font-bold" style={unstretch(3)}>

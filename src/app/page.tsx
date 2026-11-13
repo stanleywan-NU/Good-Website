@@ -601,6 +601,84 @@ function LimitusTimeline({
   );
 }
 
+// An expanded box's content is one long scrolling page — a serif title, then
+// a plain column of images and text — rather than a bespoke layout per box.
+// It scrolls inside the box (the box itself stays pinned to the screen), and
+// the column is narrow and centered so photos and copy read like an article.
+// Add to a project by appending blocks; nothing else needs to change.
+type ProjectBlock =
+  | { kind: "image"; src: string; alt: string; w: number; h: number }
+  | { kind: "heading"; text: string }
+  | { kind: "text"; text: string };
+
+const RISING_TEAM_PAGE: { title: string; year?: string; blocks: ProjectBlock[] } = {
+  title: "Rising Team",
+  blocks: [
+    { kind: "image", src: "/rising-team/01-slack-shoutout.png", alt: "Slack shoutout from a teammate and my reply", w: 1605, h: 293 },
+    { kind: "image", src: "/rising-team/02-ai-transformation.png", alt: "Slide on expanding into AI transformation budgets", w: 1393, h: 702 },
+    { kind: "image", src: "/rising-team/03-team-call.webp", alt: "The Rising Team on a video call", w: 2000, h: 1150 },
+    { kind: "image", src: "/rising-team/04-figma-kits.webp", alt: "Kit pages laid out in Figma", w: 2000, h: 1127 },
+  ],
+};
+
+function ProjectPage({
+  page,
+  fg,
+}: {
+  page: { title: string; year?: string; blocks: ProjectBlock[] };
+  fg: string;
+}) {
+  return (
+    // absolute inset-0, not padding inside the card's own flow: the scroll
+    // area runs edge to edge so the scrollbar sits at the screen's edge and
+    // content scrolls under the close button instead of being cropped by
+    // the card's padding. overscroll-contain keeps a scroll that hits the
+    // end from chaining into the page behind.
+    <div className="absolute inset-0 overflow-y-auto overscroll-contain">
+      <article className="intro-subtitle-fade-in mx-auto flex max-w-[720px] flex-col gap-8 px-6 pt-28 pb-28">
+        <header className="flex items-baseline justify-between gap-6">
+          <h1 className="font-[family-name:var(--font-serif)] text-5xl leading-tight font-normal sm:text-6xl">
+            {page.title}
+          </h1>
+          {page.year && <span className="text-xl opacity-60">{page.year}</span>}
+        </header>
+        {page.blocks.map((block, i) => {
+          if (block.kind === "image") {
+            return (
+              <div
+                key={block.src}
+                className="rounded-[20px] border p-2"
+                style={{ borderColor: `color-mix(in srgb, ${fg} 18%, transparent)` }}
+              >
+                <Image
+                  src={block.src}
+                  alt={block.alt}
+                  width={block.w}
+                  height={block.h}
+                  sizes="(min-width: 768px) 704px, 100vw"
+                  className="block h-auto w-full rounded-xl"
+                />
+              </div>
+            );
+          }
+          if (block.kind === "heading") {
+            return (
+              <h2 key={i} className="mt-2 font-[family-name:var(--font-serif)] text-4xl font-normal">
+                {block.text}
+              </h2>
+            );
+          }
+          return (
+            <p key={i} className="text-xl leading-snug font-light">
+              {block.text}
+            </p>
+          );
+        })}
+      </article>
+    </div>
+  );
+}
+
 // The Closet articles shown in the GEO panel. Each is a self-contained page
 // served from /public/articles, so the links are ordinary public URLs.
 // The intro card's expanded-only row of contact links. These started out
@@ -2716,12 +2794,10 @@ export default function Home() {
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
           >
-            <div className="flex flex-1 items-center justify-center">
-              {expandedIndex === 1 && expandSettled ? (
-                <span className="text-[13px]" style={unstretch(1)}>
-                  [ Coming soon ]
-                </span>
-              ) : (
+            {expandedIndex === 1 && expandSettled ? (
+              <ProjectPage page={RISING_TEAM_PAGE} fg={fg} />
+            ) : (
+              <div className="flex flex-1 items-center justify-center">
                 <Image
                   src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
                   alt="Rising Team logo"
@@ -2730,16 +2806,18 @@ export default function Home() {
                   className="h-[72px] w-[72px] object-contain"
                   style={{ filter: pastelIconShadow, ...unstretch(1) }}
                 />
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[22px] font-bold" style={unstretch(1)}>
-                Rising Team
-              </span>
-              <span className="text-sm" style={unstretch(1)}>
-                Product Design
-              </span>
-            </div>
+              </div>
+            )}
+            {expandedIndex !== 1 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(1)}>
+                  Rising Team
+                </span>
+                <span className="text-sm" style={unstretch(1)}>
+                  Product Design
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 

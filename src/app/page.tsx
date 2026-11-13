@@ -127,7 +127,12 @@ const SHRINK_DURATION = 650;
 // duplication, and the cursor-melt hover-grow logic (which re-reads
 // getBoundingClientRect() every frame) keeps tracking it correctly through
 // the whole animation without any special-casing.
-const EXPAND_DURATION = 900;
+const EXPAND_DURATION = 800;
+// Opening is two beats: everything else on screen (the other boxes and the
+// toggle/progress chrome — the background dots stay) fades out over this,
+// and only then does the clicked box grow to fill the screen. Closing runs
+// it backwards: the box shrinks home, and the rest fades back in as it lands.
+const FADE_DURATION = 240;
 // Quick and smooth, in the same family as the light/dark reveal: a gentle
 // start, a long steady middle, and only a mild slow-down as the box meets
 // the screen edges (not the hard crawl a stronger ease-out would give).
@@ -1034,12 +1039,14 @@ export default function Home() {
   const [limitusStep, setLimitusStep] = useState(0);
   const advanceDeck = (i: number) =>
     setDeckIndex((prev) => prev.map((v, idx) => (idx === i ? (v + 1) % CAROUSEL_DECKS[idx].images.length : v)));
-  // How far each *other* card needs to slide, computed once at the moment
-  // a card expands (see the mousedown/mouseup effect below) as exactly the
-  // distance the expanding card's own nearest edge travels — so whatever
-  // gap already existed between them stays exactly that gap the entire
-  // time, not just once everything lands.
-  const [pushOffsets, setPushOffsets] = useState<Record<number, number>>({});
+  // True from the moment a box is clicked until it's most of the way back
+  // home: everything that isn't the expanded box is faded out meanwhile.
+  const [fadeOthers, setFadeOthers] = useState(false);
+  // The pending "now grow" / "now fade back in" timers, so closing in the
+  // middle of an opening (or vice versa) can cancel the stale ones.
+  const growTimerRef = useRef<number | null>(null);
+  const settleTimerRef = useRef<number | null>(null);
+  const unfadeTimerRef = useRef<number | null>(null);
   // Mirrors expandedIndex for the mousedown/mouseup listeners below, which
   // are set up once (empty deps) and would otherwise only ever see the
   // value from their first render.
@@ -1057,7 +1064,6 @@ export default function Home() {
   // the horizontal card track for anywhere over the hero, leaving no path
   // for an ordinary scroll gesture to ever reach whatever's below it.
   const workExperienceRef = useRef<HTMLDivElement>(null);
-  const chromeRef = useRef<HTMLDivElement>(null);
   // The currently in-flight theme reveal, if any — lets a new click skip it
   // early (see toggleTheme) instead of being blocked until it finishes on
   // its own, which read as a cooldown on rapid successive clicks.
@@ -1609,20 +1615,7 @@ export default function Home() {
         // between cards further down the line — nothing here needs to
         // touch their gaps at all, only shift the whole block by the same
         // fixed amount.)
-        const target = computeExpandTarget();
-        const leftPush = target.targetLeft - rect.left;
-        const rightPush = target.targetLeft + target.targetWidth - (rect.left + rect.width);
-        const offsets: Record<number, number> = {};
-        document.querySelectorAll("[data-card-index]").forEach((otherEl) => {
-          const otherIndex = Number((otherEl as HTMLElement).dataset.cardIndex);
-          if (otherIndex === index) return;
-          // Left/right by actual on-screen position, not card index — the
-          // two stopped matching once Rising Team moved down the row.
-          offsets[otherIndex] =
-            otherEl.getBoundingClientRect().left < rect.left ? leftPush : rightPush;
-        });
-        setPushOffsets(offsets);
-
+        setFadeOthers(true);
         setExpandRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height });
         setExpandedIndex(index);
         setExpandGrown(false);
@@ -1633,13 +1626,20 @@ export default function Home() {
         // the target, two frames later, once that pinned frame has had a
         // chance to actually paint.
         setExpandTransitionReady(false);
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            setExpandTransitionReady(true);
-            setExpandGrown(true);
-            window.setTimeout(() => setExpandSettled(true), EXPAND_DURATION);
-          })
-        );
+        // The grow waits out the fade, so the clicked box is alone on screen
+        // by the time it starts moving.
+        for (const t of [growTimerRef.current, settleTimerRef.current, unfadeTimerRef.current]) {
+          if (t !== null) window.clearTimeout(t);
+        }
+        growTimerRef.current = window.setTimeout(() => {
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              setExpandTransitionReady(true);
+              setExpandGrown(true);
+              settleTimerRef.current = window.setTimeout(() => setExpandSettled(true), EXPAND_DURATION);
+            })
+          );
+        }, FADE_DURATION);
       }
       expandCandidate = null;
     };
@@ -1660,58 +1660,23 @@ export default function Home() {
   // This is only for the other two ways to close: the backdrop and Escape.
   function collapseExpanded() {
     if (expandedIndex === null) return;
+    for (const t of [growTimerRef.current, settleTimerRef.current, unfadeTimerRef.current]) {
+      if (t !== null) window.clearTimeout(t);
+    }
     setExpandSettled(false);
     setExpandGrown(false);
-    setPushOffsets({});
+    // The rest fades back in over the last stretch of the shrink, so it's
+    // fully there just as the box lands.
+    unfadeTimerRef.current = window.setTimeout(
+      () => setFadeOthers(false),
+      Math.max(0, EXPAND_DURATION - FADE_DURATION - 40)
+    );
     window.setTimeout(() => {
       setExpandedIndex(null);
       setExpandRect(null);
       setExpandTransitionReady(false);
     }, EXPAND_DURATION);
   }
-
-  // The toggle/progress chrome sits *above* an expanding box and dissolves
-  // where the box overlaps it, instead of the box hard-clipping it as its
-  // edge sweeps past. Every frame the chrome gets a mask that is opaque
-  // outside the box's rectangle and ramps to transparent over
-  // CHROME_FADE px inside each of its four edges (the four ramps are
-  // unioned with mask-composite: add) — so the overlap fades softly along
-  // the box's moving edge, and the box itself is never touched. The ramp is
-  // shorter than the chrome's inset from the screen edge, so once the box
-  // fills the screen the chrome is fully gone.
-  useEffect(() => {
-    const pill = chromeRef.current;
-    if (!pill) return;
-    if (expandedIndex === null) {
-      pill.style.removeProperty("mask-image");
-      pill.style.removeProperty("-webkit-mask-image");
-      return;
-    }
-    const card = document.querySelector(`[data-card-index="${expandedIndex}"]`);
-    if (!card) return;
-    const CHROME_FADE = 22;
-    let raf = 0;
-    const update = () => {
-      const p = pill.getBoundingClientRect();
-      const r = card.getBoundingClientRect();
-      const f = CHROME_FADE;
-      const ramp = (dir: string, solid: number) =>
-        `linear-gradient(${dir}, #000 ${solid}px, transparent ${solid + f}px)`;
-      const mask = [
-        ramp("to bottom", r.top - p.top),
-        ramp("to top", p.bottom - r.bottom),
-        ramp("to right", r.left - p.left),
-        ramp("to left", p.right - r.right),
-      ].join(", ");
-      pill.style.setProperty("mask-image", mask);
-      pill.style.setProperty("mask-composite", "add");
-      pill.style.setProperty("-webkit-mask-image", mask);
-      pill.style.setProperty("-webkit-mask-composite", "source-over");
-      raf = requestAnimationFrame(update);
-    };
-    update();
-    return () => cancelAnimationFrame(raf);
-  }, [expandedIndex]);
 
   // Escape closes an expanded card the same way clicking the backdrop does.
   useEffect(() => {
@@ -1934,11 +1899,11 @@ export default function Home() {
     if (expandedIndex === index) {
       return { flexBasis: baseWidth * cardScale };
     }
-    const pushX = expandedIndex !== null && expandGrown ? (pushOffsets[index] ?? 0) : 0;
     return {
       flexBasis: baseWidth * cardScale,
-      transform: `translateX(${pushX}px) scaleY(${cardScale})`,
-      transition: expandedIndex !== null ? `transform ${EXPAND_DURATION}ms ${EXPAND_EASING}` : undefined,
+      transform: `scaleY(${cardScale})`,
+      opacity: fadeOthers ? 0 : 1,
+      transition: expandedIndex !== null ? `opacity ${FADE_DURATION}ms ease-out` : undefined,
     };
   };
 
@@ -2072,18 +2037,18 @@ export default function Home() {
       )}
 
       <div
-        // z-[60], above an expanded card (z-index 50, see getExpandStyle):
-        // the card doesn't hide this chrome by stacking over it — the
-        // chrome fades itself out where the card overlaps (see the
-        // chromeRef effect), which reads far smoother than a hard edge
-        // sweeping across it.
-        ref={chromeRef}
-        className="absolute top-6 left-1/2 z-[60] -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
+        // z-30: below an expanded card (z-index 50, see getExpandStyle) and
+        // the click-catcher, so a box that fills the screen covers this
+        // chrome too instead of growing out from underneath it.
+        className="absolute top-6 left-1/2 z-30 -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
         style={{
           borderColor: borderOnBg,
           backgroundColor: bg,
-          opacity: chromeVisible ? 1 : 0,
-          pointerEvents: chromeVisible && expandedIndex === null ? "auto" : "none",
+          opacity: chromeVisible && !fadeOthers ? 1 : 0,
+          // Only while a box is open: the chrome otherwise snaps in with no
+          // transition of its own (see the comment just below).
+          transition: expandedIndex !== null ? `opacity ${FADE_DURATION}ms ease-out` : undefined,
+          pointerEvents: chromeVisible && !fadeOthers ? "auto" : "none",
         }}
       >
         {/* The chrome box above snaps in the instant the intro square lands

@@ -1057,6 +1057,7 @@ export default function Home() {
   // the horizontal card track for anywhere over the hero, leaving no path
   // for an ordinary scroll gesture to ever reach whatever's below it.
   const workExperienceRef = useRef<HTMLDivElement>(null);
+  const chromeRef = useRef<HTMLDivElement>(null);
   // The currently in-flight theme reveal, if any — lets a new click skip it
   // early (see toggleTheme) instead of being blocked until it finishes on
   // its own, which read as a cooldown on rapid successive clicks.
@@ -1669,6 +1670,49 @@ export default function Home() {
     }, EXPAND_DURATION);
   }
 
+  // The toggle/progress chrome sits *above* an expanding box and dissolves
+  // where the box overlaps it, instead of the box hard-clipping it as its
+  // edge sweeps past. Every frame the chrome gets a mask that is opaque
+  // outside the box's rectangle and ramps to transparent over
+  // CHROME_FADE px inside each of its four edges (the four ramps are
+  // unioned with mask-composite: add) — so the overlap fades softly along
+  // the box's moving edge, and the box itself is never touched. The ramp is
+  // shorter than the chrome's inset from the screen edge, so once the box
+  // fills the screen the chrome is fully gone.
+  useEffect(() => {
+    const pill = chromeRef.current;
+    if (!pill) return;
+    if (expandedIndex === null) {
+      pill.style.removeProperty("mask-image");
+      pill.style.removeProperty("-webkit-mask-image");
+      return;
+    }
+    const card = document.querySelector(`[data-card-index="${expandedIndex}"]`);
+    if (!card) return;
+    const CHROME_FADE = 22;
+    let raf = 0;
+    const update = () => {
+      const p = pill.getBoundingClientRect();
+      const r = card.getBoundingClientRect();
+      const f = CHROME_FADE;
+      const ramp = (dir: string, solid: number) =>
+        `linear-gradient(${dir}, #000 ${solid}px, transparent ${solid + f}px)`;
+      const mask = [
+        ramp("to bottom", r.top - p.top),
+        ramp("to top", p.bottom - r.bottom),
+        ramp("to right", r.left - p.left),
+        ramp("to left", p.right - r.right),
+      ].join(", ");
+      pill.style.setProperty("mask-image", mask);
+      pill.style.setProperty("mask-composite", "add");
+      pill.style.setProperty("-webkit-mask-image", mask);
+      pill.style.setProperty("-webkit-mask-composite", "source-over");
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(raf);
+  }, [expandedIndex]);
+
   // Escape closes an expanded card the same way clicking the backdrop does.
   useEffect(() => {
     if (expandedIndex === null) return;
@@ -2028,15 +2072,18 @@ export default function Home() {
       )}
 
       <div
-        // z-30: below an expanded card (z-index 50, see getExpandStyle) and
-        // the click-catcher, so a box that fills the screen covers this
-        // chrome too instead of growing out from underneath it.
-        className="absolute top-6 left-1/2 z-30 -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
+        // z-[60], above an expanded card (z-index 50, see getExpandStyle):
+        // the card doesn't hide this chrome by stacking over it — the
+        // chrome fades itself out where the card overlaps (see the
+        // chromeRef effect), which reads far smoother than a hard edge
+        // sweeping across it.
+        ref={chromeRef}
+        className="absolute top-6 left-1/2 z-[60] -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
         style={{
           borderColor: borderOnBg,
           backgroundColor: bg,
           opacity: chromeVisible ? 1 : 0,
-          pointerEvents: chromeVisible ? "auto" : "none",
+          pointerEvents: chromeVisible && expandedIndex === null ? "auto" : "none",
         }}
       >
         {/* The chrome box above snaps in the instant the intro square lands

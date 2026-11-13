@@ -1136,13 +1136,6 @@ export default function Home() {
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
-  // The placeholder section below the hero — the bouncing down-arrows
-  // scroll to it directly rather than relying on wheel input reaching it
-  // natively, since the hero's own wheel handler (see the [data-cursor-
-  // melt]-scoped one further down) captures and redirects wheel events to
-  // the horizontal card track for anywhere over the hero, leaving no path
-  // for an ordinary scroll gesture to ever reach whatever's below it.
-  const workExperienceRef = useRef<HTMLDivElement>(null);
   // The currently in-flight theme reveal, if any — lets a new click skip it
   // early (see toggleTheme) instead of being blocked until it finishes on
   // its own, which read as a cooldown on rapid successive clicks.
@@ -2328,63 +2321,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* Scroll cue for the work-experience section below, scoped to
-                this card specifically (not the whole hero) — only while
-                it's the one expanded. A click, not a wheel-scroll
-                invitation the page could actually honor natively: the
-                hero's own wheel handler (see the [data-cursor-melt]-scoped
-                effect above) captures every wheel event over the hero and
-                redirects it to the horizontal card track, so an ordinary
-                scroll gesture never reaches the section beneath. z-30, not
-                z-10 like the content group above it, so it stays clickable
-                and visible above the z-20 circle overlay regardless of
-                where in the card it happens to land. No onMouseDown/up
-                stopPropagation, same reasoning as the Northwestern link
-                above: data-cursor-melt's own closest-match scoping already
-                keeps this click from also collapsing the card, and
-                stopping propagation here would have blocked the press
-                animation from ever reaching the listener that drives it.
-                The click handler collapses the card *before* scrolling,
-                on a timer matching EXPAND_DURATION — an expanded card is
-                `position: fixed` (see getExpandStyle), which stays glued
-                to the viewport regardless of document scroll, so scrolling
-                straight to the section while still expanded would move
-                the page with no visible effect: the fixed card, still
-                covering the whole view, would hide it just the same. */}
-            {introExpanding && expandSettled && (
-              <button
-                type="button"
-                aria-label="Scroll to work experience"
-                onClick={() => {
-                  collapseExpanded();
-                  window.setTimeout(() => {
-                    workExperienceRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }, EXPAND_DURATION);
-                }}
-                data-cursor-melt
-                className="intro-subtitle-fade-in absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center p-2"
-                style={{ color: fg }}
-              >
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-bounce">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-                <svg
-                  viewBox="0 0 24 24"
-                  width="22"
-                  height="22"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="animate-bounce -mt-3"
-                  style={{ animationDelay: "150ms" }}
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
-            )}
-
             {/* An exact duplicate of the text above, recolored (white in
                 light mode, black in dark — the opposite of fg, not a shade
                 of it) and clipped to the same circle geometry: 85cqw = half
@@ -2870,15 +2806,6 @@ export default function Home() {
       />
     </div>
 
-    {/* Placeholder for a work-experience summary — deliberately blank for
-        now. min-h-screen (not h-screen) so it can grow taller than one
-        viewport once it has real content, without needing to come back
-        and change this. The hero above is a fixed h-screen with its own
-        overflow-hidden, so this being an ordinary sibling in normal flow
-        is what gives the page as a whole any scrollable height at all —
-        nothing needed on html/body for that, they're unconstrained by
-        default. */}
-    <section ref={workExperienceRef} className="min-h-screen w-full" style={{ backgroundColor: bg }} />
     </>
   );
 }

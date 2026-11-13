@@ -784,116 +784,29 @@ function IntroLinkIcon({ name }: { name: string }) {
   }
 }
 
-const GEO_ARTICLES: { title: string; href: string; cover: string }[] = [
+const GEO_ARTICLES: { title: string; href: string; cover: string; w: number; h: number }[] = [
   {
     title: "LeBron James Still Treats The Tunnel Like A Runway",
     href: "/articles/lebron-james-tunnel-fits.html",
     cover: "/articles/lebron-james-tunnel-fits-cover.jpg",
+    w: 720,
+    h: 900,
   },
   {
     title: "Justin Bieber's Streetwear Rotation Has One Rule",
     href: "/articles/justin-bieber-streetwear.html",
     cover: "/articles/justin-bieber-streetwear-cover.jpg",
+    w: 720,
+    h: 900,
   },
   {
     title: "Inside the Year's Best Celebrity Couple Style Moments",
     href: "/articles/celebrity-couple-style-moments.html",
     cover: "/articles/celebrity-couple-style-moments-cover.jpg",
+    w: 720,
+    h: 960,
   },
 ];
-
-// An iMessage-style photo stack: every slide is always mounted (never
-// swapped out), each one positioned purely as a function of its own cyclic
-// distance from `current` — so advancing is just one number changing, and
-// the CSS transition on every layer does the rest. The card at distance 0
-// sits flat on top; distances 1-2 fan out tilted and scaled slightly
-// smaller behind it, like a fanned hand of cards; anything further back is
-// parked invisibly at the same spot as distance 2, ready to fade back in
-// once the deck cycles around to it. The one card whose distance just
-// became "the maximum" (it was on top a moment ago) gets its own
-// exaggerated exit — flung off to the side and rotated — which, combined
-// with the next card sliding out of the fan into the flat top spot, is
-// what actually reads as "shuffling through the deck" rather than a
-// cross-fade. onAdvance stops propagation on mousedown/up the same way the
-// TikTok link does, so tapping a deck doesn't also collapse the card.
-function PhotoDeck({
-  images,
-  current,
-  onAdvance,
-  borderColor,
-  layer,
-  aspect = "3 / 4",
-  fit = "cover",
-  background,
-}: {
-  images: string[];
-  current: number;
-  onAdvance: () => void;
-  borderColor: string;
-  layer: number;
-  aspect?: string;
-  fit?: "cover" | "contain";
-  background?: string;
-}) {
-  const total = images.length;
-  return (
-    <div
-      className="relative isolate h-full shrink-0 cursor-pointer select-none"
-      // `isolate` makes each deck its own stacking context, so a deck's
-      // internal z-indexes (which scale with its slide count) can't fight
-      // its neighbors'. `layer` then orders whole decks against each other:
-      // earlier decks sit above later ones, so a swiped-away card — which
-      // exits to the left — always slides *behind* the deck beside it.
-      style={{ aspectRatio: aspect, zIndex: layer }}
-      onMouseDown={(e) => e.stopPropagation()}
-      onMouseUp={(e) => e.stopPropagation()}
-      onClick={(e) => {
-        e.stopPropagation();
-        onAdvance();
-      }}
-    >
-      {images.map((src, i) => {
-        const distance = (i - current + total) % total;
-        const justLeft = distance === total - 1;
-        const depth = Math.min(distance, 2);
-        const tilt = depth % 2 === 0 ? 1 : -1;
-        // Exits to the left, not the right: a transformed child still counts
-        // toward its scroll container's overflow, and a parked card sitting
-        // 72% off the right of the last deck was what left a blank stretch
-        // after the final deck. Overflow to the left isn't scrollable.
-        const transform = justLeft
-          ? "translate(-72%, 6%) rotate(-16deg) scale(0.94)"
-          : `translate(${depth === 0 ? 0 : tilt * 5}px, ${depth * 9}px) rotate(${depth === 0 ? 0 : tilt * 4}deg) scale(${1 - depth * 0.05})`;
-        const visible = justLeft ? false : distance <= 2;
-        return (
-          <div
-            key={src}
-            className="absolute inset-0 overflow-hidden rounded-xl"
-            style={{
-              transform,
-              opacity: visible ? 1 : 0,
-              zIndex: distance === 0 ? total + 1 : justLeft ? total : total - distance,
-              border: `3px solid ${borderColor}`,
-              background,
-              transition: "transform 450ms cubic-bezier(0.22,0.68,0,1), opacity 300ms ease",
-              // Invisible (opacity 0) layers still catch clicks, and the
-              // parked swiped-away card sits 72% off to the left — right
-              // over the neighboring deck — so clicks on that deck were
-              // landing here instead. Only the wrapper should take clicks.
-              pointerEvents: "none",
-            }}
-          >
-            {/* object-cover, not contain: the 3px border makes the inner
-                box a hair off the images' 3:4, and contain left a sliver
-                of the panel color showing at the top/bottom. Cover fills
-                it flush and only trims ~1px off an edge. */}
-            <Image src={src} alt="" fill className={fit === "contain" ? "object-contain" : "object-cover"} priority={i === 0} />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // Solstice's interactive: drag the sun across an arc and the interior render
 // lights up on the side it's on and falls into shade on the other. It's an
@@ -1160,11 +1073,7 @@ export default function Home() {
   // itself is mid-resize, which is what was reading as "content squishing
   // along with the box."
   const [expandSettled, setExpandSettled] = useState(false);
-  // Which slide is on top of each of the four BorderX photo decks.
-  const [deckIndex, setDeckIndex] = useState<number[]>(() => CAROUSEL_DECKS.map(() => 0));
   const [limitusStep, setLimitusStep] = useState(0);
-  const advanceDeck = (i: number) =>
-    setDeckIndex((prev) => prev.map((v, idx) => (idx === i ? (v + 1) % CAROUSEL_DECKS[idx].images.length : v)));
   // True from the moment a box is clicked until it's most of the way back
   // home: everything that isn't the expanded box is faded out meanwhile.
   const [fadeOthers, setFadeOthers] = useState(false);
@@ -2494,27 +2403,46 @@ export default function Home() {
                   TikTok
                   <TikTokBadge />
                 </h2>
-                {/* The five photo decks, one per frame, stacked down the page.
-                    Each is still click-to-shuffle; the padding around it gives
-                    the fanned cards behind it room to tilt without clipping. */}
-                {CAROUSEL_DECKS.map((deck, i) => (
-                  <div key={deck.name} className="rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
-                    <div className="flex justify-center" style={{ height: 500, padding: "28px 0 36px" }}>
-                      <PhotoDeck
-                        images={deck.images}
-                        current={deckIndex[i]}
-                        onAdvance={() => advanceDeck(i)}
-                        borderColor={borderOnBg}
-                        layer={1}
-                      />
+                {/* Every photo laid out, grouped by post: a heading, then the
+                    cover enlarged beside the rest of that carousel's slides
+                    (so it reads as "this post, all its pictures"). The
+                    photos are all 3:4, so a three-column grid shows each one
+                    whole — the cover just takes a 2x2 block of it. */}
+                {CAROUSEL_DECKS.map((deck) => (
+                  <section key={deck.name} className="flex flex-col gap-3">
+                    <h3 className="mt-4 text-2xl font-bold">{deck.name}</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {deck.images.map((src, i) => (
+                        <div
+                          key={src}
+                          className={`rounded-[20px] border p-2 ${i === 0 ? "col-span-2 row-span-2" : ""}`}
+                          style={projectFrameStyle(fg)}
+                        >
+                          <div
+                            className="relative w-full overflow-hidden rounded-xl"
+                            style={i === 0 ? { height: "100%" } : { aspectRatio: "3 / 4" }}
+                          >
+                            <Image
+                              src={src}
+                              alt={`${deck.name} carousel, slide ${i + 1}`}
+                              fill
+                              sizes={i === 0 ? "470px" : "235px"}
+                              className="object-cover"
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  </section>
                 ))}
 
                 <h2 className="mt-8 text-4xl font-bold">GEO</h2>
-                {/* Article previews: cover, title and publication label,
-                    each opening the full piece in a new tab. */}
-                <div className="flex flex-col gap-8">
+                {/* The three Closet articles side by side at one shared
+                    height, each cover at its own true proportions (flex-grow
+                    follows aspect ratio, which is what equalizes the heights)
+                    and uncropped, with the title beneath. Each opens the full
+                    piece in a new tab. */}
+                <div className="flex gap-3">
                   {GEO_ARTICLES.map((article) => (
                     <a
                       key={article.href}
@@ -2522,17 +2450,23 @@ export default function Home() {
                       target="_blank"
                       rel="noopener noreferrer"
                       data-cursor-melt
-                      className="relative block overflow-hidden rounded-xl text-white transition-[scale] duration-200 ease-out hover:scale-[1.01]"
-                      style={{ aspectRatio: "4 / 3", border: `3px solid ${borderOnBg}` }}
+                      className="flex min-w-0 flex-col gap-3 transition-[scale] duration-200 ease-out hover:scale-[1.02]"
+                      style={{ flex: `${article.w / article.h} 1 0%` }}
                     >
-                      <Image src={article.cover} alt="" fill sizes="(min-width: 768px) 704px, 100vw" className="object-cover" />
-                      <div
-                        className="absolute inset-x-0 bottom-0 flex flex-col gap-1 px-6 pt-24 pb-6"
-                        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82), rgba(0,0,0,0))" }}
-                      >
-                        <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-80">The Closet</span>
-                        <span className="text-2xl leading-snug font-bold">{article.title}</span>
-                      </div>
+                      <span className="block rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
+                        <Image
+                          src={article.cover}
+                          alt={article.title}
+                          width={article.w}
+                          height={article.h}
+                          sizes="(min-width: 768px) 230px, 33vw"
+                          className="block h-auto w-full rounded-xl"
+                        />
+                      </span>
+                      <span className="flex flex-col gap-1 px-1">
+                        <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-70">The Closet</span>
+                        <span className="text-base leading-snug font-bold">{article.title}</span>
+                      </span>
                     </a>
                   ))}
                 </div>

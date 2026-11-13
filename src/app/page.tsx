@@ -613,7 +613,7 @@ type ProjectBlock =
 
 const RISING_TEAM_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
   title: "Rising Team",
-  date: "July 2026 – September 2026",
+  date: "2026",
   blocks: [
     { kind: "image", src: "/rising-team/02-ai-transformation.png", alt: "Slide on expanding into AI transformation budgets", w: 1393, h: 702 },
     { kind: "image", src: "/rising-team/04-figma-kits.webp", alt: "Kit pages laid out in Figma", w: 2000, h: 1127 },

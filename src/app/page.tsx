@@ -127,22 +127,14 @@ const SHRINK_DURATION = 650;
 // duplication, and the cursor-melt hover-grow logic (which re-reads
 // getBoundingClientRect() every frame) keeps tracking it correctly through
 // the whole animation without any special-casing.
-const EXPAND_DURATION = 1500;
-// Plain linear, not an eased curve. REVEAL_EASING's ease-out (fast start)
-// read as an abrupt snap; a symmetric ease-in-out tried after that solved
-// the sharp start but introduced a different problem — an S-curve spends
-// most of its *visible* motion in the middle of the timeline with slow
-// bookends at both ends, and top/left/width/height all share that same
-// shape, so the size change (large, visually dominant) reads as "done"
-// once it's through the fast middle section, while the *same* curve's
-// slow tail on the position change is still crawling toward center —
-// two properties moving in perfect mathematical lockstep can still read
-// as sequential ("it expanded, *then* it moved") if the curve's shape
-// makes one of them look finished before it actually is. Linear has no
-// such illusion available: constant speed for the entire duration, so
-// size and position finish looking exactly as done as each other at
-// every instant, not just at t=0 and t=1.
-const EXPAND_EASING = "linear";
+const EXPAND_DURATION = 900;
+// Quick and smooth, in the same family as the light/dark reveal: a gentle
+// start, a long steady middle, and only a mild slow-down as the box meets
+// the screen edges (not the hard crawl a stronger ease-out would give).
+// The same curve drives every property that moves — top/left/width/height,
+// the corner radius, the border fade — so none of them can look "done"
+// before the others.
+const EXPAND_EASING = "cubic-bezier(0.4, 0.1, 0.45, 1)";
 // Pushed-aside cards use this *exact* duration and curve too, not a
 // different one — that was tried (a faster, fast-starting ease on the
 // push alone) to make the push read as more immediate, but it broke a
@@ -157,13 +149,9 @@ const EXPAND_EASING = "linear";
 // edge movement, not an independent target) — that's the other half of
 // the same guarantee.
 //
-// The target is anchored to fixed points rather than a size ratio: top
-// sits a little above the middle of the toggle/progress chrome rectangle,
-// bottom sits close to the viewport's own bottom edge, sides close to
-// full width.
-const EXPAND_TOP = INTRO_CHROME_TOP + INTRO_CHROME_HEIGHT / 2 - 18;
-const EXPAND_BOTTOM_MARGIN = 40;
-const EXPAND_SIDE_MARGIN = 48;
+// The target is the whole viewport: an expanded box covers everything,
+// including the toggle/progress chrome, and its corners square off and its
+// border fades out on the way so it engulfs the screen with no frame.
 
 // Custom cursor: a small rounded-square dot, themed to the current fg
 // color, that trails the pointer with a bit of lag, grows slightly near
@@ -194,9 +182,7 @@ function easeInOutCubic(t: number) {
 // clear it) — both need the exact same rectangle, so it's computed once
 // here rather than duplicated.
 function computeExpandTarget() {
-  const targetWidth = window.innerWidth - EXPAND_SIDE_MARGIN * 2;
-  const targetHeight = window.innerHeight - EXPAND_BOTTOM_MARGIN - EXPAND_TOP;
-  return { targetLeft: EXPAND_SIDE_MARGIN, targetTop: EXPAND_TOP, targetWidth, targetHeight };
+  return { targetLeft: 0, targetTop: 0, targetWidth: window.innerWidth, targetHeight: window.innerHeight };
 }
 
 const PEAKS = [8, 14, 11, 18, 24, 16, 11, 9, 12, 20, 26, 32, 27, 21, 14, 10, 13, 8];
@@ -232,10 +218,10 @@ function ExpandableCard({
       {showClose && (
         // The only in-card way to close an expanded box (clicking outside
         // it and Escape still work too). It's pulled out over the box's 3px
-        // border so its top-right corner sits exactly on the box's outer
-        // corner (same 24px radius), flush with both edges. That only works
-        // because no card clips its own overflow (the intro card clips on
-        // an inner wrapper instead). Its own
+        // border so its square top-right corner sits exactly on the screen's
+        // corner — an expanded box fills the screen, so that corner is the
+        // box's corner. That only works because no card clips its own
+        // overflow (the intro card clips on an inner wrapper instead). Its own
         // data-cursor-melt gives it the same press/hover feel as the cards
         // while keeping presses from counting as presses on the card.
         <button
@@ -243,7 +229,7 @@ function ExpandableCard({
           data-cursor-melt
           aria-label="Close"
           onClick={onClose}
-          className="intro-subtitle-fade-in absolute -top-[3px] -right-[3px] z-50 flex h-12 w-12 items-center justify-center rounded-tl-xl rounded-tr-3xl rounded-br-xl rounded-bl-2xl bg-black text-white transition-transform duration-200 ease-out hover:scale-[1.06]"
+          className="intro-subtitle-fade-in absolute -top-[3px] -right-[3px] z-50 flex h-12 w-12 items-center justify-center rounded-tl-xl rounded-br-xl rounded-bl-2xl bg-black text-white transition-transform duration-200 ease-out hover:scale-[1.06]"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
             <path d="M3 3 L15 15 M15 3 L3 15" />
@@ -1740,8 +1726,13 @@ export default function Home() {
       // 3.5% on top of the real target. An inline value wins over the
       // class either way, so pin it off for as long as this card is expanded.
       scale: 1,
+      // 24 is rounded-3xl; both fade out as the box fills the screen.
+      borderRadius: expandGrown ? 0 : 24,
+      borderColor: expandGrown ? "transparent" : borderOnBg,
       transition: expandTransitionReady
-        ? `top ${EXPAND_DURATION}ms ${EXPAND_EASING}, left ${EXPAND_DURATION}ms ${EXPAND_EASING}, width ${EXPAND_DURATION}ms ${EXPAND_EASING}, height ${EXPAND_DURATION}ms ${EXPAND_EASING}`
+        ? ["top", "left", "width", "height", "border-radius", "border-color"]
+            .map((prop) => `${prop} ${EXPAND_DURATION}ms ${EXPAND_EASING}`)
+            .join(", ")
         : "none",
     };
   }
@@ -2037,11 +2028,10 @@ export default function Home() {
       )}
 
       <div
-        // z-[60], not z-10: needs to stay above an expanded card (z-index
-        // 50, see getExpandStyle) — the expanded panel's top edge sits
-        // halfway through this chrome box on purpose (see EXPAND_TOP), so
-        // without this the panel would grow out from *underneath* it.
-        className="absolute top-6 left-1/2 z-[60] -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
+        // z-30: below an expanded card (z-index 50, see getExpandStyle) and
+        // the click-catcher, so a box that fills the screen covers this
+        // chrome too instead of growing out from underneath it.
+        className="absolute top-6 left-1/2 z-30 -translate-x-1/2 rounded-3xl border-[3px] px-6 py-4"
         style={{
           borderColor: borderOnBg,
           backgroundColor: bg,

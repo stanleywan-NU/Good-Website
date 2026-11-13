@@ -637,7 +637,7 @@ function ProjectPage({
     <div className="absolute inset-0 overflow-y-auto overscroll-contain">
       <article className="intro-subtitle-fade-in mx-auto flex max-w-[720px] flex-col gap-8 px-6 pt-28 pb-28">
         <header className="flex items-baseline justify-between gap-6">
-          <h1 className="font-[family-name:var(--font-serif)] text-5xl leading-tight font-normal sm:text-6xl">
+          <h1 className="text-5xl leading-tight font-normal sm:text-6xl">
             {page.title}
           </h1>
           {page.year && <span className="text-xl opacity-60">{page.year}</span>}
@@ -663,7 +663,7 @@ function ProjectPage({
           }
           if (block.kind === "heading") {
             return (
-              <h2 key={i} className="mt-2 font-[family-name:var(--font-serif)] text-4xl font-normal">
+              <h2 key={i} className="mt-2 text-4xl font-normal">
                 {block.text}
               </h2>
             );
@@ -2257,7 +2257,7 @@ export default function Home() {
                 </span>
               )}
               <h1
-                className="m-0 text-[124px] leading-[0.88] font-bold tracking-tighter"
+                className="m-0 text-[124px] leading-[0.88] font-bold tracking-tight"
                 style={introNameStyle}
               >
                 Stanley Wan.
@@ -2290,7 +2290,7 @@ export default function Home() {
                   className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
                   style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                 >
-                  I&apos;m studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                  I&apos;m studying <span className="font-emph">Cognitive + Computer Science</span> at{" "}
                   {/* data-cursor-melt (not onMouseDown/up stopPropagation,
                       like the other icon links use) is what gives this the
                       exact same hover-grow/press-shrink the cards get —
@@ -2416,7 +2416,7 @@ export default function Home() {
                   </span>
                 )}
                 <h1
-                  className="m-0 text-[124px] leading-[0.88] font-bold tracking-tighter"
+                  className="m-0 text-[124px] leading-[0.88] font-bold tracking-tight"
                   style={introNameStyle}
                 >
                   Stanley Wan.
@@ -2435,7 +2435,7 @@ export default function Home() {
                     className="intro-subtitle-fade-in mt-14 block text-left leading-[0.95] tracking-tight font-normal"
                     style={{ fontSize: "clamp(36px, 5.5vw, 86px)" }}
                   >
-                    I&apos;m studying <span className="font-bold">Cognitive + Computer Science</span> at{" "}
+                    I&apos;m studying <span className="font-emph">Cognitive + Computer Science</span> at{" "}
                     {/* A plain spacer, not the logo — this logo is a
                         fixed-color badge, not text, so it never needed the
                         two-tone recolor this duplicate layer exists to give

@@ -3,12 +3,15 @@
 :root {
   --background: #efe1c4;
   --foreground: #a8592f;
+  /* Georgia is what the reference site's headings actually render in (its
+     named heading font fails to load there and falls back to it). */
+  --font-serif: Georgia, "Times New Roman", serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist);
+  --font-sans: var(--font-hanken);
 }
 
 /* overscroll-behavior on body alone doesn't suppress the browser's
@@ -22,7 +25,30 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  /* Light, slightly open body text, as on the reference site. */
+  font-weight: 350;
+  letter-spacing: 0.01em;
   overscroll-behavior: none;
+}
+
+/* Headings and titles are regular-weight serif rather than bold sans —
+   anything the page marks as bold is a title, so it's mapped here once
+   instead of restyling every element. Semibold small labels stay sans, one
+   notch heavier than body; .font-emph is bold emphasis inside a sentence. */
+h1,
+h2,
+h3,
+.font-bold {
+  font-family: var(--font-serif);
+  font-weight: 400;
+}
+
+.font-semibold {
+  font-weight: 500;
+}
+
+.font-emph {
+  font-weight: 600;
 }
 
 /* The custom cursor (page.tsx) replaces the native one everywhere.

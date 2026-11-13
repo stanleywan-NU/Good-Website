@@ -614,10 +614,10 @@ type ProjectBlock =
 const RISING_TEAM_PAGE: { title: string; year?: string; blocks: ProjectBlock[] } = {
   title: "Rising Team",
   blocks: [
-    { kind: "image", src: "/rising-team/01-slack-shoutout.png", alt: "Slack shoutout from a teammate and my reply", w: 1605, h: 293 },
     { kind: "image", src: "/rising-team/02-ai-transformation.png", alt: "Slide on expanding into AI transformation budgets", w: 1393, h: 702 },
-    { kind: "image", src: "/rising-team/03-team-call.webp", alt: "The Rising Team on a video call", w: 2000, h: 1150 },
     { kind: "image", src: "/rising-team/04-figma-kits.webp", alt: "Kit pages laid out in Figma", w: 2000, h: 1127 },
+    { kind: "image", src: "/rising-team/03-team-call.webp", alt: "The Rising Team on a video call", w: 2000, h: 1150 },
+    { kind: "image", src: "/rising-team/01-slack-shoutout.png", alt: "Slack shoutout from a teammate and my reply", w: 1605, h: 293 },
   ],
 };
 

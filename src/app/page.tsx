@@ -601,7 +601,7 @@ function LimitusTimeline({
   );
 }
 
-// An expanded box's content is one long scrolling page — a serif title, then
+// An expanded box's content is one long scrolling page — a title, then
 // a plain column of images and text — rather than a bespoke layout per box.
 // It scrolls inside the box (the box itself stays pinned to the screen), and
 // the column is narrow and centered so photos and copy read like an article.
@@ -637,7 +637,7 @@ function ProjectPage({
     <div className="absolute inset-0 overflow-y-auto overscroll-contain">
       <article className="intro-subtitle-fade-in mx-auto flex max-w-[720px] flex-col gap-8 px-6 pt-28 pb-28">
         <header className="flex items-baseline justify-between gap-6">
-          <h1 className="font-[family-name:var(--font-serif)] text-5xl leading-tight font-normal sm:text-6xl">
+          <h1 className="text-5xl leading-tight font-bold sm:text-6xl">
             {page.title}
           </h1>
           {page.year && <span className="text-xl opacity-60">{page.year}</span>}
@@ -663,13 +663,13 @@ function ProjectPage({
           }
           if (block.kind === "heading") {
             return (
-              <h2 key={i} className="mt-2 font-[family-name:var(--font-serif)] text-4xl font-normal">
+              <h2 key={i} className="mt-2 text-4xl font-bold">
                 {block.text}
               </h2>
             );
           }
           return (
-            <p key={i} className="text-xl leading-snug font-light">
+            <p key={i} className="text-xl leading-snug">
               {block.text}
             </p>
           );

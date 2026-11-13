@@ -2462,6 +2462,41 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
+        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 1)}>
+          <ExpandableCard
+            index={1}
+            showClose={expandedIndex === 1 && expandSettled}
+            onClose={collapseExpanded}
+            className={`${cardBox} justify-between gap-6`}
+            style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
+          >
+            {expandedIndex === 1 && expandSettled ? (
+              <ProjectPage page={RISING_TEAM_PAGE} fg={fg} />
+            ) : (
+              <div className="flex flex-1 items-center justify-center">
+                <Image
+                  src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
+                  alt="Rising Team logo"
+                  width={144}
+                  height={144}
+                  className="h-[72px] w-[72px] object-contain"
+                  style={{ filter: pastelIconShadow, ...unstretch(1) }}
+                />
+              </div>
+            )}
+            {expandedIndex !== 1 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(1)}>
+                  Rising Team
+                </span>
+                <span className="text-sm" style={unstretch(1)}>
+                  Product Design
+                </span>
+              </div>
+            )}
+          </ExpandableCard>
+        </div>
+
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 2)}>
           <ExpandableCard
             index={2}
@@ -2780,41 +2815,6 @@ export default function Home() {
                   Glodesk
                 </span>
                 <span className="text-sm" style={unstretch(5)}>
-                  Product Design
-                </span>
-              </div>
-            )}
-          </ExpandableCard>
-        </div>
-
-        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 1)}>
-          <ExpandableCard
-            index={1}
-            showClose={expandedIndex === 1 && expandSettled}
-            onClose={collapseExpanded}
-            className={`${cardBox} justify-between gap-6`}
-            style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
-          >
-            {expandedIndex === 1 && expandSettled ? (
-              <ProjectPage page={RISING_TEAM_PAGE} fg={fg} />
-            ) : (
-              <div className="flex flex-1 items-center justify-center">
-                <Image
-                  src={isDark ? "/rising-team-logo-white.png" : "/rising-team-logo-black.png"}
-                  alt="Rising Team logo"
-                  width={144}
-                  height={144}
-                  className="h-[72px] w-[72px] object-contain"
-                  style={{ filter: pastelIconShadow, ...unstretch(1) }}
-                />
-              </div>
-            )}
-            {expandedIndex !== 1 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[22px] font-bold" style={unstretch(1)}>
-                  Rising Team
-                </span>
-                <span className="text-sm" style={unstretch(1)}>
                   Product Design
                 </span>
               </div>

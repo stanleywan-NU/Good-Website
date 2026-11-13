@@ -622,12 +622,22 @@ const RISING_TEAM_PAGE: { title: string; date?: string; blocks: ProjectBlock[] }
   ],
 };
 
+// The thin rounded frame around every image (and image-like block).
+function projectFrameStyle(fg: string): React.CSSProperties {
+  return { borderColor: `color-mix(in srgb, ${fg} 18%, transparent)` };
+}
+
 function ProjectPage({
   page,
   fg,
+  children,
 }: {
   page: { title: string; date?: string; blocks: ProjectBlock[] };
   fg: string;
+  // Anything richer than an image/heading/paragraph (interactive decks, a
+  // grid of links) goes here, rendered after `page.blocks` in the same
+  // column, so a box can mix both.
+  children?: React.ReactNode;
 }) {
   return (
     // absolute inset-0, not padding inside the card's own flow: the scroll
@@ -649,7 +659,7 @@ function ProjectPage({
               <div
                 key={block.src}
                 className="rounded-[20px] border p-2"
-                style={{ borderColor: `color-mix(in srgb, ${fg} 18%, transparent)` }}
+                style={projectFrameStyle(fg)}
               >
                 <Image
                   src={block.src}
@@ -675,10 +685,47 @@ function ProjectPage({
             </p>
           );
         })}
+        {children}
       </article>
     </div>
   );
 }
+
+// TikTok's glitch-color mark on a black squircle, linking out to the
+// BeyondStyle account: three copies of the same glyph, offset and tinted
+// cyan/pink under a plain white one, which is how the logo's own
+// treatment is reproduced.
+const TIKTOK_GLYPH =
+  "M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z";
+
+function TikTokBadge() {
+  return (
+    <a
+      href="https://www.tiktok.com/@beyondstyle.us"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="BeyondStyle on TikTok"
+      data-cursor-melt
+      className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden transition-[scale] duration-200 ease-out hover:scale-[1.06]"
+      style={{ borderRadius: "22%", backgroundColor: "#000" }}
+    >
+      <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "absolute", transform: "translate(-1.2px, -1.2px)" }}>
+        <path fill="#25F4EE" d={TIKTOK_GLYPH} />
+      </svg>
+      <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "absolute", transform: "translate(1.2px, 1.2px)" }}>
+        <path fill="#FE2C55" d={TIKTOK_GLYPH} />
+      </svg>
+      <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "relative" }}>
+        <path fill="#fff" d={TIKTOK_GLYPH} />
+      </svg>
+    </a>
+  );
+}
+
+const BORDERX_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
+  title: "BorderX Lab",
+  blocks: [],
+};
 
 // The Closet articles shown in the GEO panel. Each is a self-contained page
 // served from /public/articles, so the links are ordinary public URLs.
@@ -2441,185 +2488,62 @@ export default function Home() {
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
-            <div className="flex min-h-0 flex-1 items-center justify-center">
-              {expandedIndex === 2 && expandSettled ? (
-                // Two equal placeholder panels, left and right — the gap
-                // between them, their distance from the top edge, and
-                // their distance from each side are all the same live
-                // trackGap (the same gap the cards in the row use between
-                // each other). The negative margins cancel cardBox's own
-                // p-10 (40px) on the top/left/right — extending height by
-                // the same 40px keeps the bottom edge anchored where it
-                // was — so "distance from the edge" is measured from the
-                // card's actual border, not from this padded content
-                // slot. The bottom stays as the existing gap down to the
-                // title block, left untouched since only the top and
-                // sides were asked to match.
-                <div
-                  className="flex min-h-0 items-stretch"
-                  style={{
-                    height: "calc(100% + 40px)",
-                    marginTop: -40,
-                    marginLeft: -40,
-                    marginRight: -40,
-                    width: "calc(100% + 80px)",
-                    gap: trackGap,
-                    paddingTop: trackGap,
-                    paddingLeft: trackGap,
-                    paddingRight: trackGap,
-                  }}
-                >
+            {expandedIndex === 2 && expandSettled ? (
+              <ProjectPage page={BORDERX_PAGE} fg={fg}>
+                <h2 className="mt-4 flex items-center gap-3 text-4xl font-bold">
+                  TikTok
+                  <TikTokBadge />
+                </h2>
+                {/* The five photo decks, a single row that scrolls sideways
+                    inside its frame (same hidden-scrollbar pattern as the
+                    row of boxes). The padding gives the fanned cards behind
+                    each deck room to tilt without being clipped. */}
+                <div className="rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
                   <div
-                    className="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
-                    style={{ border: `3px solid ${borderOnBg}` }}
+                    className="no-scrollbar flex overflow-x-auto overflow-y-hidden overscroll-x-none"
+                    style={{ height: 400, gap: 32, padding: "20px 24px 28px" }}
                   >
-                    <div className="flex h-full flex-col" style={{ padding: trackGap, gap: trackGap }}>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span className="text-5xl font-bold">Content</span>
-                        {/* iOS-style app-icon shape (a "squircle" via a large
-                          border-radius percentage) linking out to the
-                          BeyondStyle TikTok — stopping propagation on
-                          mousedown/up keeps this from also triggering the
-                          card's own click-to-collapse, which listens on
-                          window and would otherwise fire from the bubbled
-                          event. The three layered copies of the same glyph,
-                          offset and tinted cyan/pink under a plain white
-                          one, are the standard way to reproduce TikTok's
-                          own glitch-color logo treatment. */}
-                      <a
-                        href="https://www.tiktok.com/@beyondstyle.us"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseUp={(e) => e.stopPropagation()}
-                        aria-label="BeyondStyle on TikTok"
-                        className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden"
-                        style={{ borderRadius: "22%", backgroundColor: "#000" }}
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="24"
-                          height="24"
-                          style={{ position: "absolute", transform: "translate(-1.2px, -1.2px)" }}
-                        >
-                          <path
-                            fill="#25F4EE"
-                            d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z"
-                          />
-                        </svg>
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="24"
-                          height="24"
-                          style={{ position: "absolute", transform: "translate(1.2px, 1.2px)" }}
-                        >
-                          <path
-                            fill="#FE2C55"
-                            d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z"
-                          />
-                        </svg>
-                        <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "relative" }}>
-                          <path
-                            fill="#fff"
-                            d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z"
-                          />
-                        </svg>
-                      </a>
-                      </div>
-                      {/* Four iMessage-style photo decks standing in for
-                          the real gallery this panel will eventually
-                          rotate through — a single row, scrolling
-                          horizontally exactly like the colored boxes in
-                          the main track (same overflow-x-auto/
-                          overflow-y-hidden pattern), so it just keeps
-                          growing sideways as more get added rather than
-                          trying to force everything into the panel's own
-                          height. min-h-0 is what lets a flex child
-                          actually shrink to the space it's given instead
-                          of growing to fit its content. Each deck is
-                          pinned to the images' own 3:4 aspect ratio (via
-                          height, since width is now the free axis) so
-                          object-contain fills it exactly. */}
-                      <div
-                        className="no-scrollbar flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
-                        // The wrapper's padding insets this row from the
-                        // panel's border, and a scroll container clips at
-                        // its own edge — so scrolled decks were being cut
-                        // along that invisible inset line. Negative margins
-                        // stretch the row out to the border, and the same
-                        // amount of padding puts the resting position back.
-                        style={{
-                          gap: trackGap + 12,
-                          marginLeft: -trackGap,
-                          marginRight: -trackGap,
-                          paddingLeft: trackGap,
-                          paddingRight: trackGap,
-                        }}
-                      >
-                        {CAROUSEL_DECKS.map((deck, i) => (
-                          <PhotoDeck
-                            key={deck.name}
-                            images={deck.images}
-                            current={deckIndex[i]}
-                            onAdvance={() => advanceDeck(i)}
-                            borderColor={borderOnBg}
-                            layer={CAROUSEL_DECKS.length - i}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className="relative min-h-0 flex-1 overflow-hidden rounded-2xl"
-                    style={{ border: `3px solid ${borderOnBg}` }}
-                  >
-                    <div className="flex h-full flex-col" style={{ padding: trackGap, gap: trackGap }}>
-                      <div className="flex shrink-0 items-center justify-end">
-                        <span className="text-5xl font-bold">GEO</span>
-                      </div>
-                      {/* Article previews: a cover, the title and the
-                          publication label, opening the full piece in a new
-                          tab. Same single-row, hidden-scrollbar,
-                          clipped-at-the-border setup as the Content decks
-                          so the two halves read as one system. */}
-                      <div
-                        className="no-scrollbar flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-none"
-                        style={{
-                          gap: trackGap + 12,
-                          marginLeft: -trackGap,
-                          marginRight: -trackGap,
-                          paddingLeft: trackGap,
-                          paddingRight: trackGap,
-                        }}
-                      >
-                        {GEO_ARTICLES.map((article) => (
-                          <a
-                            key={article.href}
-                            href={article.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={(e) => e.stopPropagation()}
-                            className="relative block h-full shrink-0 overflow-hidden rounded-xl text-white"
-                            style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
-                          >
-                            <Image src={article.cover} alt="" fill className="object-cover" />
-                            <div
-                              className="absolute inset-x-0 bottom-0 flex flex-col gap-1 px-4 pt-16 pb-4"
-                              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82), rgba(0,0,0,0))" }}
-                            >
-                              <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-80">
-                                The Closet
-                              </span>
-                              <span className="text-lg leading-snug font-bold">{article.title}</span>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
+                    {CAROUSEL_DECKS.map((deck, i) => (
+                      <PhotoDeck
+                        key={deck.name}
+                        images={deck.images}
+                        current={deckIndex[i]}
+                        onAdvance={() => advanceDeck(i)}
+                        borderColor={borderOnBg}
+                        layer={CAROUSEL_DECKS.length - i}
+                      />
+                    ))}
                   </div>
                 </div>
-              ) : (
+
+                <h2 className="mt-8 text-4xl font-bold">GEO</h2>
+                {/* Article previews: cover, title and publication label,
+                    each opening the full piece in a new tab. */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {GEO_ARTICLES.map((article) => (
+                    <a
+                      key={article.href}
+                      href={article.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-cursor-melt
+                      className="relative block overflow-hidden rounded-xl text-white transition-[scale] duration-200 ease-out hover:scale-[1.02]"
+                      style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
+                    >
+                      <Image src={article.cover} alt="" fill sizes="(min-width: 640px) 230px, 100vw" className="object-cover" />
+                      <div
+                        className="absolute inset-x-0 bottom-0 flex flex-col gap-1 px-4 pt-16 pb-4"
+                        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82), rgba(0,0,0,0))" }}
+                      >
+                        <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-80">The Closet</span>
+                        <span className="text-lg leading-snug font-bold">{article.title}</span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </ProjectPage>
+            ) : (
+              <div className="flex min-h-0 flex-1 items-center justify-center">
                 <Image
                   src={isDark ? "/borderx-logo-white.png" : "/borderx-logo-black.png"}
                   alt="BorderX Lab logo"
@@ -2628,8 +2552,8 @@ export default function Home() {
                   className="h-[72px] w-[72px] object-contain"
                   style={{ filter: pastelIconShadow, ...unstretch(2) }}
                 />
-              )}
-            </div>
+              </div>
+            )}
             {expandedIndex !== 2 && (
               <div className="flex flex-col gap-1">
                 <span className="text-[22px] font-bold" style={unstretch(2)}>

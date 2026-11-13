@@ -370,6 +370,27 @@ const LIMITUS_STEPS: { src: string; title: string; caption: string; w: number; h
   },
 ];
 
+// A thin rule and a small label under a run of boxes in the row, naming the
+// group ("Internships", "Projects"). It's absolutely positioned into the
+// padding below the cards, so it adds nothing to the cards' own height, and
+// fades with the other boxes when one is opened.
+function GroupLabel({ text, hidden }: { text: string; hidden: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute right-0 left-0 flex flex-col gap-2"
+      style={{
+        top: "100%",
+        opacity: hidden ? 0 : 1,
+        transition: "opacity 240ms ease-out",
+      }}
+    >
+      <div className="h-px w-full" style={{ backgroundColor: "currentColor", opacity: 0.25 }} />
+      <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-60">{text}</span>
+    </div>
+  );
+}
+
 // An expanded box's content is one long scrolling page — a title, then
 // a plain column of images and text — rather than a bespoke layout per box.
 // It scrolls inside the box (the box itself stays pinned to the screen), and
@@ -380,8 +401,9 @@ type ProjectBlock =
   | { kind: "heading"; text: string }
   | { kind: "text"; text: string };
 
-const RISING_TEAM_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
+const RISING_TEAM_PAGE: { title: string; date?: string; meta?: string; blocks: ProjectBlock[] } = {
   title: "Rising Team",
+  meta: "Internship · Product Design",
   date: "2026",
   blocks: [
     { kind: "image", src: "/rising-team/02-ai-transformation.png", alt: "Slide on expanding into AI transformation budgets", w: 1393, h: 702 },
@@ -401,7 +423,7 @@ function ProjectPage({
   fg,
   children,
 }: {
-  page: { title: string; date?: string; blocks: ProjectBlock[] };
+  page: { title: string; date?: string; meta?: string; blocks: ProjectBlock[] };
   fg: string;
   // Anything richer than an image/heading/paragraph (interactive decks, a
   // grid of links) goes here, rendered after `page.blocks` in the same
@@ -422,6 +444,7 @@ function ProjectPage({
           </h1>
           {page.date && <span className="shrink-0 text-xl whitespace-nowrap opacity-60">{page.date}</span>}
         </header>
+        {page.meta && <p className="-mt-5 text-base opacity-60">{page.meta}</p>}
         {page.blocks.map((block, i) => {
           if (block.kind === "image") {
             return (
@@ -491,14 +514,16 @@ function TikTokBadge() {
   );
 }
 
-const BORDERX_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
+const BORDERX_PAGE: { title: string; date?: string; meta?: string; blocks: ProjectBlock[] } = {
   title: "BorderX Lab",
+  meta: "Internship · Content Strategy & GEO",
   date: "2026",
   blocks: [],
 };
 
-const LIMITUS_PAGE: { title: string; date?: string; blocks: ProjectBlock[] } = {
+const LIMITUS_PAGE: { title: string; date?: string; meta?: string; blocks: ProjectBlock[] } = {
   title: "Limitus",
+  meta: "Project · Medical Device Design",
   blocks: [
     { kind: "text", text: "A wrist brace for TFCC tears — five prototypes in five months." },
   ],
@@ -2130,6 +2155,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
+        <div className="relative flex shrink-0 items-stretch" style={{ gap: trackGap, marginLeft: trackGap }}>
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 1)}>
           <ExpandableCard
             index={1}
@@ -2158,7 +2184,7 @@ export default function Home() {
                   Rising Team
                 </span>
                 <span className="text-sm" style={unstretch(1)}>
-                  Product Design
+                  Internship · Product Design
                 </span>
               </div>
             )}
@@ -2265,13 +2291,16 @@ export default function Home() {
                   BorderX Lab — BeyondStyle
                 </span>
                 <span className="text-sm" style={unstretch(2)}>
-                  Content Strategy &amp; GEO
+                  Internship · Content Strategy &amp; GEO
                 </span>
               </div>
             )}
           </ExpandableCard>
         </div>
+          <GroupLabel text="Internships" hidden={fadeOthers} />
+        </div>
 
+        <div className="relative flex shrink-0 items-stretch" style={{ gap: trackGap, marginLeft: trackGap }}>
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 3)}>
           <ExpandableCard
             index={3}
@@ -2329,7 +2358,7 @@ export default function Home() {
                   Limitus
                 </span>
                 <span className="text-sm" style={unstretch(3)}>
-                  Medical Device Design
+                  Project · Medical Device Design
                 </span>
               </div>
             )}
@@ -2365,7 +2394,7 @@ export default function Home() {
                   Solstice
                 </span>
                 <span className="text-sm" style={unstretch(4)}>
-                  Architecture
+                  Project · Architecture
                 </span>
               </div>
             )}
@@ -2401,14 +2430,16 @@ export default function Home() {
                   Glodesk
                 </span>
                 <span className="text-sm" style={unstretch(5)}>
-                  Product Design
+                  Project · Product Design
                 </span>
               </div>
             )}
           </ExpandableCard>
         </div>
+          <GroupLabel text="Projects" hidden={fadeOthers} />
+        </div>
 
-        <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 6)}>
+        <div className="my-4 shrink-0" style={{ ...slotStyle(CARD_WIDTH, 6), marginLeft: trackGap }}>
           <ExpandableCard
             index={6}
             showClose={expandedIndex === 6 && expandSettled}

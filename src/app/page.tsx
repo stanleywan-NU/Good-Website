@@ -2494,32 +2494,27 @@ export default function Home() {
                   TikTok
                   <TikTokBadge />
                 </h2>
-                {/* The five photo decks, a single row that scrolls sideways
-                    inside its frame (same hidden-scrollbar pattern as the
-                    row of boxes). The padding gives the fanned cards behind
-                    each deck room to tilt without being clipped. */}
-                <div className="rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
-                  <div
-                    className="no-scrollbar flex overflow-x-auto overflow-y-hidden overscroll-x-none"
-                    style={{ height: 400, gap: 32, padding: "20px 24px 28px" }}
-                  >
-                    {CAROUSEL_DECKS.map((deck, i) => (
+                {/* The five photo decks, one per frame, stacked down the page.
+                    Each is still click-to-shuffle; the padding around it gives
+                    the fanned cards behind it room to tilt without clipping. */}
+                {CAROUSEL_DECKS.map((deck, i) => (
+                  <div key={deck.name} className="rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
+                    <div className="flex justify-center" style={{ height: 500, padding: "28px 0 36px" }}>
                       <PhotoDeck
-                        key={deck.name}
                         images={deck.images}
                         current={deckIndex[i]}
                         onAdvance={() => advanceDeck(i)}
                         borderColor={borderOnBg}
-                        layer={CAROUSEL_DECKS.length - i}
+                        layer={1}
                       />
-                    ))}
+                    </div>
                   </div>
-                </div>
+                ))}
 
                 <h2 className="mt-8 text-4xl font-bold">GEO</h2>
                 {/* Article previews: cover, title and publication label,
                     each opening the full piece in a new tab. */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="flex flex-col gap-8">
                   {GEO_ARTICLES.map((article) => (
                     <a
                       key={article.href}
@@ -2527,16 +2522,16 @@ export default function Home() {
                       target="_blank"
                       rel="noopener noreferrer"
                       data-cursor-melt
-                      className="relative block overflow-hidden rounded-xl text-white transition-[scale] duration-200 ease-out hover:scale-[1.02]"
-                      style={{ aspectRatio: "3 / 4", border: `3px solid ${borderOnBg}` }}
+                      className="relative block overflow-hidden rounded-xl text-white transition-[scale] duration-200 ease-out hover:scale-[1.01]"
+                      style={{ aspectRatio: "4 / 3", border: `3px solid ${borderOnBg}` }}
                     >
-                      <Image src={article.cover} alt="" fill sizes="(min-width: 640px) 230px, 100vw" className="object-cover" />
+                      <Image src={article.cover} alt="" fill sizes="(min-width: 768px) 704px, 100vw" className="object-cover" />
                       <div
-                        className="absolute inset-x-0 bottom-0 flex flex-col gap-1 px-4 pt-16 pb-4"
+                        className="absolute inset-x-0 bottom-0 flex flex-col gap-1 px-6 pt-24 pb-6"
                         style={{ background: "linear-gradient(to top, rgba(0,0,0,0.82), rgba(0,0,0,0))" }}
                       >
-                        <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-80">The Closet</span>
-                        <span className="text-lg leading-snug font-bold">{article.title}</span>
+                        <span className="text-xs font-semibold tracking-[0.14em] uppercase opacity-80">The Closet</span>
+                        <span className="text-2xl leading-snug font-bold">{article.title}</span>
                       </div>
                     </a>
                   ))}

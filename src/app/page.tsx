@@ -406,10 +406,17 @@ const RISING_TEAM_PAGE: { title: string; date?: string; meta?: string; blocks: P
   meta: "Internship · Product Design",
   date: "2026",
   blocks: [
+    { kind: "text", text: "AI Fluency for Humans is a 60-minute team kit that helps employees hand routine tasks to AI while keeping the work only they can do." },
+    {
+      kind: "text",
+      text: "I designed the kit in Figma, from layouts and features to the color palette, plus a delegation-vs-judgment framework for deciding what to hand off and what to keep human. I also iterated on a new feature that lets teams summarize their responses with Arti, Rising Team’s AI agent.",
+    },
     { kind: "image", src: "/rising-team/02-ai-transformation.png", alt: "Slide on expanding into AI transformation budgets", w: 1393, h: 702 },
     { kind: "image", src: "/rising-team/04-figma-kits.webp", alt: "Kit pages laid out in Figma", w: 2000, h: 1127 },
     { kind: "image", src: "/rising-team/03-team-call.webp", alt: "The Rising Team on a video call", w: 2000, h: 1150 },
     { kind: "image", src: "/rising-team/01-slack-shoutout.png", alt: "Slack shoutout from a teammate and my reply", w: 1605, h: 293 },
+    { kind: "heading", text: "Tools" },
+    { kind: "text", text: "Figma, the Figma MCP, and Claude Code." },
   ],
 };
 

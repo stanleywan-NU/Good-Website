@@ -1703,15 +1703,30 @@ export default function Home() {
   // transform on the untouched siblings can't race anything — there's
   // only one thing changing.
   const slotStyle = (baseWidth: number, index: number): React.CSSProperties => {
+    // Explicit width alongside flexBasis (and no grow/shrink): Safari sizes
+    // an auto-width flex container (the group wrappers below) from its
+    // items' content, ignoring flex-basis, which collapsed the groups and
+    // made their cards overlap. A hard width is the same in every engine.
+    const fixed: React.CSSProperties = {
+      flex: `0 0 ${baseWidth * cardScale}px`,
+      width: baseWidth * cardScale,
+      minWidth: baseWidth * cardScale,
+    };
     if (expandedIndex === index) {
-      return { flexBasis: baseWidth * cardScale };
+      return fixed;
     }
     return {
-      flexBasis: baseWidth * cardScale,
+      ...fixed,
       transform: `scaleY(${cardScale})`,
       opacity: fadeOthers ? 0 : 1,
       transition: expandedIndex !== null ? `opacity ${FADE_DURATION}ms ease-out` : undefined,
     };
+  };
+
+  // Explicit pixel width for a group of `count` slots (see slotStyle).
+  const groupWidth = (count: number): React.CSSProperties => {
+    const w = count * CARD_WIDTH * cardScale + (count - 1) * trackGap;
+    return { flex: `0 0 ${w}px`, width: w, minWidth: w };
   };
 
   // The scroll-shrink squash above is a non-uniform `scaleY` on a card's
@@ -2134,7 +2149,7 @@ export default function Home() {
           </ExpandableCard>
         </div>
 
-        <div className="relative flex shrink-0 items-stretch" style={{ gap: trackGap, marginLeft: trackGap }}>
+        <div className="relative flex shrink-0 items-stretch" style={{ gap: trackGap, marginLeft: trackGap, ...groupWidth(2) }}>
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 1)}>
           <ExpandableCard
             index={1}
@@ -2257,7 +2272,7 @@ export default function Home() {
           <GroupLabel text="Internships" hidden={fadeOthers} />
         </div>
 
-        <div className="relative flex shrink-0 items-stretch" style={{ gap: trackGap, marginLeft: trackGap }}>
+        <div className="relative flex shrink-0 items-stretch" style={{ gap: trackGap, marginLeft: trackGap, ...groupWidth(3) }}>
         <div className="my-4 shrink-0" style={slotStyle(CARD_WIDTH, 3)}>
           <ExpandableCard
             index={3}

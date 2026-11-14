@@ -479,7 +479,7 @@ function ProjectPage({
             );
           }
           return (
-            <p key={i} className="text-xl leading-snug">
+            <p key={i} className="max-w-[600px] px-[9px] text-xl leading-snug">
               {block.text}
             </p>
           );
@@ -2322,7 +2322,7 @@ export default function Home() {
                         className="block h-auto w-full rounded-xl"
                       />
                     </div>
-                    <p className="text-xl leading-snug">{step.caption}</p>
+                    <p className="max-w-[600px] px-[9px] text-xl leading-snug">{step.caption}</p>
                   </section>
                 ))}
               </ProjectPage>

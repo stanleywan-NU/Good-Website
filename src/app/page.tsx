@@ -400,7 +400,7 @@ function GroupLabel({ text, hidden }: { text: string; hidden: boolean }) {
 type ProjectBlock =
   | { kind: "image"; src: string; alt: string; w: number; h: number }
   | { kind: "heading"; text: string }
-  | { kind: "text"; text: string };
+  | { kind: "text"; text: React.ReactNode };
 
 const RISING_TEAM_PAGE: { title: string; date?: string; meta?: string; blocks: ProjectBlock[] } = {
   title: "Rising Team",
@@ -418,6 +418,18 @@ const RISING_TEAM_PAGE: { title: string; date?: string; meta?: string; blocks: P
     { kind: "image", src: "/rising-team/01-slack-shoutout.png", alt: "Slack shoutout from a teammate and my reply", w: 1605, h: 293 },
     { kind: "heading", text: "Tools" },
     { kind: "text", text: "Figma, the Figma MCP, and Claude Code." },
+    {
+      kind: "text",
+      text: (
+        <>
+          Big thanks to{" "}
+          <a href="https://uxvince.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+            Vince Stinson
+          </a>{" "}
+          for showing me the ropes.
+        </>
+      ),
+    },
   ],
 };
 

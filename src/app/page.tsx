@@ -250,17 +250,6 @@ function ExpandableCard({
 // its outfits, in the order they actually run in.
 const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
   {
-    name: "Sadie Sink",
-    images: [
-      "/sadie-sink-carousel-cover.jpg",
-      "/sadie-sink-carousel-2.jpg",
-      "/sadie-sink-carousel-3.jpg",
-      "/sadie-sink-carousel-4.jpg",
-      "/sadie-sink-carousel-5.jpg",
-      "/sadie-sink-carousel-6.jpg",
-    ],
-  },
-  {
     name: "Caitlin Clark",
     images: [
       "/caitlin-clark-carousel-cover.jpg",

@@ -209,6 +209,7 @@ function ExpandableCard({
   children,
   showClose = false,
   onClose,
+  closeColor,
 }: {
   index: number;
   className: string;
@@ -216,17 +217,16 @@ function ExpandableCard({
   children: React.ReactNode;
   showClose?: boolean;
   onClose?: () => void;
+  closeColor?: string;
 }) {
   return (
     <div data-cursor-melt data-card-index={index} className={className} style={style}>
       {children}
       {showClose && (
         // The only in-card way to close an expanded box (clicking outside
-        // it and Escape still work too). It's pulled out over the box's 3px
-        // border so its square top-right corner sits exactly on the screen's
-        // corner — an expanded box fills the screen, so that corner is the
-        // box's corner. That only works because no card clips its own
-        // overflow (the intro card clips on an inner wrapper instead). Its own
+        // it and Escape still work too): just an X, set a little in from the
+        // screen's top-right corner, in pure black (light mode) or white
+        // (dark mode) via closeColor — not the card's warm-brown text color. Its
         // data-cursor-melt gives it the same press/hover feel as the cards
         // while keeping presses from counting as presses on the card.
         <button
@@ -234,9 +234,10 @@ function ExpandableCard({
           data-cursor-melt
           aria-label="Close"
           onClick={onClose}
-          className="intro-subtitle-fade-in absolute -top-[3px] -right-[3px] z-50 flex h-12 w-12 items-center justify-center rounded-tl-xl rounded-br-xl rounded-bl-2xl bg-black text-white transition-transform duration-200 ease-out hover:scale-[1.06]"
+          style={{ color: closeColor }}
+          className="intro-subtitle-fade-in absolute top-5 right-5 z-50 flex h-11 w-11 items-center justify-center transition-transform duration-200 ease-out hover:scale-[1.12]"
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+          <svg width="24" height="24" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
             <path d="M3 3 L15 15 M15 3 L3 15" />
           </svg>
         </button>
@@ -1970,6 +1971,7 @@ export default function Home() {
             index={0}
             showClose={expandedIndex === 0 && expandSettled}
             onClose={collapseExpanded}
+            closeColor={isDark ? "#ffffff" : "#000000"}
             className={`${cardBox} relative justify-center @container`}
             style={{ borderColor: borderOnBg, backgroundColor: bg, ...getExpandStyle(0) }}
           >
@@ -2168,6 +2170,7 @@ export default function Home() {
             index={1}
             showClose={expandedIndex === 1 && expandSettled}
             onClose={collapseExpanded}
+            closeColor={isDark ? "#ffffff" : "#000000"}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelRed, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(1) }}
           >
@@ -2193,6 +2196,7 @@ export default function Home() {
             index={2}
             showClose={expandedIndex === 2 && expandSettled}
             onClose={collapseExpanded}
+            closeColor={isDark ? "#ffffff" : "#000000"}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelBlue, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(2) }}
           >
@@ -2293,6 +2297,7 @@ export default function Home() {
             index={3}
             showClose={expandedIndex === 3 && expandSettled}
             onClose={collapseExpanded}
+            closeColor={isDark ? "#ffffff" : "#000000"}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelGreen, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(3) }}
           >
@@ -2347,6 +2352,7 @@ export default function Home() {
             index={4}
             showClose={expandedIndex === 4 && expandSettled}
             onClose={collapseExpanded}
+            closeColor={isDark ? "#ffffff" : "#000000"}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOlive, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(4) }}
           >
@@ -2373,6 +2379,7 @@ export default function Home() {
             index={5}
             showClose={expandedIndex === 5 && expandSettled}
             onClose={collapseExpanded}
+            closeColor={isDark ? "#ffffff" : "#000000"}
             className={`${cardBox} justify-between gap-6`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelPeriwinkle, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(5) }}
           >
@@ -2401,6 +2408,7 @@ export default function Home() {
             index={6}
             showClose={expandedIndex === 6 && expandSettled}
             onClose={collapseExpanded}
+            closeColor={isDark ? "#ffffff" : "#000000"}
             className={`${cardBox} justify-center gap-4`}
             style={{ borderColor: borderOnBg, backgroundColor: pastelOrange, color: fg, textShadow: pastelTextShadow, ...getExpandStyle(6) }}
           >

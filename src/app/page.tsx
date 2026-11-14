@@ -2184,14 +2184,13 @@ export default function Home() {
             {expandedIndex === 2 && expandSettled ? (
               <ProjectPage page={BORDERX_PAGE} fg={fg}>
                 <h2 className="mt-4 text-4xl font-bold">Content</h2>
-                {/* Every photo laid out, grouped by post: a heading, then the
-                    cover enlarged beside the rest of that carousel's slides
-                    (so it reads as "this post, all its pictures"). The
+                {/* Every photo laid out, grouped by post: the cover enlarged
+                    beside the rest of that carousel's slides (so it reads as
+                    "this post, all its pictures"), with no names on them. The
                     photos are all 3:4, so a three-column grid shows each one
                     whole — the cover just takes a 2x2 block of it. */}
                 {CAROUSEL_DECKS.map((deck) => (
-                  <section key={deck.name} className="flex flex-col gap-3">
-                    <h3 className="mt-4 text-2xl font-bold">{deck.name}</h3>
+                  <section key={deck.name}>
                     <div className="grid grid-cols-3 gap-3">
                       {deck.images.map((src, i) => (
                         <div

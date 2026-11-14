@@ -503,37 +503,6 @@ function ProjectPage({
   );
 }
 
-// TikTok's glitch-color mark on a black squircle, linking out to the
-// BeyondStyle account: three copies of the same glyph, offset and tinted
-// cyan/pink under a plain white one, which is how the logo's own
-// treatment is reproduced.
-const TIKTOK_GLYPH =
-  "M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3s-1.88.09-3.24-1.48Z";
-
-function TikTokBadge() {
-  return (
-    <a
-      href="https://www.tiktok.com/@beyondstyle.us"
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label="BeyondStyle on TikTok"
-      data-cursor-melt
-      className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden transition-[scale] duration-200 ease-out hover:scale-[1.06]"
-      style={{ borderRadius: "22%", backgroundColor: "#000" }}
-    >
-      <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "absolute", transform: "translate(-1.2px, -1.2px)" }}>
-        <path fill="#25F4EE" d={TIKTOK_GLYPH} />
-      </svg>
-      <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "absolute", transform: "translate(1.2px, 1.2px)" }}>
-        <path fill="#FE2C55" d={TIKTOK_GLYPH} />
-      </svg>
-      <svg viewBox="0 0 24 24" width="24" height="24" style={{ position: "relative" }}>
-        <path fill="#fff" d={TIKTOK_GLYPH} />
-      </svg>
-    </a>
-  );
-}
-
 const BORDERX_PAGE: { title: string; date?: string; meta?: string; blocks: ProjectBlock[] } = {
   title: "BorderX Lab",
   meta: "Internship · Content Strategy & GEO",
@@ -2214,10 +2183,7 @@ export default function Home() {
           >
             {expandedIndex === 2 && expandSettled ? (
               <ProjectPage page={BORDERX_PAGE} fg={fg}>
-                <h2 className="mt-4 flex items-center gap-3 text-4xl font-bold">
-                  TikTok
-                  <TikTokBadge />
-                </h2>
+                <h2 className="mt-4 text-4xl font-bold">Content</h2>
                 {/* Every photo laid out, grouped by post: a heading, then the
                     cover enlarged beside the rest of that carousel's slides
                     (so it reads as "this post, all its pictures"). The

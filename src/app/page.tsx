@@ -666,7 +666,7 @@ const LIMITUS_PAGE: { title: string; date?: string; meta?: string; blocks: Proje
   meta: "Project · Medical Device Design",
   date: "2025",
   blocks: [
-    { kind: "image", src: "/limitus/final-brace-clean.jpg", alt: "The final Limitus brace, laid flat", w: 2090, h: 1900 },
+    { kind: "image", src: "/limitus/final-brace-clean.jpg", alt: "The final Limitus brace, laid flat", w: 2200, h: 1320 },
     ...LIMITUS_INTRO.map((text) => ({ kind: "text" as const, text })),
   ],
 };

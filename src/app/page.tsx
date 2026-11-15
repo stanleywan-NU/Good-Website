@@ -250,21 +250,36 @@ function ExpandableCard({
 // left side of the section's images (reading bottom to top, and following
 // along as you scroll through the section); on narrow screens, where
 // there's no gutter for it, it's an ordinary heading above them.
+const LABEL_STRETCH = 1.5;
+
 function SideLabel({ text, children }: { text: string; children: React.ReactNode }) {
   return (
-    <div className="relative flex flex-col gap-3">
-      <h2 className="mt-2 text-4xl font-bold min-[900px]:hidden">{text}</h2>
-      <div aria-hidden className="pointer-events-none absolute top-0 right-full bottom-0 mr-5 hidden min-[900px]:block">
+    <div className="relative flex gap-4">
+      {/* Wide windows: floats in the page margin beside the images. Narrow
+          ones: a smaller column of its own at the left, so it's always a
+          sideways label rather than falling back to a heading. */}
+      <div
+        aria-hidden
+        className="pointer-events-none shrink-0 min-[900px]:absolute min-[900px]:top-0 min-[900px]:right-full min-[900px]:bottom-0 min-[900px]:mr-5"
+      >
         <div className="sticky top-28">
-          <span
-            className="block text-[64px] leading-none font-bold whitespace-nowrap"
-            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", letterSpacing: "0.14em" }}
-          >
-            {text}
-          </span>
+          {/* The letters themselves are stretched along the reading
+              direction (scaleY on the unrotated wrapper, so it's the
+              screen's vertical). Scaling also scales the gaps, so the
+              tracking is divided by the same factor to keep the spacing
+              exactly what it was (0.14em). */}
+          <div style={{ transform: `scaleY(${LABEL_STRETCH})`, transformOrigin: "top" }}>
+            <span
+              className="block text-[40px] leading-none font-bold whitespace-nowrap min-[900px]:text-[64px]"
+              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", letterSpacing: `${0.14 / LABEL_STRETCH}em` }}
+            >
+              {text}
+            </span>
+          </div>
         </div>
       </div>
-      {children}
+      <h2 className="sr-only">{text}</h2>
+      <div className="flex min-w-0 flex-1 flex-col gap-3">{children}</div>
     </div>
   );
 }

@@ -2173,6 +2173,16 @@ export default function Home() {
                 />
               </div>
             )}
+            {expandedIndex !== 1 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(1)}>
+                  Rising Team
+                </span>
+                <span className="text-sm" style={unstretch(1)}>
+                  Internship · Product Design
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 
@@ -2267,6 +2277,16 @@ export default function Home() {
                 />
               </div>
             )}
+            {expandedIndex !== 2 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(2)}>
+                  BorderX Lab — BeyondStyle
+                </span>
+                <span className="text-sm" style={unstretch(2)}>
+                  Internship · Content Strategy &amp; GEO
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
           <GroupLabel text="Internships" hidden={fadeOthers} />
@@ -2325,6 +2345,16 @@ export default function Home() {
                 />
               </div>
             )}
+            {expandedIndex !== 3 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(3)}>
+                  Limitus
+                </span>
+                <span className="text-sm" style={unstretch(3)}>
+                  Project · Medical Device Design
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 
@@ -2352,6 +2382,16 @@ export default function Home() {
                 />
               )}
             </div>
+            {expandedIndex !== 4 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(4)}>
+                  Solstice
+                </span>
+                <span className="text-sm" style={unstretch(4)}>
+                  Project · Architecture
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
 
@@ -2379,6 +2419,16 @@ export default function Home() {
                 />
               )}
             </div>
+            {expandedIndex !== 5 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[22px] font-bold" style={unstretch(5)}>
+                  Glodesk
+                </span>
+                <span className="text-sm" style={unstretch(5)}>
+                  Project · Product Design
+                </span>
+              </div>
+            )}
           </ExpandableCard>
         </div>
           <GroupLabel text="Projects" hidden={fadeOthers} />

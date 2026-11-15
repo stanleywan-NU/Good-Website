@@ -246,6 +246,29 @@ function ExpandableCard({
   );
 }
 
+// Section label for the project pages. On wide screens it runs up the
+// left side of the section's images (reading bottom to top, and following
+// along as you scroll through the section); on narrow screens, where
+// there's no gutter for it, it's an ordinary heading above them.
+function SideLabel({ text, children }: { text: string; children: React.ReactNode }) {
+  return (
+    <div className="relative flex flex-col gap-3">
+      <h2 className="mt-2 text-4xl font-bold min-[900px]:hidden">{text}</h2>
+      <div aria-hidden className="pointer-events-none absolute top-0 right-full bottom-0 mr-5 hidden min-[900px]:block">
+        <div className="sticky top-28">
+          <span
+            className="block text-4xl leading-none font-bold whitespace-nowrap"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            {text}
+          </span>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 // The six slides that make up each carousel — the cover plus the rest of
 // its outfits, in the order they actually run in.
 const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
@@ -468,6 +491,7 @@ function ProjectPage({
                   width={block.w}
                   height={block.h}
                   sizes="(min-width: 768px) 704px, 100vw"
+                  unoptimized
                   className="block h-auto w-full rounded-xl"
                 />
               </div>
@@ -2194,12 +2218,12 @@ export default function Home() {
           >
             {expandedIndex === 2 && expandSettled ? (
               <ProjectPage page={BORDERX_PAGE} fg={fg}>
-                <h2 className="mt-4 text-4xl font-bold">Content</h2>
                 {/* Every photo laid out, grouped by post: the cover enlarged
                     beside the rest of that carousel's slides (so it reads as
                     "this post, all its pictures"), with no names on them. The
                     photos are all 3:4, so a three-column grid shows each one
                     whole — the cover just takes a 2x2 block of it. */}
+                <SideLabel text="Content">
                 {CAROUSEL_DECKS.map((deck) => (
                   <section key={deck.name}>
                     <div className="grid grid-cols-3 gap-3">
@@ -2218,7 +2242,8 @@ export default function Home() {
                               alt={`${deck.name} carousel, slide ${i + 1}`}
                               fill
                               sizes={i === 0 ? "470px" : "235px"}
-                              className="object-cover"
+                              unoptimized
+                              className={i === 0 ? "object-contain" : "object-cover"}
                             />
                           </div>
                         </div>
@@ -2226,14 +2251,12 @@ export default function Home() {
                     </div>
                   </section>
                 ))}
+                </SideLabel>
 
-                <h2 className="mt-8 text-4xl font-bold">GEO</h2>
-                {/* The three Closet articles side by side at one shared
-                    height, each cover at its own true proportions (flex-grow
-                    follows aspect ratio, which is what equalizes the heights)
-                    and uncropped, with the title beneath. Each opens the full
-                    piece in a new tab. */}
-                <div className="flex gap-3">
+                {/* The three Closet articles stacked in a column, each a
+                    cover at its true proportions (uncropped) with its title
+                    beside it. Each opens the full piece in a new tab. */}
+                <SideLabel text="GEO">
                   {GEO_ARTICLES.map((article) => (
                     <a
                       key={article.href}
@@ -2241,26 +2264,26 @@ export default function Home() {
                       target="_blank"
                       rel="noopener noreferrer"
                       data-cursor-melt
-                      className="flex min-w-0 flex-col gap-3 transition-[scale] duration-200 ease-out hover:scale-[1.02]"
-                      style={{ flex: `${article.w / article.h} 1 0%` }}
+                      className="flex items-end gap-5 transition-[scale] duration-200 ease-out hover:scale-[1.01]"
                     >
-                      <span className="block rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
+                      <span className="block shrink-0 rounded-[20px] border p-2" style={{ ...projectFrameStyle(fg), width: "min(360px, 55%)" }}>
                         <Image
                           src={article.cover}
                           alt={article.title}
                           width={article.w}
                           height={article.h}
-                          sizes="(min-width: 768px) 230px, 33vw"
+                          sizes="(min-width: 768px) 344px, 50vw"
+                          unoptimized
                           className="block h-auto w-full rounded-xl"
                         />
                       </span>
-                      <span className="flex flex-col gap-1 px-1">
+                      <span className="flex min-w-0 flex-col gap-1 pb-2">
                         <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-70">The Closet</span>
-                        <span className="text-base leading-snug font-bold">{article.title}</span>
+                        <span className="text-xl leading-snug font-bold">{article.title}</span>
                       </span>
                     </a>
                   ))}
-                </div>
+                </SideLabel>
               </ProjectPage>
             ) : (
               <div className="flex min-h-0 flex-1 items-center justify-center">
@@ -2319,6 +2342,7 @@ export default function Home() {
                         width={step.w}
                         height={step.h}
                         sizes="(min-width: 768px) 704px, 100vw"
+                        unoptimized
                         className="block h-auto w-full rounded-xl"
                       />
                     </div>

@@ -665,7 +665,10 @@ const LIMITUS_PAGE: { title: string; date?: string; meta?: string; blocks: Proje
   title: "Limitus",
   meta: "Project · Medical Device Design",
   date: "2025",
-  blocks: LIMITUS_INTRO.map((text) => ({ kind: "text" as const, text })),
+  blocks: [
+    { kind: "image", src: "/limitus/final-brace-clean.jpg", alt: "The final Limitus brace, laid flat", w: 2090, h: 1900 },
+    ...LIMITUS_INTRO.map((text) => ({ kind: "text" as const, text })),
+  ],
 };
 
 // The Closet articles shown in the GEO panel. Each is a self-contained page

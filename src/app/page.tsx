@@ -2178,9 +2178,6 @@ export default function Home() {
                 <span className="text-[22px] font-bold" style={unstretch(1)}>
                   Rising Team
                 </span>
-                <span className="text-sm" style={unstretch(1)}>
-                  Internship · Product Design
-                </span>
               </div>
             )}
           </ExpandableCard>
@@ -2280,10 +2277,7 @@ export default function Home() {
             {expandedIndex !== 2 && (
               <div className="flex flex-col gap-1">
                 <span className="text-[22px] font-bold" style={unstretch(2)}>
-                  BorderX Lab — BeyondStyle
-                </span>
-                <span className="text-sm" style={unstretch(2)}>
-                  Internship · Content Strategy &amp; GEO
+                  BorderX Lab
                 </span>
               </div>
             )}
@@ -2350,9 +2344,6 @@ export default function Home() {
                 <span className="text-[22px] font-bold" style={unstretch(3)}>
                   Limitus
                 </span>
-                <span className="text-sm" style={unstretch(3)}>
-                  Project · Medical Device Design
-                </span>
               </div>
             )}
           </ExpandableCard>
@@ -2387,9 +2378,6 @@ export default function Home() {
                 <span className="text-[22px] font-bold" style={unstretch(4)}>
                   Solstice
                 </span>
-                <span className="text-sm" style={unstretch(4)}>
-                  Project · Architecture
-                </span>
               </div>
             )}
           </ExpandableCard>
@@ -2423,9 +2411,6 @@ export default function Home() {
               <div className="flex flex-col gap-1">
                 <span className="text-[22px] font-bold" style={unstretch(5)}>
                   Glodesk
-                </span>
-                <span className="text-sm" style={unstretch(5)}>
-                  Project · Product Design
                 </span>
               </div>
             )}

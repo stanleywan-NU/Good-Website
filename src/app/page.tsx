@@ -387,8 +387,10 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
 type TimelinePhoto = { src: string; w: number; h: number; alt: string; caption?: string; video?: boolean; poster?: string };
 type TimelineBlock = { kind: "text"; text: string } | { kind: "photos"; items: TimelinePhoto[] };
 
-const LIMITUS_INTRO =
-  "Limitus is a wrist brace for TFCC tears, an injury on the pinky side of the wrist. The braces on the market are either too loose to protect it or too rigid to live in, so Kyle Chen and I designed one in between as our senior project at Woodside Priory. We went through five prototypes, and the last was made at an orthopedics factory.";
+const LIMITUS_INTRO = [
+  "Limitus is a wrist brace for Triangular Fibrocartilage Complex (TFCC) tears, an injury on the pinky side of the wrist. Braces on the market are either too loose to stabilize it or too rigid to move in, so Kyle Chen and I designed one that could cover the best of both worlds.",
+  "We produced our final design at the Topshelf Orthopedics factory in Tracy, CA with the help of our mentor, Bob McCune.",
+];
 
 const LIMITUS_TIMELINE: { month: string; blocks: TimelineBlock[] }[] = [
   {
@@ -663,7 +665,7 @@ const LIMITUS_PAGE: { title: string; date?: string; meta?: string; blocks: Proje
   title: "Limitus",
   meta: "Project · Medical Device Design",
   date: "2025",
-  blocks: [{ kind: "text", text: LIMITUS_INTRO }],
+  blocks: LIMITUS_INTRO.map((text) => ({ kind: "text" as const, text })),
 };
 
 // The Closet articles shown in the GEO panel. Each is a self-contained page

@@ -410,10 +410,9 @@ const LIMITUS_TIMELINE: { month: string; blocks: TimelineBlock[] }[] = [
     blocks: [
       {
         kind: "text",
-        text: "We pitched the project to a panel of teachers, then started on research: how a TFCC tear happens, and what braces already exist. They sit at opposite ends, protective ones that barely let the wrist move and mobile ones that barely protect it.",
+        text: "We started by researching the biomechanics of a wrist brace and the movements that cause TFCC tears.",
       },
-      { kind: "photos", items: [{ src: "/limitus/feb-existing-braces.jpg", w: 1382, h: 1384, alt: "Existing wrist braces we compared" }] },
-      { kind: "text", text: "Our first two sketches came at the end of the month, rough ideas for where a brace should support the wrist and where it should leave it free." },
+      { kind: "text", text: "Our first two sketches provide a rough idea of where the brace should sit and how it'll influence wrist rotation." },
       {
         kind: "photos",
         items: [

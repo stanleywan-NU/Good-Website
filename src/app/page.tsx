@@ -267,7 +267,7 @@ function SideLabel({ text, children }: { text: string; children: React.ReactNode
             {text}
           </span>
         </div>
-        <div className="absolute top-0 right-0 bottom-0 w-px" style={{ backgroundColor: "currentColor", opacity: 0.25 }} />
+        <div className="absolute top-0 right-0 bottom-0 w-[3px] rounded-full" style={{ backgroundColor: "currentColor", opacity: 0.6 }} />
       </div>
       <h2 className="sr-only">{text}</h2>
       <div className="flex min-w-0 flex-1 flex-col gap-3">{children}</div>

@@ -257,8 +257,8 @@ function SideLabel({ text, children }: { text: string; children: React.ReactNode
       <div aria-hidden className="pointer-events-none absolute top-0 right-full bottom-0 mr-5 hidden min-[900px]:block">
         <div className="sticky top-28">
           <span
-            className="block text-4xl leading-none font-bold whitespace-nowrap"
-            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+            className="block text-[64px] leading-none font-bold whitespace-nowrap"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", letterSpacing: "0.14em" }}
           >
             {text}
           </span>

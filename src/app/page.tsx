@@ -279,25 +279,17 @@ function SideLabel({ text, children }: { text: string; children: React.ReactNode
 // its outfits, in the order they actually run in.
 const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
   {
-    name: "Caitlin Clark",
+    name: "Mbappe",
     images: [
-      "/caitlin-clark-carousel-cover.jpg",
-      "/caitlin-clark-carousel-2.jpg",
-      "/caitlin-clark-carousel-3.jpg",
-      "/caitlin-clark-carousel-4.jpg",
-      "/caitlin-clark-carousel-5.jpg",
-      "/caitlin-clark-carousel-6.jpg",
-    ],
-  },
-  {
-    name: "LeBron James",
-    images: [
-      "/lebron-james-carousel-cover.jpg",
-      "/lebron-james-carousel-2.jpg",
-      "/lebron-james-carousel-3.jpg",
-      "/lebron-james-carousel-4.jpg",
-      "/lebron-james-carousel-5.jpg",
-      "/lebron-james-carousel-6.jpg",
+      "/mbappe-carousel-cover.jpg",
+      "/mbappe-carousel-2.jpg",
+      "/mbappe-carousel-3.jpg",
+      "/mbappe-carousel-4.jpg",
+      "/mbappe-carousel-5.jpg",
+      "/mbappe-carousel-6.jpg",
+      "/mbappe-carousel-7.jpg",
+      "/mbappe-carousel-8.jpg",
+      "/mbappe-carousel-9.jpg",
     ],
   },
   {
@@ -312,17 +304,25 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
     ],
   },
   {
-    name: "Mbappe",
+    name: "LeBron James",
     images: [
-      "/mbappe-carousel-cover.jpg",
-      "/mbappe-carousel-2.jpg",
-      "/mbappe-carousel-3.jpg",
-      "/mbappe-carousel-4.jpg",
-      "/mbappe-carousel-5.jpg",
-      "/mbappe-carousel-6.jpg",
-      "/mbappe-carousel-7.jpg",
-      "/mbappe-carousel-8.jpg",
-      "/mbappe-carousel-9.jpg",
+      "/lebron-james-carousel-cover.jpg",
+      "/lebron-james-carousel-2.jpg",
+      "/lebron-james-carousel-3.jpg",
+      "/lebron-james-carousel-4.jpg",
+      "/lebron-james-carousel-5.jpg",
+      "/lebron-james-carousel-6.jpg",
+    ],
+  },
+  {
+    name: "Caitlin Clark",
+    images: [
+      "/caitlin-clark-carousel-cover.jpg",
+      "/caitlin-clark-carousel-2.jpg",
+      "/caitlin-clark-carousel-3.jpg",
+      "/caitlin-clark-carousel-4.jpg",
+      "/caitlin-clark-carousel-5.jpg",
+      "/caitlin-clark-carousel-6.jpg",
     ],
   },
 ];
@@ -2259,10 +2259,12 @@ export default function Home() {
                 ))}
                 </SideLabel>
 
-                {/* The three Closet articles stacked in a column, each a
-                    cover at its true proportions (uncropped) with its title
-                    beside it. Each opens the full piece in a new tab. */}
+                {/* The three Closet articles stacked in a column: the label and
+                    title above, then the cover at the full width of the strip
+                    (uncropped, true proportions). Each opens the full piece
+                    in a new tab. */}
                 <SideLabel text="GEO">
+                  <div className="flex flex-col gap-14">
                   {GEO_ARTICLES.map((article) => (
                     <a
                       key={article.href}
@@ -2270,25 +2272,26 @@ export default function Home() {
                       target="_blank"
                       rel="noopener noreferrer"
                       data-cursor-melt
-                      className="flex items-end gap-5 transition-[scale] duration-200 ease-out hover:scale-[1.01]"
+                      className="flex flex-col gap-3 transition-[scale] duration-200 ease-out hover:scale-[1.01]"
                     >
-                      <span className="block shrink-0 rounded-[20px] border p-2" style={{ ...projectFrameStyle(fg), width: "min(360px, 55%)" }}>
+                      <span className="flex flex-col gap-1 px-1">
+                        <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-70">The Closet</span>
+                        <span className="text-2xl leading-snug font-bold">{article.title}</span>
+                      </span>
+                      <span className="block rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
                         <Image
                           src={article.cover}
                           alt={article.title}
                           width={article.w}
                           height={article.h}
-                          sizes="(min-width: 768px) 344px, 50vw"
+                          sizes="(min-width: 768px) 704px, 100vw"
                           unoptimized
                           className="block h-auto w-full rounded-xl"
                         />
                       </span>
-                      <span className="flex min-w-0 flex-col gap-1 pb-2">
-                        <span className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-70">The Closet</span>
-                        <span className="text-xl leading-snug font-bold">{article.title}</span>
-                      </span>
                     </a>
                   ))}
+                  </div>
                 </SideLabel>
               </ProjectPage>
             ) : (

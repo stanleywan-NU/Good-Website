@@ -275,6 +275,57 @@ function SideLabel({ text, children }: { text: string; children: React.ReactNode
   );
 }
 
+// One row of photos from a project timeline. Several in a row share a
+// height (each is given flex-grow equal to its aspect ratio), so none are
+// cropped; a lone photo is capped in height and narrows to keep its shape.
+// A photo marked `video` is a short silent clip that loops on its own.
+function TimelinePhotos({ items, fg }: { items: TimelinePhoto[]; fg: string }) {
+  const single = items.length === 1;
+  return (
+    <div className="flex items-start gap-3">
+      {items.map((item) => (
+        <figure
+          key={item.src}
+          className="m-0 flex min-w-0 flex-col gap-2"
+          style={
+            single
+              ? { flex: "1 1 0%", maxWidth: Math.round((640 * item.w) / item.h) + 18 }
+              : { flex: `${item.w / item.h} 1 0%` }
+          }
+        >
+          <div className="rounded-[20px] border p-2" style={projectFrameStyle(fg)}>
+            {item.video ? (
+              <video
+                src={item.src}
+                poster={item.poster}
+                aria-label={item.alt}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                className="block h-auto w-full rounded-xl"
+                style={{ aspectRatio: `${item.w} / ${item.h}` }}
+              />
+            ) : (
+              <Image
+                src={item.src}
+                alt={item.alt}
+                width={item.w}
+                height={item.h}
+                sizes="(min-width: 768px) 672px, 100vw"
+                unoptimized
+                className="block h-auto w-full rounded-xl"
+              />
+            )}
+          </div>
+          {item.caption && <figcaption className="px-1 text-base opacity-70">{item.caption}</figcaption>}
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 // The six slides that make up each carousel — the cover plus the rest of
 // its outfits, in the order they actually run in.
 const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
@@ -327,65 +378,144 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
   },
 ];
 
-// The Limitus process, oldest to newest — one slide per stage, each with a
-// short title and a one-line caption, shown one after another on its page.
-// `w`/`h` are the photo's pixel size, so the popup can show each one whole.
-const LIMITUS_STEPS: { src: string; title: string; caption: string; w: number; h: number }[] = [
+// Limitus, month by month (February to May 2025). Each entry is the
+// month's label plus its writing and photos, in order. A row of photos
+// shares one height, each at its own true proportions; a lone photo is
+// capped in height so it doesn't fill the screen. Rows of two or three
+// are only used where the photos are tall enough to stay legible side by
+// side — wide screenshots and drawings are stacked instead.
+type TimelinePhoto = { src: string; w: number; h: number; alt: string; caption?: string; video?: boolean; poster?: string };
+type TimelineBlock = { kind: "text"; text: string } | { kind: "photos"; items: TimelinePhoto[] };
+
+const LIMITUS_INTRO =
+  "Limitus is a wrist brace for TFCC tears, an injury on the pinky side of the wrist. The braces on the market are either too loose to protect it or too rigid to live in, so Kyle Chen and I designed one in between as our senior project at Woodside Priory. We went through five prototypes, and the last was made at an orthopedics factory.";
+
+const LIMITUS_TIMELINE: { month: string; blocks: TimelineBlock[] }[] = [
   {
-    src: "/limitus/01-concept-sketch.jpg",
-    w: 1100,
-    h: 870,
-    title: "Concept sketch",
-    caption: "Stability where a Wrist Widget is too loose, freedom where a post-surgery brace is too stiff.",
+    month: "February",
+    blocks: [
+      {
+        kind: "text",
+        text: "We pitched the project to a panel of teachers, then started on research: how a TFCC tear happens, and what braces already exist. They sit at opposite ends, protective ones that barely let the wrist move and mobile ones that barely protect it.",
+      },
+      { kind: "photos", items: [{ src: "/limitus/feb-existing-braces.jpg", w: 1382, h: 1384, alt: "Existing wrist braces we compared" }] },
+      { kind: "text", text: "Our first two sketches came at the end of the month, rough ideas for where a brace should support the wrist and where it should leave it free." },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/feb-sketch-1.jpg", w: 1612, h: 2030, alt: "First rough brace sketch" },
+          { src: "/limitus/feb-sketch-2.jpg", w: 1280, h: 1012, alt: "Second rough brace sketch, three views" },
+        ],
+      },
+    ],
   },
   {
-    src: "/limitus/02-measured-drawing.jpg",
-    w: 1100,
-    h: 892,
-    title: "Measured drawing",
-    caption: "Dimensions and materials worked out: a neoprene body with velcro straps.",
+    month: "March",
+    blocks: [
+      {
+        kind: "text",
+        text: "Most of March was interviews. Bob White, a physical therapist who specializes in the wrist and hand and handled Kyle's rehab, told us TFCC tears happen at the end of pronation and supination. A good brace should be adjustable and limit the last 10 to 20 degrees of motion while leaving the middle 80% free.",
+      },
+      { kind: "photos", items: [{ src: "/limitus/mar-interview-bob-white.webp", w: 2000, h: 1119, alt: "Interview with Bob White" }] },
+      {
+        kind: "text",
+        text: "Eric Lin, an architect who taught at UCLA and was my lab leader at the Teenarch Summer Institute, took us through the double-diamond design process: research, define the problem, generate lots of ideas (bad ones included), and test them quickly.",
+      },
+      { kind: "photos", items: [{ src: "/limitus/mar-interview-eric-lin.jpg", w: 1280, h: 738, alt: "Interview with Eric Lin" }] },
+      {
+        kind: "text",
+        text: "We also found a mentor in Bob McCune, general manager of Top Shelf Orthopedics. After we met on March 27, we narrowed our sketches to a single design and bought two braces and a Wrist Widget to take apart.",
+      },
+      { kind: "photos", items: [{ src: "/limitus/mar-mentor-meeting.jpg", w: 1206, h: 1292, alt: "Meeting with our mentor" }] },
+      {
+        kind: "photos",
+        items: [{ src: "/limitus/mar-sketch-1.jpg", w: 1280, h: 977, alt: "Refined brace sketch" }],
+      },
+      {
+        kind: "photos",
+        items: [{ src: "/limitus/mar-sketch-2.jpg", w: 1280, h: 960, alt: "Refined brace sketch, second page" }],
+      },
+    ],
   },
   {
-    src: "/limitus/03-first-build.jpg",
-    w: 1079,
-    h: 1100,
-    title: "First build",
-    caption: "Cut and assembled from the parts of braces we bought.",
+    month: "April",
+    blocks: [
+      {
+        kind: "text",
+        text: "The first prototype was built from parts of the braces we bought. It supports ulnar deviation, compresses the ulna and radius, and adds slight resistance to supination.",
+      },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/apr-prototype-1a.jpg", w: 1280, h: 1707, alt: "First prototype, worn" },
+          { src: "/limitus/apr-prototype-1b.jpg", w: 1280, h: 1707, alt: "First prototype, side view" },
+        ],
+      },
+      {
+        kind: "text",
+        text: "Mr. McCune gave us feedback and sent materials. We cut the loop around the thumb from the sketch, since it could limit movement or press on nerves, and built a second prototype from the raw materials.",
+      },
+      { kind: "photos", items: [{ src: "/limitus/apr-revised-sketch.jpg", w: 1280, h: 1030, alt: "Revised sketch without the thumb loop" }] },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/apr-workspace.jpg", w: 1280, h: 1305, alt: "Our workspace and materials" },
+          { src: "/limitus/apr-cut-pieces.jpg", w: 1280, h: 1813, alt: "Second prototype cut from raw materials" },
+        ],
+      },
+    ],
   },
   {
-    src: "/limitus/04-prototype-1.jpg",
-    w: 825,
-    h: 1100,
-    title: "Prototype 1",
-    caption: "Ulnar deviation support, compression, and slight resistance to supination.",
-  },
-  {
-    src: "/limitus/05-revised-sketch.jpg",
-    w: 809,
-    h: 1100,
-    title: "Revised sketch",
-    caption: "Updated with mentor feedback: the thumb loop came out.",
-  },
-  {
-    src: "/limitus/06-prototype-2.jpg",
-    w: 777,
-    h: 1100,
-    title: "Prototype 2",
-    caption: "Rebuilt from materials supplied by our mentor.",
-  },
-  {
-    src: "/limitus/07-prototype-3-4.jpg",
-    w: 730,
-    h: 1100,
-    title: "Prototypes 3 & 4",
-    caption: "One piece instead of a base plus wings, wider straps, D-rings overlapping the fabric.",
-  },
-  {
-    src: "/limitus/08-final.jpg",
-    w: 960,
-    h: 1100,
-    title: "The final brace",
-    caption: "Compresses the ulna and radius and limits supination.",
+    month: "May",
+    blocks: [
+      {
+        kind: "text",
+        text: "Two more prototypes followed. The third is one piece instead of a base with wings, with thicker straps and a wider fit up the forearm. The fourth is wider still, drops the wing nearest the elbow, widens the back strap, and overlaps the D-rings with fabric to make them more comfortable.",
+      },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/may-prototype-3.jpg", w: 1280, h: 1929, alt: "Third prototype", caption: "Third prototype" },
+          { src: "/limitus/may-prototype-4.jpg", w: 1280, h: 1707, alt: "Fourth prototype", caption: "Fourth prototype" },
+        ],
+      },
+      { kind: "text", text: "We finished with a measured drawing of the final design and sent it to Mr. McCune, who helped us get it made at the Top Shelf Orthopedics factory in Tracy, California." },
+      { kind: "photos", items: [{ src: "/limitus/may-drawing-1.jpg", w: 1280, h: 1038, alt: "Final design drawing with measurements" }] },
+      { kind: "photos", items: [{ src: "/limitus/may-drawing-2.jpg", w: 1280, h: 1038, alt: "Final design drawing, second view" }] },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/may-factory-floor.jpg", w: 1024, h: 768, alt: "The Top Shelf Orthopedics factory floor" },
+          { src: "/limitus/may-factory-cutter.jpg", w: 768, h: 1024, alt: "The cutting machine used for our brace" },
+        ],
+      },
+      {
+        kind: "text",
+        text: "The final brace compresses the ulna and radius and limits supination, the hardest part. We set out to design a brace and ended up with a finished one.",
+      },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/final-brace.mp4", poster: "/limitus/final-brace-poster.jpg", w: 1080, h: 1920, alt: "The final brace on a hand", video: true },
+          { src: "/limitus/final-0.jpg", w: 1280, h: 1467, alt: "The final brace, top view" },
+        ],
+      },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/final-1.jpg", w: 1280, h: 1467, alt: "The final brace, angled" },
+          { src: "/limitus/final-2.jpg", w: 1280, h: 1467, alt: "The final brace, front" },
+        ],
+      },
+      {
+        kind: "photos",
+        items: [
+          { src: "/limitus/final-3.jpg", w: 1280, h: 1707, alt: "The final brace, back" },
+          { src: "/limitus/final-4.jpg", w: 1280, h: 1707, alt: "The final brace, straps" },
+          { src: "/limitus/final-5.jpg", w: 1280, h: 1707, alt: "The final brace, side" },
+        ],
+      },
+    ],
   },
 ];
 
@@ -532,9 +662,8 @@ const BORDERX_PAGE: { title: string; date?: string; meta?: string; blocks: Proje
 const LIMITUS_PAGE: { title: string; date?: string; meta?: string; blocks: ProjectBlock[] } = {
   title: "Limitus",
   meta: "Project · Medical Device Design",
-  blocks: [
-    { kind: "text", text: "A wrist brace for TFCC tears — five prototypes in five months." },
-  ],
+  date: "2025",
+  blocks: [{ kind: "text", text: LIMITUS_INTRO }],
 };
 
 // The Closet articles shown in the GEO panel. Each is a self-contained page
@@ -2330,33 +2459,24 @@ export default function Home() {
           >
             {expandedIndex === 3 && expandSettled ? (
               <ProjectPage page={LIMITUS_PAGE} fg={fg}>
-                {/* The process, oldest to newest, one step after another:
-                    a heading, the photo whole at its own proportions, and
-                    the caption. Tall photos are capped in height (so one
-                    doesn't fill several screens) and keep their shape by
-                    narrowing, rather than cropping. */}
-                {LIMITUS_STEPS.map((step, i) => (
-                  <section key={step.src} className="flex flex-col gap-4">
-                    <h3 className="mt-4 text-2xl font-bold">
-                      <span className="mr-3 opacity-50">{i + 1}</span>
-                      {step.title}
-                    </h3>
-                    <div
-                      className="rounded-[20px] border p-2"
-                      style={{ ...projectFrameStyle(fg), maxWidth: Math.min(704, Math.round((640 * step.w) / step.h) + 18) }}
-                    >
-                      <Image
-                        src={step.src}
-                        alt={step.title}
-                        width={step.w}
-                        height={step.h}
-                        sizes="(min-width: 768px) 704px, 100vw"
-                        unoptimized
-                        className="block h-auto w-full rounded-xl"
-                      />
-                    </div>
-                    <p className="pl-[9px] text-xl leading-snug">{step.caption}</p>
-                  </section>
+                {/* The project month by month, oldest first: each month is a
+                    sideways label with a rule, then its writing and photos. */}
+                {LIMITUS_TIMELINE.map((entry) => (
+                  <div key={entry.month} className="mt-6">
+                    <SideLabel text={entry.month}>
+                      <div className="flex flex-col gap-6">
+                        {entry.blocks.map((block, i) =>
+                          block.kind === "text" ? (
+                            <p key={i} className="pl-[9px] text-xl leading-snug">
+                              {block.text}
+                            </p>
+                          ) : (
+                            <TimelinePhotos key={i} items={block.items} fg={fg} />
+                          ),
+                        )}
+                      </div>
+                    </SideLabel>
+                  </div>
                 ))}
               </ProjectPage>
             ) : (

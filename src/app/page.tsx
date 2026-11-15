@@ -387,9 +387,15 @@ const CAROUSEL_DECKS: { name: string; images: string[] }[] = [
 type TimelinePhoto = { src: string; w: number; h: number; alt: string; caption?: string; video?: boolean; poster?: string };
 type TimelineBlock = { kind: "text"; text: string } | { kind: "photos"; items: TimelinePhoto[] };
 
-const LIMITUS_INTRO = [
+const LIMITUS_INTRO: React.ReactNode[] = [
   "Limitus is a wrist brace for Triangular Fibrocartilage Complex (TFCC) tears, an injury on the pinky side of the wrist. Braces on the market are either too loose to stabilize it or too rigid to move in, so Kyle Chen and I designed one that could cover the best of both worlds.",
-  "We produced our final design at the Topshelf Orthopedics factory in Tracy, CA with the help of our mentor, Bob McCune.",
+  <>
+    We produced our final design at the{" "}
+    <a href="https://www.topshelfortho.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+      Topshelf Orthopedics
+    </a>{" "}
+    factory in Tracy, CA with the help of our mentor, Bob McCune.
+  </>,
 ];
 
 const LIMITUS_TIMELINE: { month: string; blocks: TimelineBlock[] }[] = [

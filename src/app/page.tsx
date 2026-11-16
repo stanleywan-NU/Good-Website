@@ -398,7 +398,7 @@ const LIMITUS_INTRO: React.ReactNode[] = [
   <>
     We produced our final design at the{" "}
     <a href="https://www.topshelfortho.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
-      Topshelf Orthopedics
+      Top Shelf Orthopedics
     </a>{" "}
     factory in Tracy, CA with the help of our mentor, Bob McCune.
   </>,
@@ -437,7 +437,7 @@ const LIMITUS_TIMELINE: { month: string; blocks: TimelineBlock[] }[] = [
       { kind: "photos", items: [{ src: "/limitus/mar-interview-eric-lin.jpg", w: 1280, h: 738, alt: "Interview with Eric Lin" }] },
       {
         kind: "text",
-        text: "We then found a mentor, Bob McCune of Top Shelf Orthopedics. After meeting him on March 27, we narrowed our sketches to a single design.",
+        text: "We also met weekly with our mentor Bob McCune, the general manager of Top Shelf Orthopedics. He gave us feedback and sent us materials to build our prototypes.",
       },
       { kind: "photos", items: [{ src: "/limitus/mar-mentor-meeting.jpg", w: 1206, h: 1292, alt: "Meeting with our mentor" }] },
       {

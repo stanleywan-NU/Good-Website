@@ -432,7 +432,7 @@ const LIMITUS_TIMELINE: { month: string; blocks: TimelineBlock[] }[] = [
       { kind: "photos", items: [{ src: "/limitus/mar-interview-bob-white.webp", w: 2000, h: 1119, alt: "Interview with Bob White" }] },
       {
         kind: "text",
-        text: "Our second interview was with Eric Lin, an architect who taught at UCLA. He walked us through the double-diamond design process and how to apply it to designing the brace.",
+        text: "Our second interview was with Eric Lin, an architectural designer who taught at UCLA. He walked us through the double-diamond design process and how to apply it to designing the brace.",
       },
       { kind: "photos", items: [{ src: "/limitus/mar-interview-eric-lin.jpg", w: 1280, h: 738, alt: "Interview with Eric Lin" }] },
       {

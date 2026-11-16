@@ -427,17 +427,17 @@ const LIMITUS_TIMELINE: { month: string; blocks: TimelineBlock[] }[] = [
     blocks: [
       {
         kind: "text",
-        text: "Most of March was interviews. Bob White, a physical therapist who specializes in the wrist and hand and handled Kyle's rehab, told us TFCC tears happen at the end of pronation and supination. A good brace should be adjustable and limit the last 10 to 20 degrees of motion while leaving the middle 80% free.",
+        text: "Our first interview was with Robert White, a physical therapist who specializes in the wrist and hand. He told us that TFCC tears happen at the end of pronation and supination. A good brace should be adjustable and limit the last 10 to 20 degrees of motion while leaving the middle 80% free.",
       },
       { kind: "photos", items: [{ src: "/limitus/mar-interview-bob-white.webp", w: 2000, h: 1119, alt: "Interview with Bob White" }] },
       {
         kind: "text",
-        text: "Eric Lin, an architect who taught at UCLA and was my lab leader at the Teenarch Summer Institute, took us through the double-diamond design process: research, define the problem, generate lots of ideas (bad ones included), and test them quickly.",
+        text: "Our second interview was with Eric Lin, an architect who taught at UCLA. He walked us through the double-diamond design process.",
       },
       { kind: "photos", items: [{ src: "/limitus/mar-interview-eric-lin.jpg", w: 1280, h: 738, alt: "Interview with Eric Lin" }] },
       {
         kind: "text",
-        text: "We also found a mentor in Bob McCune, general manager of Top Shelf Orthopedics. After we met on March 27, we narrowed our sketches to a single design and bought two braces and a Wrist Widget to take apart.",
+        text: "We then found a mentor, Bob McCune of Top Shelf Orthopedics. After meeting him on March 27, we narrowed our sketches to a single design.",
       },
       { kind: "photos", items: [{ src: "/limitus/mar-mentor-meeting.jpg", w: 1206, h: 1292, alt: "Meeting with our mentor" }] },
       {
